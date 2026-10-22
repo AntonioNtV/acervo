@@ -23,7 +23,7 @@ Exemplar: `repositories/node.py`.
 Only what a caller uses is there; add a generic method (pdflab's `list`, `paginate`, `exists`, `delete`) with its
 first caller.
 
-Rules: no `commit` inside a repository; an unknown filter or order column → `ValidationError`; `IntegrityError` on
+Rules: no `commit` inside a repository; an unknown filter column → `ValidationError`; `IntegrityError` on
 a unique constraint → `ConflictError` naming the constraint in `details`. Rows are always live unless the query
 says otherwise: every query of live nodes filters `deleted_at is null`.
 
