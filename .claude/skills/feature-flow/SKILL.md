@@ -36,8 +36,8 @@ answer; ask about intent, rules and priority, never what reading the code answer
 
 ## 2. Exploration
 
-Read what the feature touches before designing: the concept's module, the agent that uses it, the decisions it
-asks (decision log, `config.Thresholds`), the store, the tests and evals covering the area and the closest similar
+Read what the feature touches before designing: the service and the layers under it, the agent that uses it, the decisions it
+asks (decision log, `Thresholds`), the repositories, the tests and evals covering the area and the closest similar
 feature (it becomes the exemplar). Skill
 `repo-structure` says where things live. For wide sweeps, use `Explore` agents in parallel and keep the conclusion.
 
@@ -58,7 +58,7 @@ Split the spec into cards from [templates/card.md](templates/card.md), one file 
 - **Wave 0** holds what the others consume: migration, models, proposal kinds, question types, thresholds, shared
   Pydantic models. It runs alone, first.
 - **Exclusive files.** Two cards of the same wave never touch the same file. Files everyone edits
-  (`config.py`, `store/models.py`, `api/models.py`, `proposals/models.py`) go in wave 0
+  (`core/settings.py`, `db/models/__init__.py`, `repositories/uow.py`, `api/main.py`) go in wave 0
   or in a final wiring card.
 - **Size.** One card is one concept or a thin slice. More than 10 cards is two features.
 - **Tests are decided here.** Each card names the tests and where (skill `testing`), or "none" and why. A card

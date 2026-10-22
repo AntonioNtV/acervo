@@ -18,11 +18,11 @@ options are described or a threshold is not done until its eval ran before and a
 Start with 50 real messages and 30 real PDFs from the person's own work; synthetic cases only fill gaps.
 
 ```bash
-cd python
-uv run acervo evals run placement --decider jev
-uv run acervo evals run placement --decider llm      # same cases, LLM fallback
-uv run acervo evals run qa
-uv run acervo evals calibrate                         # from decision_log + proposal outcomes
+# from the repository root
+uv run python scripts/evals.py run placement --decider jev
+uv run python scripts/evals.py run placement --decider llm      # same cases, LLM fallback
+uv run python scripts/evals.py run qa
+uv run python scripts/evals.py calibrate                         # from decision_log + proposal outcomes
 ```
 
 Results go to `evals/results/<date>-<set>-<decider>.json`; the runner prints a comparison with the previous run.
@@ -40,6 +40,6 @@ Results go to `evals/results/<date>-<set>-<decider>.json`; the runner prints a c
 
 ## Calibrating thresholds
 
-`evals calibrate` joins every logged decision with what the person did to the proposal it produced (accepted,
+`calibrate` joins every logged decision with what the person did to the proposal it produced (accepted,
 edited, rejected with a reason) and prints, per threshold, the accuracy and coverage at each cut-off. Change the
-default in `config.Thresholds` only from that table, and write the run's file name in the commit message.
+default in `Thresholds` (`core/settings.py`) only from that table, and write the run's file name in the commit message.

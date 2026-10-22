@@ -8,16 +8,21 @@ description: The agent that files things in Acervo - turning a chat message or a
 Input: a message in Capturar mode, or a PDF dropped in the chat or a folder. Output: one proposal (skill
 `proposals`), or a question to the person, or "already written". The Curator never writes to a base.
 
+The agent is computation in `pipeline/curator/`: it gets the input, the tree it needs, a `Decider` and a `Writer`
+(skill `repo-structure`) and returns the proposal to build. `services/curation_service.py` reads the tree through
+the `UnitOfWork`, runs it, stores the proposal and the decision log, and commits; `worker/pdf_intake.py` calls it
+for a dropped PDF.
+
 | Step | Who | File |
 |---|---|---|
-| 1. card of the input | LLM `card` | `curator/card.py` |
-| 2. options of the current level | code | `curator/options.py` |
-| 3. descent, beam of 2 | Jev `Choice` per level | `curator/descent.py` |
-| 4. page check (text only) | Jev, one call: `covered` `Noul`, `contradicts` `Noul`, `section` `Choice` | `curator/page_check.py` |
-| 5. PDF version check (PDF only) | Jev `Noul` per PDF already in the folder | `curator/pdf_check.py` |
-| 6. policy | code, `config.Thresholds` | `curator/policy.py` |
-| 7. patch (text only) | LLM `patch` | `curator/build.py` |
-| 8. proposal | code | `curator/build.py` |
+| 1. card of the input | LLM `card` | `pipeline/curator/card.py` |
+| 2. options of the current level | code | `pipeline/curator/options.py` |
+| 3. descent, beam of 2 | Jev `Choice` per level | `pipeline/curator/descent.py` |
+| 4. page check (text only) | Jev, one call: `covered` `Noul`, `contradicts` `Noul`, `section` `Choice` | `pipeline/curator/page_check.py` |
+| 5. PDF version check (PDF only) | Jev `Noul` per PDF already in the folder | `pipeline/curator/pdf_check.py` |
+| 6. policy | code, `Thresholds` (`core/settings.py`) | `pipeline/curator/policy.py` |
+| 7. patch (text only) | LLM `patch` | `pipeline/curator/build.py` |
+| 8. proposal | code | `pipeline/curator/build.py` |
 
 ## The descent
 
@@ -58,5 +63,5 @@ plus "none of these"; when "none of these" wins, the person is asked. There is n
 
 ## Tests
 
-Policy: one test per row of the table with a `FakeDecider` (skill `testing`). Descent: a tree fixture and fixed
+Policy: one test per row of the table with a `FakeDecider`, in `tests/pipeline/curator/` (skill `testing`). Descent: a tree fixture and fixed
 probabilities, asserting the path and the second path. Real placement quality is measured in `evals`, not in tests.

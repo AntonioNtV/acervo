@@ -1,5 +1,6 @@
 export const ptBR = {
   network: "Sem conexão com o servidor. Tente de novo.",
+  unauthorized: "A API recusou a chave. Confira VITE_API_KEY em web/.env.local.",
   invalid: "O pedido não foi aceito. Confira e tente de novo.",
   notFound: "Não encontrado: não existe ou foi para a Lixeira.",
   conflict: "Isso conflita com o que já existe.",
@@ -9,6 +10,7 @@ export const ptBR = {
 
 export const en: Record<keyof typeof ptBR, string> = {
   network: "No connection to the server. Try again.",
+  unauthorized: "The API refused the key. Check VITE_API_KEY in web/.env.local.",
   invalid: "The request was not accepted. Check it and try again.",
   notFound: "Not found: it does not exist or went to the Trash.",
   conflict: "This conflicts with what already exists.",

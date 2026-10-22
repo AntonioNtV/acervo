@@ -19,28 +19,34 @@ The feature folder (`.work/<slug>/`) and the base branch. Read `CLAUDE.md`, `spe
 3. A broken rule of `CLAUDE.md`:
    - a PDF converted to Markdown, its text stored as page content, or a PDF proposal targeting a page;
    - chunks, embeddings, a vector index or a similarity search anywhere;
-   - a write to pages, files or folders outside `proposals/apply.py`, or before a proposal is accepted;
-   - a threshold in a prompt or a question, or a literal cut-off outside `config.Thresholds`;
+   - an agent's write to pages, files or folders outside `services/proposal_service.py`, or before a proposal is
+     accepted; a write of the person's outside a service;
+   - a threshold in a prompt or a question, or a literal cut-off outside `Thresholds` (`core/settings.py`);
    - a Jev call that is not logged, or that sends one question per call when several share the state.
 4. The LLM deciding (choosing a folder, judging relevance, deciding to stop) where Jev should.
-5. An import against the order in skill `repo-structure`.
-6. A change to the HTTP contract the spec did not ask for, or one without `pnpm gen:api` in the same delivery.
-7. Out of the cards' scope; excess (a comment narrating code, new markdown, a test the card did not ask for); a
+5. Layering: `api/` touching `db/`, `repositories/`, `pipeline/` or `model_clients/`; `pipeline/` touching the
+   database or services; an ORM object leaving `repositories/`; a commit inside a repository; logic in a router.
+6. Data: a table change without its Alembic migration, a migration without a working `downgrade`, a renamed
+   stored constraint, a transaction held open across a Jev or LLM call.
+7. A change to the HTTP contract the spec did not ask for, an error without its code, or one without
+   `make openapi` in the same delivery.
+8. Out of the cards' scope; excess (a comment narrating code, new markdown, a test the card did not ask for); a
    removed comment that recorded a why the next edit would break.
 
 Style, refactoring, extra tests and error handling for cases that do not happen stay out.
 
 ## Checks you may run
 
-From `python/`: `uv run ruff check`, `uv run ruff format --check`, `uv run lint-imports`, `uv run pytest <area>`.
-For `web/`, the checks of skill `web-app`.
+From the repository root: `make lint` (ruff, format, mypy strict), `uv run pytest <area>`,
+`uv run pytest tests/unit/test_layering.py tests/migrations`, `make test` for the coverage floor. For `web/`,
+`make web-check` (skill `ui-web`).
 
 ## Output
 
 A list, most severe first:
 
 ```
-[high|medium] python/src/acervo/path.py:123 — <the problem>
+[high|medium] src/acervo/path.py:123 — <the problem>
   scenario: <concrete input or state → wrong result>
   affects: <card NN / spec criterion / CLAUDE.md rule>
 ```

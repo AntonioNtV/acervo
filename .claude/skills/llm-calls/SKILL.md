@@ -10,10 +10,13 @@ Jev decisions (skill `jev-decisions`).
 
 | Piece | File | What it is |
 |---|---|---|
-| writer | `llm/writer.py` | one method per role, typed input and output |
-| prompts | `llm/prompts/<role>.md` | the prompt of each role, in pt-BR, with `{placeholders}` |
-| models | `config.py` (`LlmRoles`) | which model serves each role |
-| vision | `llm/vision.py` | reading a PDF page image (tables, scanned pages) |
+| writer | `model_clients/writer.py` | the `Writer` protocol and its client: one method per role, typed input and output |
+| prompts | `model_clients/prompts/<role>.md` | the prompt of each role, in pt-BR, with `{placeholders}` |
+| models | `core/settings.py` (`LlmRoles`) | which model serves each role |
+| vision | `model_clients/vision.py` | reading a PDF page image (tables, scanned pages) |
+| fake | `model_clients/fakes.py` | `FakeWriter`: fixed outputs per role, records inputs (skill `testing`) |
+
+Inputs and outputs are `domain/` types; the pipeline calls the `Writer`, never a service or the database.
 
 ## Roles
 

@@ -7,18 +7,22 @@ description: The agent that answers questions in Acervo by navigation, without c
 
 Answers a question the way a person would: pick the folder, open the file, look at the PDF's sections, read the
 pages, check if it is enough. There is no index of chunks and no vector search. If you are about to add one, stop:
-it breaks rule 2 of `CLAUDE.md`.
+it breaks the "no chunks, no embeddings" rule of `CLAUDE.md`.
 
 The trigram index on node titles (skill `creating-migrations`) serves the person's name filter in the tree. It
 matches titles only, never content, and no agent tool uses it: the Navigator finds things by descending.
 
+The agent is computation in `pipeline/navigator/`: it gets the question, a `Decider`, a `Writer` and the tools as
+callables, and returns the answer. `services/question_service.py` builds the tools on the `UnitOfWork` and
+`Storage`, runs the loop, writes the decision log and sends the progress events.
+
 | Piece | File |
 |---|---|
-| tools | `navigator/tools.py` |
-| loop and budget | `navigator/loop.py` |
-| questions to Jev | `navigator/questions.py` |
-| citations and the claim check | `navigator/answer.py` |
-| progress events to the chat | `navigator/events.py` (`nav.step` on the websocket) |
+| tools (signatures; the service binds them) | `pipeline/navigator/tools.py` |
+| loop and budget | `pipeline/navigator/loop.py` |
+| questions to Jev | `pipeline/navigator/questions.py` |
+| citations and the claim check | `pipeline/navigator/answer.py` |
+| progress events to the chat | `schemas/events.py` (`nav.step` on the websocket), sent by `services/question_service.py` |
 
 ## Tools
 
@@ -46,7 +50,7 @@ matches titles only, never content, and no agent tool uses it: the Navigator fin
 6. **Answer**: LLM `answer` with the kept passages only; split into claims; one `claim_supported` `Noul` per claim;
    unsupported claims are removed.
 
-## Budget (`config.NavigatorBudget`)
+## Budget (`NavigatorBudget` in `core/settings.py`)
 
 At most 3 expansion rounds, 25 pages read, 30 Jev questions per question asked. Out of budget without enough:
 "Não encontrei", listing where it looked, with "Procurar no PDF inteiro" and "Ensinar a resposta" (which opens
@@ -55,4 +59,4 @@ Capturar with the question).
 ## Citations
 
 Every claim carries a marker that resolves to a `Citation`: a page with its section anchor, or a PDF with its page
-number. The web app opens the original PDF at that page (skill `web-app`).
+number. The web app opens the original PDF at that page (skill `ui-web`).

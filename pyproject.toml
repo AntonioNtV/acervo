@@ -1,0 +1,64 @@
+[project]
+name = "acervo"
+version = "0.1.0"
+description = "Knowledge bases with a side chat that files what you drop in it."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2",
+    "asyncpg",
+    "alembic",
+    "pydantic-settings",
+    "aioboto3",
+    "pymupdf",
+    "python-multipart",
+    "uuid6>=2025.0.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "mypy>=2.4.0",
+    "pytest-cov>=7.1.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+# Markdown holds skills and docs, not code to format.
+extend-exclude = ["*.md"]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["aioboto3", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+fail_under = 85

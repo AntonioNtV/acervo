@@ -4,25 +4,7 @@
  */
 
 export interface paths {
-    "/kbs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Kbs */
-        get: operations["list_kbs_kbs_get"];
-        put?: never;
-        /** Create Kb */
-        post: operations["create_kb_kbs_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}": {
+    "/v1/files/{node_id}/link": {
         parameters: {
             query?: never;
             header?: never;
@@ -31,278 +13,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post?: never;
-        /** Trash Kb */
-        delete: operations["trash_kb_kbs__kb_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Kb */
-        patch: operations["update_kb_kbs__kb_id__patch"];
-        trace?: never;
-    };
-    "/trash/kbs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Trashed Kbs */
-        get: operations["list_trashed_kbs_trash_kbs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Kb */
-        post: operations["restore_kb_kbs__kb_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/children": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Children */
-        get: operations["children_kbs__kb_id__children_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Search Nodes */
-        get: operations["search_nodes_kbs__kb_id__search_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/trash": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Trash */
-        get: operations["list_trash_kbs__kb_id__trash_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/nodes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Create Node */
-        post: operations["create_node_kbs__kb_id__nodes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Node */
-        get: operations["get_node_nodes__node_id__get"];
-        /** Save Page */
-        put: operations["save_page_nodes__node_id__put"];
-        post?: never;
-        /** Trash Node */
-        delete: operations["trash_node_nodes__node_id__delete"];
-        options?: never;
-        head?: never;
-        /** Rename Node */
-        patch: operations["rename_node_nodes__node_id__patch"];
-        trace?: never;
-    };
-    "/nodes/{node_id}/move": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Move Node */
-        post: operations["move_node_nodes__node_id__move_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Node */
-        post: operations["restore_node_nodes__node_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}/draft": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Put Draft */
-        put: operations["put_draft_nodes__node_id__draft_put"];
-        post?: never;
-        /** Discard Draft */
-        delete: operations["discard_draft_nodes__node_id__draft_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
         /**
-         * List Versions
-         * @description A page's versions, newest first. A file's older contents, newest first; its current one is the node.
+         * File Link
+         * @description A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.
          */
-        get: operations["list_versions_nodes__node_id__versions_get"];
-        put?: never;
-        post?: never;
+        post: operations["file_link_v1_files__node_id__link_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/nodes/{node_id}/versions/{version_id}/diff": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Version Diff */
-        get: operations["version_diff_nodes__node_id__versions__version_id__diff_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}/versions/{version_id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Restore Version */
-        post: operations["restore_version_nodes__node_id__versions__version_id__restore_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/kbs/{kb_id}/files": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Upload File */
-        post: operations["upload_file_kbs__kb_id__files_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/nodes/{node_id}/file": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Replace File */
-        post: operations["replace_file_nodes__node_id__file_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/files/{node_id}/raw": {
+    "/v1/files/{node_id}/raw": {
         parameters: {
             query?: never;
             header?: never;
@@ -312,10 +34,412 @@ export interface paths {
         /**
          * Raw File
          * @description The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.
+         *
+         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.
          */
-        get: operations["raw_file_files__node_id__raw_get"];
+        get: operations["raw_file_v1_files__node_id__raw_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/files/{node_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List File Versions */
+        get: operations["list_file_versions_v1_files__node_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/files/{node_id}/versions/{version_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore File Version */
+        post: operations["restore_file_version_v1_files__node_id__versions__version_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health */
+        get: operations["health_v1_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Kbs
+         * @description Live bases, most recently edited first; `q` filters by name, ignoring case and accents.
+         */
+        get: operations["list_kbs_v1_kbs_get"];
+        put?: never;
+        /** Create Kb */
+        post: operations["create_kb_v1_kbs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Trashed Kbs
+         * @description Bases in the trash, most recently trashed first.
+         */
+        get: operations["list_trashed_kbs_v1_kbs_trash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Trash Kb
+         * @description Moves the base to the trash; it comes back intact with restore.
+         */
+        delete: operations["trash_kb_v1_kbs__kb_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Kb */
+        patch: operations["update_kb_v1_kbs__kb_id__patch"];
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/children": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Children
+         * @description Live children of a folder, or of the base's root when `parent_id` is left out, in the person's order.
+         */
+        get: operations["list_children_v1_kbs__kb_id__children_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload File */
+        post: operations["upload_file_v1_kbs__kb_id__files_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Node
+         * @description A new folder, or a page with an empty first version.
+         */
+        post: operations["create_node_v1_kbs__kb_id__nodes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Kb */
+        post: operations["restore_kb_v1_kbs__kb_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Nodes
+         * @description Live nodes whose title contains `q`, ignoring case and accents, closest first.
+         */
+        get: operations["search_nodes_v1_kbs__kb_id__search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/trash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Trash
+         * @description One item per trashing, most recent first, with where it was; what was under it went with it.
+         */
+        get: operations["list_trash_v1_kbs__kb_id__trash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Node
+         * @description The live node with its path, and a page's text or a file's current content.
+         */
+        get: operations["get_node_v1_nodes__node_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Trash Node
+         * @description Moves the node and everything under it to its base's trash.
+         */
+        delete: operations["trash_node_v1_nodes__node_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename Node
+         * @description Renaming a page also fixes the `[[…]]` links that resolved to it, each as a new version of its page.
+         */
+        patch: operations["rename_node_v1_nodes__node_id__patch"];
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Replace File */
+        post: operations["replace_file_v1_nodes__node_id__file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Move Node */
+        post: operations["move_node_v1_nodes__node_id__move_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Node */
+        post: operations["restore_node_v1_nodes__node_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Page */
+        get: operations["get_page_v1_pages__node_id__get"];
+        /**
+         * Save Page
+         * @description A new whole-file version. A 409 `stale_page` carries the current version, its text and the diff from the base
+         *     in `details`.
+         */
+        put: operations["save_page_v1_pages__node_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Draft */
+        put: operations["put_draft_v1_pages__node_id__draft_put"];
+        post?: never;
+        /** Discard Draft */
+        delete: operations["discard_draft_v1_pages__node_id__draft_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Page Versions
+         * @description The page's versions, newest first, without their text.
+         */
+        get: operations["list_page_versions_v1_pages__node_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/versions/{version_id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Page Version Diff */
+        get: operations["page_version_diff_v1_pages__node_id__versions__version_id__diff_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/versions/{version_id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restore Page Version */
+        post: operations["restore_page_version_v1_pages__node_id__versions__version_id__restore_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -326,62 +450,26 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** Body_replace_file_nodes__node_id__file_post */
-        Body_replace_file_nodes__node_id__file_post: {
+        /** Body_replace_file_v1_nodes__node_id__file_post */
+        Body_replace_file_v1_nodes__node_id__file_post: {
             /** File */
             file: string;
         };
-        /** Body_upload_file_kbs__kb_id__files_post */
-        Body_upload_file_kbs__kb_id__files_post: {
+        /** Body_upload_file_v1_kbs__kb_id__files_post */
+        Body_upload_file_v1_kbs__kb_id__files_post: {
             /** File */
             file: string;
-            /** Parent Id */
-            parent_id?: string | null;
-        };
-        /**
-         * CreateKbRequest
-         * @description A new base.
-         */
-        CreateKbRequest: {
-            /**
-             * Name
-             * @description The base's name; cannot be empty.
-             */
-            name: string;
-            /**
-             * Description
-             * @description What the base holds.
-             * @default
-             */
-            description: string;
-        };
-        /**
-         * CreateNodeRequest
-         * @description A new folder or page; a page starts with an empty first version.
-         */
-        CreateNodeRequest: {
             /**
              * Parent Id
-             * @description The folder to create it in; null for the base's root.
+             * @description Folder to save into; omitted for the base's root.
              */
             parent_id?: string | null;
-            /**
-             * Kind
-             * @description What to create. Files come from an upload.
-             * @enum {string}
-             */
-            kind: "folder" | "page";
-            /**
-             * Title
-             * @description Its title; no sibling of the same kind may have it already.
-             */
-            title: string;
         };
         /**
-         * DiffLineResponse
+         * DiffLine
          * @description One line of a difference between two texts, in reading order.
          */
-        DiffLineResponse: {
+        DiffLine: {
             /**
              * Op
              * @description In both texts, only in the new one or only in the old.
@@ -395,72 +483,150 @@ export interface components {
             text: string;
         };
         /**
-         * DiffResponse
-         * @description A page version against the one before it.
+         * DraftPut
+         * @description The draft of a page, replacing the previous one.
          */
-        DiffResponse: {
+        DraftPut: {
             /**
-             * Lines
-             * @description Every line of both versions, in reading order.
+             * Base Version Id
+             * Format: uuid
+             * @description The version the person is editing.
              */
-            lines: components["schemas"]["DiffLineResponse"][];
-        };
-        /**
-         * DraftResponse
-         * @description The page's single autosaved draft. Never a version.
-         */
-        DraftResponse: {
+            base_version_id: string;
             /**
              * Markdown
              * @description The draft's whole text.
              */
             markdown: string;
-            /**
-             * Base Version Id
-             * Format: uuid
-             * @description The version the person was editing.
-             */
-            base_version_id: string;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description When it was last autosaved.
-             */
-            updated_at: string;
         };
         /**
          * ErrorResponse
-         * @description Every error the API answers with, whatever its status.
+         * @description Body of every error response.
          */
         ErrorResponse: {
             /**
+             * Details
+             * @description Extra context about the error.
+             */
+            details?: {
+                [key: string]: unknown;
+            };
+            /**
              * Error
-             * @description The error's class: ValidationError, NotFoundError, ConflictError, …
+             * @description Error code: not_found, conflict, validation, unauthorized, decision_unavailable, or one the screens tell apart: title_taken, duplicate, stale_page, same_file.
              */
             error: string;
             /**
              * Message
-             * @description What went wrong, in words the app may show.
+             * @description Human-readable explanation; the app shows the code's own text instead.
              */
             message: string;
+        };
+        /**
+         * FileLink
+         * @description A short-lived URL of a file's bytes that needs no X-API-Key header.
+         */
+        FileLink: {
             /**
-             * Detail
-             * @description What the person needs to act on a conflict, if any.
+             * Expires At
+             * Format: date-time
+             * @description When the link stops working.
              */
-            detail?: {
-                [key: string]: unknown;
-            } | null;
+            expires_at: string;
+            /**
+             * Url
+             * @description The raw route with `expires` and `signature` query parameters.
+             */
+            url: string;
+        };
+        /**
+         * FileNodeRead
+         * @description A file node with its path and current content.
+         */
+        FileNodeRead: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
+            /** @description The current content. */
+            file: components["schemas"]["FileResponse"];
+            /**
+             * Id
+             * Format: uuid
+             * @description Node ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base the node belongs to.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description folder, page or file.
+             * @enum {string}
+             */
+            kind: "folder" | "page" | "file";
+            /**
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Path
+             * @description Titles from the base's root down to the node, joined by /.
+             */
+            path: string;
+            /**
+             * Sort
+             * @description Fractional sort key among its siblings.
+             */
+            sort: string;
+            /**
+             * Title
+             * @description Title; a file's keeps its extension, a page's does not.
+             */
+            title: string;
+            /**
+             * Trashed With
+             * @description Node whose trashing hid this one.
+             */
+            trashed_with: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the node last changed.
+             */
+            updated_at: string;
+            /**
+             * Versions
+             * @description How many contents it has had, the current one included.
+             */
+            versions: number;
         };
         /**
          * FileResponse
-         * @description What is known about a stored file. Metadata only, never its text.
+         * @description What the API shows of a stored content of a file. Metadata only, never its text.
          */
         FileResponse: {
-            /**
-             * Size
-             * @description In bytes.
-             */
-            size: number;
             /**
              * Mime
              * @description The media type; application/octet-stream when unknown.
@@ -481,145 +647,296 @@ export interface components {
              * @description The content's hash.
              */
             sha256: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
+            /**
+             * Size
+             * @description In bytes.
+             */
+            size: number;
         };
         /**
-         * KbResponse
-         * @description A base.
+         * FileVersionResponse
+         * @description A content a file node had before its current one.
          */
-        KbResponse: {
+        FileVersionResponse: {
             /**
              * Id
              * Format: uuid
-             * @description The base's id.
+             * @description Version ID.
              */
             id: string;
             /**
-             * Name
-             * @description The base's name.
+             * Mime
+             * @description The media type; application/octet-stream when unknown.
              */
-            name: string;
-            /**
-             * Description
-             * @description What the base holds, as the person wrote it; may be empty.
-             */
-            description: string;
-            /**
-             * Deleted At
-             * @description When the base went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
-        };
-        /**
-         * KbSummaryResponse
-         * @description A base as the Bases screen lists it.
-         */
-        KbSummaryResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description The base's id.
-             */
-            id: string;
-            /**
-             * Name
-             * @description The base's name.
-             */
-            name: string;
-            /**
-             * Description
-             * @description What the base holds, as the person wrote it; may be empty.
-             */
-            description: string;
-            /**
-             * Deleted At
-             * @description When the base went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
+            mime: string;
             /**
              * Pages
-             * @description Live pages in the base.
+             * @description A PDF's page count; null for other files or a broken PDF.
              */
-            pages: number;
+            pages: number | null;
+            /**
+             * Protected
+             * @description A PDF that needs a password to open.
+             */
+            protected: boolean;
+            /**
+             * Replaced At
+             * Format: date-time
+             * @description When a newer content took its place.
+             */
+            replaced_at: string;
+            /**
+             * Sha256
+             * @description The content's hash.
+             */
+            sha256: string;
+            /**
+             * Size
+             * @description In bytes.
+             */
+            size: number;
+        };
+        /**
+         * HealthResponse
+         * @description Liveness of the API itself.
+         */
+        HealthResponse: {
+            /**
+             * Status
+             * @description Always ok while the API answers.
+             * @default ok
+             * @constant
+             */
+            status: "ok";
+        };
+        /**
+         * KbCreate
+         * @description A knowledge base to create.
+         */
+        KbCreate: {
+            /**
+             * Description
+             * @description What the base holds.
+             * @default
+             */
+            description: string;
+            /**
+             * Name
+             * @description Name of the base.
+             */
+            name: string;
+        };
+        /**
+         * KbEdit
+         * @description A change to a base; omitted fields keep their value.
+         */
+        KbEdit: {
+            /**
+             * Description
+             * @description New description.
+             */
+            description?: string | null;
+            /**
+             * Name
+             * @description New name; cannot be blank.
+             */
+            name?: string | null;
+        };
+        /**
+         * KbRead
+         * @description A saved knowledge base.
+         */
+        KbRead: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the base was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the base went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the base holds.
+             */
+            description: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Base ID.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Name of the base.
+             */
+            name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the base last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * KbSummary
+         * @description A base as the Bases screen lists it.
+         */
+        KbSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the base was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the base went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the base holds.
+             */
+            description: string;
             /**
              * Files
              * @description Live files in the base.
              */
             files: number;
             /**
+             * Id
+             * Format: uuid
+             * @description Base ID.
+             */
+            id: string;
+            /**
              * Last Edit
              * Format: date-time
              * @description The newest change to the base, its nodes, pages or files.
              */
             last_edit: string;
+            /**
+             * Name
+             * @description Name of the base.
+             */
+            name: string;
+            /**
+             * Pages
+             * @description Live pages in the base.
+             */
+            pages: number;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the base last changed.
+             */
+            updated_at: string;
         };
         /**
-         * MoveNodeRequest
-         * @description Where to put a node.
+         * NodeAdd
+         * @description A new folder or page; files come from an upload.
          */
-        MoveNodeRequest: {
+        NodeAdd: {
+            /**
+             * Kind
+             * @description What to create.
+             * @enum {string}
+             */
+            kind: "folder" | "page";
             /**
              * Parent Id
-             * @description The destination folder; null for the base's root.
+             * @description Folder to create it in; null for the base's root.
              */
             parent_id?: string | null;
             /**
-             * Before Id
-             * @description The sibling it goes just before; null to put it last.
+             * Title
+             * @description Title; no live sibling of the same kind may have it already.
              */
-            before_id?: string | null;
+            title: string;
         };
         /**
-         * NodeDetailResponse
-         * @description A node opened: a page's text or a file's metadata.
+         * NodeDetail
+         * @description A node opened: a page's text or a file's current content.
          */
-        NodeDetailResponse: {
+        NodeDetail: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
+            /** @description Set for a file. */
+            file: components["schemas"]["FileResponse"] | null;
             /**
              * Id
              * Format: uuid
-             * @description The node's id.
+             * @description Node ID.
              */
             id: string;
             /**
              * Kb Id
              * Format: uuid
-             * @description The base it belongs to.
+             * @description Base the node belongs to.
              */
             kb_id: string;
             /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
              * Kind
-             * @description What the node is.
+             * @description folder, page or file.
              * @enum {string}
              */
             kind: "folder" | "page" | "file";
+            /** @description Set for a page. */
+            page: components["schemas"]["PageRead"] | null;
             /**
-             * Title
-             * @description A file's title keeps its extension; a page's does not.
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
              */
-            title: string;
-            /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
+            parent_id: string | null;
             /**
              * Path
              * @description Titles from the base's root down to the node, joined by /.
              */
             path: string;
-            /** @description Set for a page. */
-            page: components["schemas"]["PageResponse"] | null;
-            /** @description Set for a file. */
-            file: components["schemas"]["FileResponse"] | null;
+            /**
+             * Sort
+             * @description Fractional sort key among its siblings.
+             */
+            sort: string;
+            /**
+             * Title
+             * @description Title; a file's keeps its extension, a page's does not.
+             */
+            title: string;
+            /**
+             * Trashed With
+             * @description Node whose trashing hid this one.
+             */
+            trashed_with: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the node last changed.
+             */
+            updated_at: string;
             /**
              * Versions
              * @description How many versions it has, the current one included; 0 for a folder.
@@ -627,62 +944,220 @@ export interface components {
             versions: number;
         };
         /**
-         * NodeResponse
-         * @description An item of a base's tree.
+         * NodeMove
+         * @description Where to put a node.
          */
-        NodeResponse: {
+        NodeMove: {
+            /**
+             * Before Id
+             * @description Sibling it goes just before; null to put it last.
+             */
+            before_id?: string | null;
+            /**
+             * Parent Id
+             * @description Destination folder; null for the base's root.
+             */
+            parent_id?: string | null;
+        };
+        /**
+         * NodeRead
+         * @description A saved node of a base's tree.
+         */
+        NodeRead: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
             /**
              * Id
              * Format: uuid
-             * @description The node's id.
+             * @description Node ID.
              */
             id: string;
             /**
              * Kb Id
              * Format: uuid
-             * @description The base it belongs to.
+             * @description Base the node belongs to.
              */
             kb_id: string;
             /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
              * Kind
-             * @description What the node is.
+             * @description folder, page or file.
              * @enum {string}
              */
             kind: "folder" | "page" | "file";
             /**
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Sort
+             * @description Fractional sort key among its siblings.
+             */
+            sort: string;
+            /**
              * Title
-             * @description A file's title keeps its extension; a page's does not.
+             * @description Title; a file's keeps its extension, a page's does not.
              */
             title: string;
             /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
+             * Trashed With
+             * @description Node whose trashing hid this one.
              */
-            deleted_at: string | null;
+            trashed_with: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the node last changed.
+             */
+            updated_at: string;
         };
         /**
-         * PageResponse
-         * @description What a page holds now.
+         * NodeRename
+         * @description A new title for a node.
          */
-        PageResponse: {
+        NodeRename: {
             /**
-             * Version Id
-             * Format: uuid
-             * @description The current version, the base of the next save.
+             * Title
+             * @description New title; no live sibling of the same kind may have it already.
              */
-            version_id: string;
+            title: string;
+        };
+        /**
+         * NodeWithPath
+         * @description A node found by the name search, or trashed on its own.
+         */
+        NodeWithPath: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
+            /**
+             * Id
+             * Format: uuid
+             * @description Node ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base the node belongs to.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description folder, page or file.
+             * @enum {string}
+             */
+            kind: "folder" | "page" | "file";
+            /**
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Path
+             * @description Titles from the base's root down to the node, joined by /.
+             */
+            path: string;
+            /**
+             * Sort
+             * @description Fractional sort key among its siblings.
+             */
+            sort: string;
+            /**
+             * Title
+             * @description Title; a file's keeps its extension, a page's does not.
+             */
+            title: string;
+            /**
+             * Trashed With
+             * @description Node whose trashing hid this one.
+             */
+            trashed_with: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the node last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * PageDiff
+         * @description A page version against the one before it.
+         */
+        PageDiff: {
+            /**
+             * Lines
+             * @description Every line of both versions, in reading order.
+             */
+            lines: components["schemas"]["DiffLine"][];
+        };
+        /**
+         * PageDraftRead
+         * @description The page's single autosaved draft. Never a version.
+         */
+        PageDraftRead: {
+            /**
+             * Base Version Id
+             * Format: uuid
+             * @description The version the person was editing.
+             */
+            base_version_id: string;
             /**
              * Markdown
-             * @description The current version's whole text.
+             * @description The draft's whole text.
              */
             markdown: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it was last autosaved.
+             */
+            updated_at: string;
+        };
+        /**
+         * PageRead
+         * @description What a page holds now.
+         */
+        PageRead: {
             /** @description An unsaved draft to offer to continue; null if there is none. */
-            draft: components["schemas"]["DraftResponse"] | null;
+            draft: components["schemas"]["PageDraftRead"] | null;
             /**
              * Links
              * @description Each `[[…]]` target, keyed with its whitespace collapsed to single spaces and lowercased: the page it opens, or why it shows in gray.
@@ -691,93 +1166,27 @@ export interface components {
                 [key: string]: string | ("missing" | "ambiguous");
             };
             /**
+             * Markdown
+             * @description The current version's whole text.
+             */
+            markdown: string;
+            /**
              * Sections
              * @description The page's `##` headings, in order.
              */
-            sections: components["schemas"]["SectionResponse"][];
-        };
-        /**
-         * PutDraftRequest
-         * @description The draft of a page, replacing the previous one.
-         */
-        PutDraftRequest: {
+            sections: components["schemas"]["Section"][];
             /**
-             * Markdown
-             * @description The draft's whole text.
-             */
-            markdown: string;
-            /**
-             * Base Version Id
+             * Version Id
              * Format: uuid
-             * @description The version the person is editing.
+             * @description The current version, the base of the next save.
              */
-            base_version_id: string;
+            version_id: string;
         };
         /**
-         * RenameNodeRequest
-         * @description A new title. Renaming a page also fixes the `[[…]]` links that pointed to it.
-         */
-        RenameNodeRequest: {
-            /**
-             * Title
-             * @description The new title; no sibling of the same kind may have it already.
-             */
-            title: string;
-        };
-        /**
-         * RestoredNodeResponse
-         * @description A node back from the trash.
-         */
-        RestoredNodeResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description The node's id.
-             */
-            id: string;
-            /**
-             * Kb Id
-             * Format: uuid
-             * @description The base it belongs to.
-             */
-            kb_id: string;
-            /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
-             * Kind
-             * @description What the node is.
-             * @enum {string}
-             */
-            kind: "folder" | "page" | "file";
-            /**
-             * Title
-             * @description A file's title keeps its extension; a page's does not.
-             */
-            title: string;
-            /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
-            /**
-             * To Root
-             * @description Its old folder was gone, so it came back at the base's root.
-             */
-            to_root: boolean;
-        };
-        /**
-         * SavePageRequest
+         * PageSave
          * @description A new whole-file version of a page.
          */
-        SavePageRequest: {
-            /**
-             * Markdown
-             * @description The page's whole text.
-             */
-            markdown: string;
+        PageSave: {
             /**
              * Base Version Id
              * Format: uuid
@@ -790,56 +1199,117 @@ export interface components {
              * @default false
              */
             force: boolean;
+            /**
+             * Markdown
+             * @description The page's whole text.
+             */
+            markdown: string;
         };
         /**
-         * SearchHitResponse
-         * @description A node found by the name search.
+         * PageVersionSummary
+         * @description One version of a page in its history, without its text.
          */
-        SearchHitResponse: {
+        PageVersionSummary: {
+            /**
+             * Author
+             * @description Who wrote it.
+             * @enum {string}
+             */
+            author: "user" | "agent";
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was written.
+             */
+            created_at: string;
             /**
              * Id
              * Format: uuid
-             * @description The node's id.
+             * @description Version ID.
+             */
+            id: string;
+        };
+        /**
+         * RestoredNode
+         * @description A node back from the trash.
+         */
+        RestoredNode: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
+            /**
+             * Id
+             * Format: uuid
+             * @description Node ID.
              */
             id: string;
             /**
              * Kb Id
              * Format: uuid
-             * @description The base it belongs to.
+             * @description Base the node belongs to.
              */
             kb_id: string;
             /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
              * Kind
-             * @description What the node is.
+             * @description folder, page or file.
              * @enum {string}
              */
             kind: "folder" | "page" | "file";
             /**
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Sort
+             * @description Fractional sort key among its siblings.
+             */
+            sort: string;
+            /**
              * Title
-             * @description A file's title keeps its extension; a page's does not.
+             * @description Title; a file's keeps its extension, a page's does not.
              */
             title: string;
             /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
+             * To Root
+             * @description Its old folder was gone, so it came back at the base's root.
              */
-            deleted_at: string | null;
+            to_root: boolean;
             /**
-             * Path
-             * @description Titles from the base's root down to the node, joined by /.
+             * Trashed With
+             * @description Node whose trashing hid this one.
              */
-            path: string;
+            trashed_with: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When the node last changed.
+             */
+            updated_at: string;
         };
         /**
-         * SectionResponse
+         * Section
          * @description A `##` heading of a page.
          */
-        SectionResponse: {
+        Section: {
             /**
              * Anchor
              * @description Unique in the page, for `#anchor` links.
@@ -852,189 +1322,80 @@ export interface components {
             heading: string;
         };
         /**
-         * StalePageDetail
-         * @description Why a save was refused: the page got a newer version after the person opened it.
-         */
-        StalePageDetail: {
-            /**
-             * Current Version Id
-             * Format: uuid
-             * @description The page's newest version.
-             */
-            current_version_id: string;
-            /**
-             * Markdown
-             * @description The newest version's whole text.
-             */
-            markdown: string;
-            /**
-             * Diff
-             * @description From the version the person opened to the newest one.
-             */
-            diff: components["schemas"]["DiffLineResponse"][];
-        };
-        /**
-         * StalePageResponse
-         * @description The 409 of a save over a page that changed since it was opened.
-         */
-        StalePageResponse: {
-            /**
-             * Error
-             * @description The error's class: ValidationError, NotFoundError, ConflictError, …
-             */
-            error: string;
-            /**
-             * Message
-             * @description What went wrong, in words the app may show.
-             */
-            message: string;
-            /** @description The newest version and the difference from the person's base. */
-            detail: components["schemas"]["StalePageDetail"];
-        };
-        /**
-         * TrashItemResponse
-         * @description A node trashed on its own; what was under it went with it.
-         */
-        TrashItemResponse: {
-            /**
-             * Id
-             * Format: uuid
-             * @description The node's id.
-             */
-            id: string;
-            /**
-             * Kb Id
-             * Format: uuid
-             * @description The base it belongs to.
-             */
-            kb_id: string;
-            /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
-             * Kind
-             * @description What the node is.
-             * @enum {string}
-             */
-            kind: "folder" | "page" | "file";
-            /**
-             * Title
-             * @description A file's title keeps its extension; a page's does not.
-             */
-            title: string;
-            /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
-            /**
-             * Path
-             * @description Where it was when it was trashed.
-             */
-            path: string;
-        };
-        /**
-         * TreeNodeResponse
+         * TreeNode
          * @description A node as the tree shows it.
          */
-        TreeNodeResponse: {
+        TreeNode: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the node was created.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the node went to the trash; null while it is live.
+             */
+            deleted_at: string | null;
+            /**
+             * Description
+             * @description What the node holds.
+             */
+            description: string;
+            /**
+             * Description Locked
+             * @description Whether agents may rewrite the description.
+             */
+            description_locked: boolean;
             /**
              * Id
              * Format: uuid
-             * @description The node's id.
+             * @description Node ID.
              */
             id: string;
             /**
              * Kb Id
              * Format: uuid
-             * @description The base it belongs to.
+             * @description Base the node belongs to.
              */
             kb_id: string;
             /**
-             * Parent Id
-             * @description Its folder; null at the base's root.
-             */
-            parent_id: string | null;
-            /**
              * Kind
-             * @description What the node is.
+             * @description folder, page or file.
              * @enum {string}
              */
             kind: "folder" | "page" | "file";
             /**
-             * Title
-             * @description A file's title keeps its extension; a page's does not.
+             * Parent Id
+             * @description Folder that holds the node; null for the base's root.
              */
-            title: string;
-            /**
-             * Deleted At
-             * @description When it went to the trash; null while it is live.
-             */
-            deleted_at: string | null;
+            parent_id: string | null;
             /**
              * Protected
              * @description A password-protected PDF; false for anything else.
              */
             protected: boolean;
-        };
-        /**
-         * UpdateKbRequest
-         * @description A change to a base; a field left out stays as it is.
-         */
-        UpdateKbRequest: {
             /**
-             * Name
-             * @description The new name; cannot be empty.
+             * Sort
+             * @description Fractional sort key among its siblings.
              */
-            name?: string | null;
+            sort: string;
             /**
-             * Description
-             * @description The new description.
+             * Title
+             * @description Title; a file's keeps its extension, a page's does not.
              */
-            description?: string | null;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-            /** Input */
-            input?: unknown;
-            /** Context */
-            ctx?: Record<string, never>;
-        };
-        /**
-         * VersionResponse
-         * @description One version of a page, or one older content of a file.
-         */
-        VersionResponse: {
+            title: string;
             /**
-             * Id
-             * Format: uuid
-             * @description The version's id.
+             * Trashed With
+             * @description Node whose trashing hid this one.
              */
-            id: string;
+            trashed_with: string | null;
             /**
-             * Created At
+             * Updated At
              * Format: date-time
-             * @description A page version: when it was written. A file's: when it was replaced.
+             * @description When the node last changed.
              */
-            created_at: string;
-            /**
-             * Author
-             * @description Who wrote a page version; null for a file.
-             */
-            author: ("user" | "agent") | null;
-            /**
-             * Size
-             * @description A file version's size in bytes; null for a page.
-             */
-            size: number | null;
+            updated_at: string;
         };
     };
     responses: never;
@@ -1045,1374 +1406,69 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_kbs_kbs_get: {
-        parameters: {
-            query?: {
-                q?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbSummaryResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_kb_kbs_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateKbRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    trash_kb_kbs__kb_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_kb_kbs__kb_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateKbRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_trashed_kbs_trash_kbs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    restore_kb_kbs__kb_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["KbResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    children_kbs__kb_id__children_get: {
-        parameters: {
-            query?: {
-                parent_id?: string | null;
-            };
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TreeNodeResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    search_nodes_kbs__kb_id__search_get: {
-        parameters: {
-            query: {
-                q: string;
-            };
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchHitResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_trash_kbs__kb_id__trash_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrashItemResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_node_kbs__kb_id__nodes_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateNodeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_node_nodes__node_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeDetailResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_page_nodes__node_id__put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SavePageRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VersionResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StalePageResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    trash_node_nodes__node_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rename_node_nodes__node_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RenameNodeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    move_node_nodes__node_id__move_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MoveNodeRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_node_nodes__node_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RestoredNodeResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    put_draft_nodes__node_id__draft_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PutDraftRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DraftResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    discard_draft_nodes__node_id__draft_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_versions_nodes__node_id__versions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VersionResponse"][];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    version_diff_nodes__node_id__versions__version_id__diff_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-                version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DiffResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    restore_version_nodes__node_id__versions__version_id__restore_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-                version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeDetailResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    upload_file_kbs__kb_id__files_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                kb_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_upload_file_kbs__kb_id__files_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeDetailResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    replace_file_nodes__node_id__file_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": components["schemas"]["Body_replace_file_nodes__node_id__file_post"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeDetailResponse"];
-                };
-            };
-            /** @description Bad Request */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    raw_file_files__node_id__raw_get: {
+    file_link_v1_files__node_id__link_post: {
         parameters: {
             query?: {
                 version_id?: string | null;
             };
             header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    raw_file_v1_files__node_id__raw_get: {
+        parameters: {
+            query?: {
+                version_id?: string | null;
+                expires?: number | null;
+                signature?: string | null;
+            };
+            header?: {
                 range?: string | null;
+                "x-api-key"?: string | null;
             };
             path: {
                 node_id: string;
@@ -2430,7 +1486,7 @@ export interface operations {
                     "application/octet-stream": unknown;
                 };
             };
-            /** @description A range. */
+            /** @description A range of them. */
             206: {
                 headers: {
                     [name: string]: unknown;
@@ -2439,8 +1495,118 @@ export interface operations {
                     "application/octet-stream": unknown;
                 };
             };
-            /** @description Bad Request */
-            400: {
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The range is outside the file. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_file_versions_v1_files__node_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileVersionResponse"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_file_version_v1_files__node_id__versions__version_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileNodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2466,20 +1632,1311 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description The range is outside the file. */
-            416: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
+            /** @description Unprocessable Entity */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    health_v1_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+        };
+    };
+    list_kbs_v1_kbs_get: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_kb_v1_kbs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KbCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_trashed_kbs_v1_kbs_trash_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    trash_kb_v1_kbs__kb_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_kb_v1_kbs__kb_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KbEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_children_v1_kbs__kb_id__children_get: {
+        parameters: {
+            query?: {
+                parent_id?: string | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TreeNode"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_file_v1_kbs__kb_id__files_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_file_v1_kbs__kb_id__files_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileNodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_node_v1_kbs__kb_id__nodes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeAdd"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_kb_v1_kbs__kb_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KbRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    search_nodes_v1_kbs__kb_id__search_get: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeWithPath"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_trash_v1_kbs__kb_id__trash_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeWithPath"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_node_v1_nodes__node_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeDetail"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    trash_node_v1_nodes__node_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rename_node_v1_nodes__node_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    replace_file_v1_nodes__node_id__file_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_replace_file_v1_nodes__node_id__file_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileNodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    move_node_v1_nodes__node_id__move_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeMove"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_node_v1_nodes__node_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestoredNode"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_page_v1_pages__node_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    save_page_v1_pages__node_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageVersionSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_draft_v1_pages__node_id__draft_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageDraftRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    discard_draft_v1_pages__node_id__draft_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_page_versions_v1_pages__node_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageVersionSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    page_version_diff_v1_pages__node_id__versions__version_id__diff_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageDiff"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    restore_page_version_v1_pages__node_id__versions__version_id__restore_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

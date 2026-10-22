@@ -1,9 +1,9 @@
 import type { RouteObject } from "react-router-dom";
-import { BasesPage } from "../features/bases/BasesPage";
-import { TrashPage } from "../features/bases/TrashPage";
+import { BasesPage } from "../screens/bases/BasesPage";
+import { TrashPage } from "../screens/bases/TrashPage";
 import { BaseFrame } from "./BaseFrame";
 import { IndexFrame } from "./IndexFrame";
-import { BaseRootView } from "../features/tree/FolderView";
+import { BaseRootView } from "../screens/base/FolderView";
 import { NodeView } from "./NodeView";
 
 export const routes: RouteObject[] = [
