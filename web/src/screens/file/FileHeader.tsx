@@ -1,38 +1,75 @@
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import type { NodeDetail } from "../../api/client";
-import { useI18n } from "../../i18n";
-import { FileName } from "../../ui/FileName";
-import { folderPath, splitExt } from "../../ui/names";
+import { useFileVersions } from "../../data/files";
+import { useKbs } from "../../data/kbs";
+import { useNode } from "../../data/tree";
+import { locale, useI18n } from "../../i18n";
+import { TopBar } from "../shell/TopBar";
 import { DownloadLink } from "./DownloadLink";
-import { FileActions } from "./FileActions";
+import { FileMenu } from "./FileActions";
+import { formatSize } from "./format";
 
 type Props = {
   node: NodeDetail;
-  /** Between the path and "arquivo original", e.g. the page count. */
+  /** After "arquivo original", e.g. the page count. */
   detail?: string;
-  /** The viewer's own controls, before the file's actions. */
+  /** The viewer's own controls, before "Baixar". */
   children?: ReactNode;
 };
 
+/** The top bar over a file (the viewer's controls, "Baixar", ⋯) and the line that says what the file is. */
 export function FileHeader({ node, detail, children }: Props) {
-  const { t } = useI18n();
-  const { name, ext } = splitExt(node.title);
-  const folder = folderPath(node.path, node.title);
-  const subtitle = [folder, detail, t("file.original")].filter(Boolean).join(" · ");
+  const { t, lang } = useI18n();
+  const versions = node.versions;
+  const what = [t("file.original"), detail, node.file && formatSize(node.file.size, lang)].filter(Boolean).join(" · ");
   return (
-    <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-bg py-2 pr-4 pl-5">
-      <span className="flex min-w-0 flex-col">
-        <h1 className="m-0 truncate text-13 font-medium">
-          <FileName title={name} ext={ext} />
-        </h1>
-        <span className="truncate text-12 text-text-3">{subtitle}</span>
-      </span>
-      <span className="flex flex-wrap items-center gap-1">
-        {children}
-        {children && <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-line-2" />}
-        <FileActions node={node} />
-        <DownloadLink nodeId={node.id} filename={node.title} />
-      </span>
-    </header>
+    <div className="shrink-0 bg-bg">
+      <TopBar
+        kbId={node.kb_id}
+        nodeId={node.id}
+        actions={
+          <>
+            {children}
+            {children && <span aria-hidden="true" className="mx-1 h-4 w-px bg-line-2" />}
+            <DownloadLink nodeId={node.id} filename={node.title} />
+          </>
+        }
+        menu={<FileMenu node={node} />}
+      />
+      <p className="m-0 flex flex-wrap gap-x-4 px-[22px] pt-1.5 pb-3.5 text-12 text-text-3">
+        <span>{what}</span>
+        {versions > 0 && (
+          <span>
+            {t(versions === 1 ? "file.versions.one" : "file.versions.other", { n: versions })}
+            {versions > 1 && <Replaced nodeId={node.id} />}
+          </span>
+        )}
+        <span>
+          {t("file.inside")} <Parent kbId={node.kb_id} parentId={node.parent_id} />
+        </span>
+      </p>
+    </div>
+  );
+}
+
+/** " · substituído em 22 de out.": when the newest older content was set aside. */
+function Replaced({ nodeId }: { nodeId: string }) {
+  const { t, lang } = useI18n();
+  const newest = useFileVersions(nodeId).data?.[0];
+  if (!newest) return null;
+  const date = new Date(newest.replaced_at).toLocaleDateString(locale(lang), { day: "numeric", month: "short" });
+  return <> · {t("file.replaced", { date })}</>;
+}
+
+/** The folder or page that holds the file, or the base when it sits at the root. */
+function Parent({ kbId, parentId }: { kbId: string; parentId: string | null }) {
+  const kb = useKbs().data?.find((summary) => summary.id === kbId);
+  const parent = useNode(parentId ?? "", !!parentId).data;
+  const name = parentId ? parent?.title : kb?.name;
+  return (
+    <Link to={parentId ? `/kbs/${kbId}/n/${parentId}` : `/kbs/${kbId}`} className="text-text-2 hover:text-text">
+      {name}
+    </Link>
   );
 }
