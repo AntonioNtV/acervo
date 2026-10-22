@@ -72,17 +72,21 @@ class TreeService:
         """The person's change of title and/or description; their description is locked against agents."""
         node = await self._uow.nodes.live(node_id)
         if data.title is not None:
-            node = await self.rename(node_id, data.title)
+            node = await self._rename(node, data.title)
         if data.description is not None:
+            description = data.description.strip()
             node = await self._uow.nodes.update(
-                node_id, NodeUpdate(description=data.description.strip(), description_locked=True)
+                node_id, NodeUpdate(description=description, description_locked=bool(description))
             )
             await self._uow.commit()
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:
         """A page's rename also fixes the links that resolve to it, in the same transaction."""
-        node = await self._uow.nodes.live(node_id)
+        return await self._rename(await self._uow.nodes.live(node_id), title)
+
+    async def _rename(self, node: NodeRead, title: str) -> NodeRead:
+        node_id = node.id
         title = _title(title)
         await self._uow.kbs.lock(node.kb_id)
         if title.lower() != node.title.lower():

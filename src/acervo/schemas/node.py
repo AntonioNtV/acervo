@@ -77,7 +77,6 @@ class TreeNode(NodeRead):
     """A node as the tree shows it."""
 
     protected: bool = Field(description="A password-protected PDF; false for anything else.")
-    has_children: bool = Field(description="Something live is under it; false for files.")
     child_count: int = Field(description="How many live nodes are right under it.")
     pages: int | None = Field(description="A PDF's page count; null for anything else.")
     size: int | None = Field(description="A file's size in bytes; null for folders and pages.")

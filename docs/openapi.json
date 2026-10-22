@@ -1405,11 +1405,6 @@
             "title": "Description Locked",
             "type": "boolean"
           },
-          "has_children": {
-            "description": "Something live is under it; false for files.",
-            "title": "Has Children",
-            "type": "boolean"
-          },
           "id": {
             "description": "Node ID.",
             "format": "uuid",
@@ -1518,7 +1513,6 @@
           "created_at",
           "updated_at",
           "protected",
-          "has_children",
           "child_count",
           "pages",
           "size"

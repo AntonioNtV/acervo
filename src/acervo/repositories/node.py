@@ -75,8 +75,10 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         parent = await self._session.get(Node, parent_id, populate_existing=True)
         if parent is None or parent.deleted_at is not None:
             raise NotFoundError(f"node {parent_id} not found", {"id": str(parent_id)})
-        if parent.kb_id != kb_id or parent.kind == "file":
+        if parent.kb_id != kb_id:
             raise ValidationError("o destino não está nesta base", {"parent_id": str(parent_id)})
+        if parent.kind == "file":
+            raise ValidationError("um arquivo não guarda itens", {"parent_id": str(parent_id)})
 
     async def title_taken(self, kb_id: UUID, parent_id: UUID | None, kind: NodeKind, title: str) -> bool:
         """The check behind the live-sibling unique index, to refuse with "já existe" before the insert fails."""
@@ -124,7 +126,6 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             TreeNode(
                 **self._to_read(node).model_dump(),
                 protected=protected,
-                has_children=count > 0,
                 child_count=count,
                 pages=pages,
                 size=size,

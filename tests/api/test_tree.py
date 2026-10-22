@@ -296,9 +296,36 @@ async def test_edit_description_locks_it_and_children_carry_counts(
     top = {node["title"]: node for node in await _children(client, tree.kb.id, None)}
     assert (top["Bradesco"]["child_count"], top["Vazia"]["child_count"]) == (1, 0)
     inside = await _children(client, tree.kb.id, tree["Bradesco"].id)
-    assert (inside[0]["child_count"], inside[0]["has_children"], inside[0]["pages"], inside[0]["size"]) == (
-        2,
-        True,
-        None,
-        None,
-    )
+    assert (inside[0]["child_count"], inside[0]["pages"], inside[0]["size"]) == (2, None, None)
+
+
+async def test_clearing_the_description_unlocks_it(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": None})
+    bradesco = tree["Bradesco"].id
+    await client.patch(f"/v1/nodes/{bradesco}", json={"description": "Seguradora."})
+
+    cleared = await client.patch(f"/v1/nodes/{bradesco}", json={"description": "   "})
+
+    assert cleared.status_code == 200
+    row = await session.get(Node, bradesco, populate_existing=True)
+    assert row is not None and (row.description, row.description_locked) == ("", False)
+
+
+async def test_a_file_is_not_a_parent(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md", "CG 2026.pdf"]})
+    file = tree["Bradesco/CG 2026.pdf"].id
+
+    responses = [
+        await client.post(
+            f"/v1/kbs/{tree.kb.id}/nodes", json={"kind": "page", "title": "Dentro", "parent_id": str(file)}
+        ),
+        await _move(client, tree["Bradesco/Renovação.md"].id, file),
+        await client.get(f"/v1/kbs/{tree.kb.id}/children", params={"parent_id": str(file)}),
+    ]
+
+    assert [(r.status_code, r.json()["error"], r.json()["message"]) for r in responses] == [
+        (422, "validation", "um arquivo não guarda itens")
+    ] * 3
+    assert await _titles(client, tree.kb.id, tree["Bradesco"].id) == ["Renovação", "CG 2026.pdf"]

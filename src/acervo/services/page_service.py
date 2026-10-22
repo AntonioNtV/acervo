@@ -65,7 +65,7 @@ class PageService:
         if text is not None and now - text.updated_at > timedelta(seconds=idle_seconds):
             latest = await self._cut(node, text, latest)
         started_at = now if text is None or text.markdown == latest.markdown else text.started_at
-        saved = await self._store(node, data.markdown, latest, revision + 1, started_at)
+        saved = await self._store(node, data.markdown, revision + 1, started_at)
         await self._uow.commit()
         return PageTextSaved(revision=saved.revision, saved_at=saved.updated_at)
 
@@ -92,7 +92,8 @@ class PageService:
         """The old text as a new version on top, and as the working text; the newer versions stay."""
         node = await self._page(node_id)
         version = await self._version(node, version_id)
-        await self._settle(node, version.markdown, await self._cut_now(node))
+        latest = await self._cut_now(node)
+        await self._settle(node, version.markdown, latest, await self._uow.page_drafts.get_by(node_id=node.id))
         await self._uow.commit()
         return await self.read(node.id)
 
@@ -118,7 +119,7 @@ class PageService:
             current = latest.markdown if text is None else text.markdown
             markdown = links.rewrite(current, node.title, new_title)
             if markdown != current:
-                fixed.append(await self._settle(page, markdown, latest))
+                fixed.append(await self._settle(page, markdown, latest, text))
         return fixed
 
     async def _cut_now(self, node: NodeRead) -> PageVersionRead:
@@ -133,21 +134,18 @@ class PageService:
             return latest
         return await self._add(node, text.markdown, text.started_at, text.updated_at)
 
-    async def _settle(self, node: NodeRead, markdown: str, latest: PageVersionRead) -> PageVersionRead:
-        """`markdown` as a version, unless it is the newest one's text, and as the working text, bumping its
-        revision so an open editor reloads instead of overwriting it."""
+    async def _settle(
+        self, node: NodeRead, markdown: str, latest: PageVersionRead, text: PageDraftRead | None
+    ) -> PageVersionRead:
+        """`markdown` as a version, unless it is the newest one's text, and as the working text `text` was, bumping
+        its revision so an open editor reloads instead of overwriting it."""
         version = latest if markdown == latest.markdown else await self._add(node, markdown)
-        text = await self._uow.page_drafts.get_by(node_id=node.id)
-        await self._store(node, markdown, version, (0 if text is None else text.revision) + 1, version.created_at)
+        await self._store(node, markdown, (0 if text is None else text.revision) + 1, version.created_at)
         return version
 
-    async def _store(
-        self, node: NodeRead, markdown: str, latest: PageVersionRead, revision: int, started_at: datetime
-    ) -> PageDraftRead:
+    async def _store(self, node: NodeRead, markdown: str, revision: int, started_at: datetime) -> PageDraftRead:
         """The working text and its links; the links follow what the person sees, so a rename finds them."""
-        data = PageDraftCreate(
-            node_id=node.id, markdown=markdown, base_version_id=latest.id, revision=revision, started_at=started_at
-        )
+        data = PageDraftCreate(node_id=node.id, markdown=markdown, revision=revision, started_at=started_at)
         text = await self._uow.page_drafts.put(data)
         await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
         return text

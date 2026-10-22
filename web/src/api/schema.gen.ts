@@ -1365,11 +1365,6 @@ export interface components {
              */
             description_locked: boolean;
             /**
-             * Has Children
-             * @description Something live is under it; false for files.
-             */
-            has_children: boolean;
-            /**
              * Id
              * Format: uuid
              * @description Node ID.
