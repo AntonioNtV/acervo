@@ -7,5 +7,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    // The persistent module cache keeps i18n/index.ts transformed with its old import.meta.glob result, so a new
+    // catalog file is not seen until the cache is wiped.
+    fsModuleCache: false,
   },
 });
