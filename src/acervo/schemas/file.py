@@ -1,0 +1,66 @@
+from datetime import datetime
+from typing import Any, Literal
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from acervo.schemas.node import NodeRead
+
+
+class FileContent(BaseModel):
+    """What is known about one stored content of a file. Metadata only: never its text (rule 1 of CLAUDE.md)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    storage_key: str = Field(description="Key of the bytes in the bucket.")
+    sha256: str = Field(description="The content's hash.")
+    size: int = Field(description="In bytes.")
+    mime: str = Field(description="The media type; application/octet-stream when unknown.")
+    pages: int | None = Field(description="A PDF's page count; null for other files or a broken PDF.")
+    protected: bool = Field(description="A PDF that needs a password to open.")
+    doc_type: str | None = Field(description="What kind of document it is, once known.")
+    sensitive: bool = Field(description="Whether the content is sensitive.")
+    map: dict[str, Any] | None = Field(description="A PDF's section map, once built.")
+    map_origin: Literal["bookmarks", "toc", "generated"] | None = Field(description="Where the map came from.")
+
+    def only_content(self) -> "FileContent":
+        """The content's own fields, every one set, so an update or a history row takes all of them."""
+        return FileContent(**{name: getattr(self, name) for name in FileContent.model_fields})
+
+
+class FileCreate(FileContent):
+    """The current content of a file node, to store."""
+
+    node_id: UUID = Field(description="File node the content belongs to.")
+
+
+class FileRead(FileContent):
+    """The current content of a file node."""
+
+    id: UUID = Field(description="File ID.")
+    node_id: UUID = Field(description="File node the content belongs to.")
+    created_at: datetime = Field(description="When the file was first stored.")
+    updated_at: datetime = Field(description="When the current content was set.")
+
+
+class FileVersionCreate(FileContent):
+    """A content a file node had, to keep in its history."""
+
+    node_id: UUID = Field(description="File node the content belonged to.")
+    replaced_at: datetime = Field(description="When a newer content took its place.")
+
+
+class FileVersionRead(FileContent):
+    """A content a file node had before its current one."""
+
+    id: UUID = Field(description="Version ID.")
+    node_id: UUID = Field(description="File node the content belonged to.")
+    replaced_at: datetime = Field(description="When a newer content took its place.")
+
+
+class FileNodeRead(NodeRead):
+    """A file node with its path and current content."""
+
+    path: str = Field(description="Titles from the base's root down to the node, joined by /.")
+    file: FileRead = Field(description="The current content.")
+    versions: int = Field(description="How many contents it has had, the current one included.")
