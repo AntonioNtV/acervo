@@ -5,9 +5,9 @@ description: The agent that answers questions in Acervo by navigation, without c
 
 # Navigator
 
-Answers a question the way a person would: pick the folder, open the file, look at the PDF's sections, read the
-pages, check if it is enough. There is no index of chunks and no vector search. If you are about to add one, stop:
-it breaks the "no chunks, no embeddings" rule of `CLAUDE.md`.
+Answers a question the way a person would: pick the folder or the page, open the file, look at the PDF's sections,
+read the pages, check if it is enough. There is no index of chunks and no vector search. If you are about to add one,
+stop: it breaks the "no chunks, no embeddings" rule of `CLAUDE.md`.
 
 The trigram index on node titles (skill `creating-migrations`) serves the person's name filter in the tree. It
 matches titles only, never content, and no agent tool uses it: the Navigator finds things by descending.
@@ -28,8 +28,8 @@ callables, and returns the answer. `services/question_service.py` builds the too
 
 | Tool | Returns |
 |---|---|
-| `list_folder(node)` | children with kind and description |
-| `read_page(node, section?)` | a Markdown page, whole or one section |
+| `list_folder(node)` | children of a folder or a page, with kind and description |
+| `read_page(node, section?)` | a Markdown page, whole or one section, from its newest version (the working text cut first) |
 | `open_map(pdf)` | the PDF's sections with page ranges (skill `pdf-files`) |
 | `read_pages(pdf, first, last)` | the text of those pages, straight from the PDF |
 | `page_image(pdf, page)` | the page rendered, for tables and scanned pages |
@@ -39,8 +39,9 @@ callables, and returns the answer. `services/question_service.py` builds the too
 
 1. **Route** (one Jev call): intent (`Choice`), which base when asked from the home screen (`Choice`), "does it need
    facts about two different things?" (`Noul`). Two-part questions are split by the LLM and each part runs the loop.
-2. **Descend** folders with a `Choice` per level, as the Curator does, but pages **and PDFs** are options. Keep the 2
-   best paths.
+2. **Descend** folders and pages with a `Choice` per level, as the Curator does, but pages **and PDFs** are options.
+   A page with children is both: read as a page, and its sub-pages and files are the next level's options. Keep the
+   2 best paths.
 3. **Open**: a page is read whole (or by section when long). A PDF: `open_map`, then a `Choice` over its sections,
    descending until a range of at most 6 pages.
 4. **Read and judge**: read the pages; one Jev call with a `page_answers` `Noul` per page read plus `sufficient`.
