@@ -71,6 +71,9 @@ export function Sidebar() {
           <Icon name="collapse" />
         </IconButton>
       </div>
+      <NavLink to="/bases" className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}>
+        <Row icon="bases">{t("bases.title")}</Row>
+      </NavLink>
       {/* Phase B: ⌘K and recents. Shown so the layout is the final one. */}
       <button type="button" disabled className={cx(rowClass, "cursor-default")}>
         <Row icon="search">{t("shell.search")}</Row>

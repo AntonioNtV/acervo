@@ -5,7 +5,7 @@ export function Brand() {
   const { t } = useI18n();
   return (
     <span className="flex items-baseline gap-2">
-      <Link to="/" className="text-[14px] font-semibold tracking-[-0.02em] text-text no-underline">
+      <Link to="/bases" className="text-[14px] font-semibold tracking-[-0.02em] text-text no-underline">
         {t("app.brand")}
       </Link>
       <span className="text-11 text-text-3">{t("app.brand.by")}</span>

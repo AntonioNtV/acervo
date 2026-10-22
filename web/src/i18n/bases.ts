@@ -1,5 +1,14 @@
 export const ptBR = {
+  title: "Bases",
   new: "Nova base",
+  filter: "Buscar base",
+  "filter.placeholder": "Buscar",
+  "pages.one": "{n} página",
+  "pages.other": "{n} páginas",
+  "files.one": "{n} arquivo",
+  "files.other": "{n} arquivos",
+  actions: "Ações de {name}",
+  "empty.filter": "Nenhuma base com esse nome.",
   rename: "Renomear",
   describe: "Editar descrição",
   trash: "Mover para a Lixeira",
@@ -24,7 +33,16 @@ export const ptBR = {
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
+  title: "Bases",
   new: "New base",
+  filter: "Search bases",
+  "filter.placeholder": "Search",
+  "pages.one": "{n} page",
+  "pages.other": "{n} pages",
+  "files.one": "{n} file",
+  "files.other": "{n} files",
+  actions: "Actions for {name}",
+  "empty.filter": "No base with that name.",
   rename: "Rename",
   describe: "Edit description",
   trash: "Move to Trash",

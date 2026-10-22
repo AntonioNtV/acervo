@@ -15,6 +15,7 @@ const paths = {
     </>
   ),
   folder: <path d="M3 7h6l2 2h10v10H3z" />,
+  bases: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
   search: (
     <>
       <circle cx="11" cy="11" r="6.5" />
