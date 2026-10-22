@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { useChildren, type NodeDetail } from "../../api/queries";
+import { Link, useParams } from "react-router-dom";
+import { useChildren, useKbs, type NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
 import { folderPath, NodeName } from "./names";
@@ -8,9 +8,20 @@ import { UploadButton, useStartUpload } from "./Upload";
 
 /** A folder opened: its children as a plain list, and where files are sent into it. */
 export function FolderView({ node }: { node: NodeDetail }) {
+  return <Folder kbId={node.kb_id} folderId={node.id} title={node.title} path={folderPath(node.path)} />;
+}
+
+/** The base opened with no node chosen: its root, as a folder. */
+export function BaseRootView() {
+  const { kbId = "" } = useParams();
+  const kb = useKbs().data?.find((summary) => summary.id === kbId);
+  return <Folder kbId={kbId} folderId={null} title={kb?.name ?? ""} path="" />;
+}
+
+function Folder({ kbId, folderId, title, path }: { kbId: string; folderId: string | null; title: string; path: string }) {
   const { t } = useI18n();
-  const children = useChildren(node.kb_id, node.id);
-  const startUpload = useStartUpload(node.kb_id);
+  const children = useChildren(kbId, folderId);
+  const startUpload = useStartUpload(kbId);
   const [over, setOver] = useState(false);
   return (
     <div
@@ -25,20 +36,20 @@ export function FolderView({ node }: { node: NodeDetail }) {
         if (!event.dataTransfer.files.length) return;
         event.preventDefault();
         setOver(false);
-        startUpload(Array.from(event.dataTransfer.files), node.id);
+        startUpload(Array.from(event.dataTransfer.files), folderId);
       }}
     >
       <div className="flex items-center justify-between gap-3 text-12 text-text-3">
-        <span>{folderPath(node.path)}</span>
-        <UploadButton kbId={node.kb_id} parentId={node.id} />
+        <span>{path}</span>
+        <UploadButton kbId={kbId} parentId={folderId} />
       </div>
-      <h1 className="mt-7 mb-6 text-32 font-medium tracking-[-0.035em]">{node.title}</h1>
+      <h1 className="mt-7 mb-6 text-32 font-medium tracking-[-0.035em]">{title}</h1>
       {children.data?.length === 0 && <p className="m-0 text-text-3">{t("tree.empty")}</p>}
       <ul className="m-0 flex list-none flex-col p-0">
         {children.data?.map((child) => (
           <li key={child.id} className="border-t border-line first:border-t-0">
             <Link
-              to={`/kbs/${node.kb_id}/n/${child.id}`}
+              to={`/kbs/${kbId}/n/${child.id}`}
               className="flex h-11 items-center text-text no-underline hover:text-text-2"
             >
               <NodeName node={child} className="truncate" />

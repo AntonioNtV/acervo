@@ -3,6 +3,7 @@ import { BasesPage } from "../features/bases/BasesPage";
 import { TrashPage } from "../features/bases/TrashPage";
 import { BaseFrame } from "./BaseFrame";
 import { IndexFrame } from "./IndexFrame";
+import { BaseRootView } from "../features/tree/FolderView";
 import { NodeView } from "./NodeView";
 
 export const routes: RouteObject[] = [
@@ -16,6 +17,9 @@ export const routes: RouteObject[] = [
   {
     path: "/kbs/:kbId",
     element: <BaseFrame />,
-    children: [{ path: "n/:nodeId", element: <NodeView /> }],
+    children: [
+      { index: true, element: <BaseRootView /> },
+      { path: "n/:nodeId", element: <NodeView /> },
+    ],
   },
 ];
