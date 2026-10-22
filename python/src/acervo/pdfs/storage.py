@@ -1,6 +1,5 @@
 import uuid
 from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any, BinaryIO
 
 import aioboto3
@@ -33,7 +32,7 @@ class Storage:
             region_name="us-east-1",
         )
 
-    async def put(self, key: str, path: Path) -> None:
+    async def put(self, key: str, source: BinaryIO, size: int) -> None:
         async with self._client() as s3:
             try:
                 await s3.head_object(Bucket=self.bucket, Key=key)
@@ -41,11 +40,11 @@ class Storage:
             except ClientError as error:
                 if error.response["Error"]["Code"] != "404":
                     raise
-            with path.open("rb") as source:
-                if path.stat().st_size <= PART_SIZE:
-                    await s3.put_object(Bucket=self.bucket, Key=key, Body=source.read())
-                else:
-                    await self._put_in_parts(s3, key, source)
+            source.seek(0)
+            if size <= PART_SIZE:
+                await s3.put_object(Bucket=self.bucket, Key=key, Body=source.read())
+            else:
+                await self._put_in_parts(s3, key, source)
 
     async def _put_in_parts(self, s3: Any, key: str, source: BinaryIO) -> None:
         """One part at a time, so an upload of any size holds one part in memory, never the whole file."""
@@ -62,19 +61,13 @@ class Storage:
             await s3.abort_multipart_upload(**target)
             raise
 
-    async def get_range(self, key: str, start: int, end: int) -> bytes:
-        """Bytes `start` to `end`, both included, as in an HTTP `Range` header."""
+    async def stream(
+        self, key: str, byte_range: tuple[int, int] | None = None, chunk_size: int = 1024 * 1024
+    ) -> AsyncIterator[bytes]:
+        """The stored bytes, or bytes `start` to `end` of them, both included, as in an HTTP `Range` header."""
+        extra = {"Range": f"bytes={byte_range[0]}-{byte_range[1]}"} if byte_range else {}
         async with self._client() as s3:
-            response = await s3.get_object(Bucket=self.bucket, Key=key, Range=f"bytes={start}-{end}")
-            body = response["Body"]
-            try:
-                return await body.read()
-            finally:
-                body.close()
-
-    async def stream(self, key: str, chunk_size: int = 1024 * 1024) -> AsyncIterator[bytes]:
-        async with self._client() as s3:
-            response = await s3.get_object(Bucket=self.bucket, Key=key)
+            response = await s3.get_object(Bucket=self.bucket, Key=key, **extra)
             body = response["Body"]
             try:
                 async for chunk in body.iter_chunks(chunk_size):

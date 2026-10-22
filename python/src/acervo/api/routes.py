@@ -1,5 +1,6 @@
 import re
 import uuid
+from functools import lru_cache
 from typing import Annotated, Any
 from urllib.parse import quote
 
@@ -44,7 +45,7 @@ from acervo.pdfs import versions as file_versions
 from acervo.pdfs.storage import Storage
 from acervo.store.db import get_session
 from acervo.store.models import File, Node, PageVersion
-from acervo.store.repositories import get
+from acervo.store.repositories import get, path
 from acervo.tree import kbs, nodes, search, trash
 
 router = APIRouter(
@@ -58,6 +59,7 @@ router = APIRouter(
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
+@lru_cache
 def storage() -> Storage:
     return Storage(Settings())
 
@@ -153,7 +155,7 @@ async def create_node(session: Session, kb_id: uuid.UUID, body: CreateNodeReques
 @router.patch("/nodes/{node_id}")
 async def rename_node(session: Session, node_id: uuid.UUID, body: RenameNodeRequest) -> NodeResponse:
     node = await nodes.live_node(session, node_id)
-    title = body.title.strip()
+    title = " ".join(body.title.split())
     if node.kind == "page" and title and title != node.title:
         await links.fix_links(session, node, title)
     await nodes.rename(session, node_id, body.title)
@@ -204,7 +206,7 @@ async def _detail(session: AsyncSession, node: Node) -> NodeDetailResponse:
         count = len(await file_versions.list_versions(session, node.id)) + 1
     return NodeDetailResponse(
         **NodeResponse.model_validate(node).model_dump(),
-        path=await nodes.path(session, node.id),
+        path=await path(session, node.id),
         page=page,
         file=file,
         versions=count,
@@ -266,12 +268,11 @@ async def list_versions(session: Session, node_id: uuid.UUID) -> list[VersionRes
 @router.get("/nodes/{node_id}/versions/{version_id}/diff")
 async def version_diff(session: Session, node_id: uuid.UUID, version_id: uuid.UUID) -> DiffResponse:
     node = await _page(session, node_id)
-    history = await page_versions.history(session, node.id)
-    index = next((i for i, version in enumerate(history) if version.id == version_id), None)
-    if index is None:
+    version = await get(session, PageVersion, version_id)
+    if version.node_id != node.id:
         raise NotFoundError(f"page_version {version_id} not found")
-    previous = history[index + 1].markdown if index + 1 < len(history) else ""
-    return DiffResponse.model_validate({"lines": line_diff(previous, history[index].markdown)})
+    previous = await page_versions.previous_markdown(session, version)
+    return DiffResponse.model_validate({"lines": line_diff(previous, version.markdown)})
 
 
 @router.post("/nodes/{node_id}/versions/{version_id}/restore")
@@ -341,6 +342,8 @@ async def raw_file(
     }
     # A malformed or multi-part Range is ignored and the whole file is served, as RFC 9110 allows.
     match = _RANGE.fullmatch(range.strip()) if range else None
+    # The bytes come from the bucket; the database is not held while they are sent.
+    await session.close()
     if match is None or match.groups() == ("", ""):
         return StreamingResponse(chunks, media_type=row.mime, headers={**headers, "Content-Length": str(row.size)})
     first, last = match.groups()
@@ -352,6 +355,11 @@ async def raw_file(
         return Response(
             status_code=status.HTTP_416_RANGE_NOT_SATISFIABLE, headers={"Content-Range": f"bytes */{row.size}"}
         )
-    content = await bucket.get_range(row.storage_key, start, end)
     headers["Content-Range"] = f"bytes {start}-{end}/{row.size}"
-    return Response(content, status_code=status.HTTP_206_PARTIAL_CONTENT, media_type=row.mime, headers=headers)
+    headers["Content-Length"] = str(end - start + 1)
+    return StreamingResponse(
+        bucket.stream(row.storage_key, (start, end)),
+        status_code=status.HTTP_206_PARTIAL_CONTENT,
+        media_type=row.mime,
+        headers=headers,
+    )

@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from acervo.errors import ConflictError, ValidationError
 from acervo.store.models import Node
+from acervo.store.repositories import path
 from acervo.tree import nodes
 
 
@@ -41,7 +42,7 @@ async def test_move_between_siblings_changes_only_the_moved_row(session, make_tr
     assert {id for id in before if before[id] != after[id]} == {moved.id}
     titles = [node.title for node in await nodes.children(session, tree.kb.id, tree["Bradesco"].id)]
     assert titles == ["A", "B", "E", "C", "D"]
-    assert await nodes.path(session, moved.id) == "Bradesco/E"
+    assert await path(session, moved.id) == "Bradesco/E"
 
 
 async def test_move_into_own_descendant_is_refused(session, make_tree) -> None:
@@ -77,4 +78,4 @@ async def test_page_and_folder_may_share_a_title(session, make_tree) -> None:
 
     kinds = [(node.kind, node.title) for node in await nodes.children(session, tree.kb.id, tree["Bradesco"].id)]
     assert kinds == [("page", "Renovação"), ("folder", "Renovação")]
-    assert await nodes.path(session, folder.id) == "Bradesco/Renovação"
+    assert await path(session, folder.id) == "Bradesco/Renovação"

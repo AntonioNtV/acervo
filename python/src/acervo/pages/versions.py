@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import defer
 
 from acervo.errors import ConflictError, NotFoundError
 from acervo.pages import drafts, links
@@ -20,9 +21,25 @@ async def current(session: AsyncSession, node_id: uuid.UUID) -> PageVersion:
 
 
 async def history(session: AsyncSession, node_id: uuid.UUID) -> list[PageVersion]:
-    """Every version of the page, newest first. Versions are never updated or deleted."""
-    query = select(PageVersion).where(PageVersion.node_id == node_id).order_by(PageVersion.created_at.desc())
+    """Every version of the page, newest first, without its text. Versions are never updated or deleted."""
+    query = (
+        select(PageVersion)
+        .options(defer(PageVersion.markdown, raiseload=True))
+        .where(PageVersion.node_id == node_id)
+        .order_by(PageVersion.created_at.desc())
+    )
     return list(await session.scalars(query))
+
+
+async def previous_markdown(session: AsyncSession, version: PageVersion) -> str:
+    """The text of the version just before `version`; empty for the first one."""
+    query = (
+        select(PageVersion.markdown)
+        .where(PageVersion.node_id == version.node_id, PageVersion.created_at < version.created_at)
+        .order_by(PageVersion.created_at.desc())
+        .limit(1)
+    )
+    return await session.scalar(query) or ""
 
 
 async def add(session: AsyncSession, node: Node, markdown: str, author: str) -> PageVersion:

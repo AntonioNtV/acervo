@@ -1,4 +1,5 @@
 import hashlib
+import io
 import os
 import tracemalloc
 
@@ -20,7 +21,8 @@ async def test_round_trip_keeps_the_bytes(storage, tmp_path) -> None:
     await bucket.delete("kb/round-trip/big")
 
     tracemalloc.start()
-    await bucket.put("kb/round-trip/big", path)
+    with path.open("rb") as source:
+        await bucket.put("kb/round-trip/big", source, path.stat().st_size)
     received = hashlib.sha256()
     async for chunk in bucket.stream("kb/round-trip/big"):
         received.update(chunk)
@@ -31,22 +33,22 @@ async def test_round_trip_keeps_the_bytes(storage, tmp_path) -> None:
     assert peak < 3 * PART_SIZE
 
 
-async def test_range_read(storage, tmp_path) -> None:
-    path = tmp_path / "small.bin"
-    path.write_bytes(b"0123456789")
+async def _read(bucket: Storage, key: str, byte_range: tuple[int, int] | None = None) -> bytes:
+    return b"".join([chunk async for chunk in bucket.stream(key, byte_range)])
+
+
+async def test_range_read(storage) -> None:
     bucket = Storage(storage)
-    await bucket.put("kb/range/small", path)
+    await bucket.put("kb/range/small", io.BytesIO(b"0123456789"), 10)
 
-    assert await bucket.get_range("kb/range/small", 2, 5) == b"2345"
+    assert await _read(bucket, "kb/range/small", (2, 5)) == b"2345"
 
 
-async def test_same_content_is_stored_once(storage, tmp_path) -> None:
-    path = tmp_path / "once.bin"
-    path.write_bytes(b"same content")
+async def test_same_content_is_stored_once(storage) -> None:
     bucket = Storage(storage)
-    await bucket.put("kb/once/key", path)
+    await bucket.put("kb/once/key", io.BytesIO(b"same content"), 12)
 
-    # The key exists, so the missing file is never opened.
-    await bucket.put("kb/once/key", tmp_path / "missing.bin")
+    # The key exists, so the other source is never read.
+    await bucket.put("kb/once/key", io.BytesIO(b"other"), 5)
 
-    assert await bucket.get_range("kb/once/key", 0, 3) == b"same"
+    assert await _read(bucket, "kb/once/key") == b"same content"

@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: acervo
       POSTGRES_DB: acervo
     ports:
-      - "55433:5432"
+      - "127.0.0.1:55433:5432"
     volumes:
       - postgres:/var/lib/postgresql/data
     healthcheck:
@@ -17,7 +17,7 @@ services:
   redis:
     image: redis:7
     ports:
-      - "56379:6379"
+      - "127.0.0.1:56379:6379"
 
   # minio/minio is no longer published; Chainguard's build is the same server.
   minio:
@@ -27,8 +27,8 @@ services:
       MINIO_ROOT_USER: acervo
       MINIO_ROOT_PASSWORD: acervo-secret
     ports:
-      - "59000:9000"
-      - "59001:9001"
+      - "127.0.0.1:59000:9000"
+      - "127.0.0.1:59001:9001"
     volumes:
       - minio:/data
 

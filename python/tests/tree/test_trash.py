@@ -53,3 +53,20 @@ async def test_restore_with_a_title_clash_is_refused(session, make_tree) -> None
     with pytest.raises(ConflictError, match="já existe"):
         await trash.restore(session, page.id)
     assert [item.node.id for item in await trash.list_trash(session, tree.kb.id)] == [page.id]
+
+
+async def test_restore_does_not_repeat_a_sibling_sort_key(session, make_tree) -> None:
+    tree = await make_tree({"Bradesco": None})
+    folder = tree["Bradesco"].id
+    first = await nodes.create(session, tree.kb.id, folder, "page", "Renovação")
+    await trash.trash(session, first.id)
+    # Placed last while "Renovação" is in the trash, so it gets the same key.
+    taken = await nodes.create(session, tree.kb.id, folder, "page", "Sinistro")
+    last = await nodes.create(session, tree.kb.id, folder, "page", "Vistoria")
+
+    await trash.restore(session, first.id)
+
+    sorts = [node.sort for node in (taken, first, last)]
+    assert len(set(sorts)) == 3
+    titles = [node.title for node in await nodes.children(session, tree.kb.id, folder)]
+    assert titles == ["Sinistro", "Renovação", "Vistoria"]

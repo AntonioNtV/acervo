@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.errors import NotFoundError
 from acervo.store.models import Node
-from acervo.tree.nodes import ensure_title_free, key_between, last_sort, live_node, paths
+from acervo.store.repositories import key_between, last_sort, paths, siblings, sort_key
+from acervo.tree.nodes import ensure_title_free, live_node
 
 
 @dataclass
@@ -60,6 +61,15 @@ async def restore(session: AsyncSession, node_id: uuid.UUID) -> Restored:
     if parent_gone:
         node.parent_id = None
         node.sort = key_between(await last_sort(session, node.kb_id, None), None)
+        await session.flush()
+    elif await session.scalar(
+        select(Node.id).where(*siblings(node.kb_id, parent_id), sort_key() == node.sort).limit(1)
+    ):
+        # A node placed while this one was in the trash took its key.
+        following = await session.scalar(
+            select(func.min(sort_key())).where(*siblings(node.kb_id, parent_id), sort_key() > node.sort)
+        )
+        node.sort = key_between(node.sort, following)
         await session.flush()
     await session.execute(
         update(Node)

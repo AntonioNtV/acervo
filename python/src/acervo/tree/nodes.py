@@ -1,12 +1,21 @@
 import uuid
 
-from sqlalchemy import CTE, func, literal, select
-from sqlalchemy.dialects.postgresql import aggregate_order_by
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.errors import ConflictError, NotFoundError, ValidationError
-from acervo.store.models import Kb, Node
-from acervo.store.repositories import key_between, last_sort, sibling_title_taken, siblings, sort_key
+from acervo.store.models import Node
+from acervo.store.repositories import (
+    key_between,
+    last_sort,
+    live_folder,
+    lock_kb,
+    sibling_title_taken,
+    siblings,
+    sort_key,
+    upwards,
+)
+from acervo.store.repositories import paths as paths  # where tree.search reads it
 
 # Files come from an upload, not from here.
 CREATABLE = ("folder", "page")
@@ -20,19 +29,9 @@ async def live_node(session: AsyncSession, node_id: uuid.UUID) -> Node:
     return node
 
 
-async def _folder(session: AsyncSession, kb_id: uuid.UUID, folder_id: uuid.UUID | None) -> None:
-    if folder_id is None:
-        kb = await session.get(Kb, kb_id, populate_existing=True)
-        if kb is None or kb.deleted_at is not None:
-            raise NotFoundError(f"kb {kb_id} not found")
-        return
-    folder = await live_node(session, folder_id)
-    if folder.kb_id != kb_id or folder.kind != "folder":
-        raise ValidationError(f"node {folder_id} is not a folder of this base")
-
-
 def _title(title: str) -> str:
-    title = title.strip()
+    # Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar".
+    title = " ".join(title.split())
     if not title:
         raise ValidationError("a title cannot be empty")
     return title
@@ -49,7 +48,8 @@ async def create(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID |
     if kind not in CREATABLE:
         raise ValidationError(f"cannot create a node of kind {kind!r}")
     title = _title(title)
-    await _folder(session, kb_id, parent_id)
+    await lock_kb(session, kb_id)
+    await live_folder(session, kb_id, parent_id)
     await ensure_title_free(session, kb_id, parent_id, kind, title)
     node = Node(
         kb_id=kb_id,
@@ -64,7 +64,7 @@ async def create(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID |
 
 
 async def children(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID | None) -> list[Node]:
-    await _folder(session, kb_id, parent_id)
+    await live_folder(session, kb_id, parent_id)
     query = select(Node).where(*siblings(kb_id, parent_id)).order_by(sort_key(), Node.id)
     return list(await session.scalars(query))
 
@@ -84,7 +84,7 @@ async def move(
 ) -> Node:
     """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None."""
     node = await live_node(session, node_id)
-    await _folder(session, node.kb_id, parent_id)
+    await live_folder(session, node.kb_id, parent_id)
     if parent_id is not None and node.id in await _ancestors(session, parent_id):
         raise ValidationError("a folder cannot move into itself or into a folder inside it")
     if parent_id != node.parent_id:
@@ -105,34 +105,5 @@ async def move(
     return node
 
 
-def _upwards(node_ids: list[uuid.UUID]) -> CTE:
-    """Each start node and its ancestors, with their distance from the start."""
-    up = (
-        select(Node.id.label("start_id"), Node.id, Node.parent_id, Node.title, literal(0).label("depth"))
-        .where(Node.id.in_(node_ids))
-        .cte("up", recursive=True)
-    )
-    return up.union_all(
-        select(up.c.start_id, Node.id, Node.parent_id, Node.title, up.c.depth + 1).join(Node, Node.id == up.c.parent_id)
-    )
-
-
 async def _ancestors(session: AsyncSession, node_id: uuid.UUID) -> set[uuid.UUID]:
-    return set(await session.scalars(select(_upwards([node_id]).c.id)))
-
-
-async def paths(session: AsyncSession, node_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
-    """Each node's path: the titles from the root down to it, joined by "/"."""
-    if not node_ids:
-        return {}
-    up = _upwards(node_ids)
-    joined = func.string_agg(up.c.title, aggregate_order_by(literal("/"), up.c.depth.desc()))
-    rows = await session.execute(select(up.c.start_id, joined).group_by(up.c.start_id))
-    return {start_id: joined_path for start_id, joined_path in rows}
-
-
-async def path(session: AsyncSession, node_id: uuid.UUID) -> str:
-    found = await paths(session, [node_id])
-    if node_id not in found:
-        raise NotFoundError(f"node {node_id} not found")
-    return found[node_id]
+    return set(await session.scalars(select(upwards([node_id]).c.id)))

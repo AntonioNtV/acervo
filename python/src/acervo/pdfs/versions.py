@@ -7,10 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.errors import ConflictError, NotFoundError
-from acervo.pdfs.files import staged
+from acervo.pdfs.files import refuse_duplicate, stage
 from acervo.pdfs.storage import Storage, key_for
 from acervo.store.models import File, FileColumns, FileVersion, Node
-from acervo.store.repositories import get
+from acervo.store.repositories import get, lock_kb
 
 _COLUMNS = tuple(FileColumns.__annotations__)
 
@@ -39,12 +39,14 @@ def _take(file: File, columns: dict[str, Any]) -> None:
 
 async def replace(session: AsyncSession, storage: Storage, node_id: uuid.UUID, source: BinaryIO) -> File:
     """The file node gets new content; the current one goes to its history."""
-    file = await current(session, node_id)
     node = await get(session, Node, node_id)
-    async with staged(source, node.title) as upload:
-        if upload.sha256 == file.sha256:
-            raise ConflictError("é o mesmo arquivo")
-        await storage.put(key_for(node.kb_id, upload.sha256), upload.path)
+    upload = await stage(source, node.title)
+    await lock_kb(session, node.kb_id)
+    file = await current(session, node_id)
+    if upload.sha256 == file.sha256:
+        raise ConflictError("é o mesmo arquivo")
+    await refuse_duplicate(session, node.kb_id, upload.sha256, other_than=node.id)
+    await storage.put(key_for(node.kb_id, upload.sha256), upload.source, upload.size)
     _to_history(session, file)
     _take(file, upload.columns(node.kb_id))
     await session.flush()
