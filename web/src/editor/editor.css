@@ -1,0 +1,267 @@
+/* The page's blocks (board NPagina): ProseMirror owns this DOM, so it is styled here and not with classes. */
+.block-editor {
+  outline: none;
+  font-size: 16px;
+  line-height: 26px;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.block-editor > * {
+  margin: 0;
+  padding: 3px 2px;
+}
+
+.block-editor p {
+  margin: 0;
+}
+
+.block-editor h1,
+.block-editor h2,
+.block-editor h3 {
+  margin: 0;
+  font-weight: 500;
+}
+
+.block-editor h1 {
+  margin-top: 28px;
+  font-size: 24px;
+  line-height: 32px;
+  letter-spacing: -0.015em;
+}
+
+.block-editor h2 {
+  margin-top: 22px;
+  font-size: 19px;
+  line-height: 28px;
+  letter-spacing: -0.01em;
+}
+
+.block-editor h3 {
+  margin-top: 16px;
+  font-size: 16px;
+  line-height: 26px;
+}
+
+.block-editor > :first-child {
+  margin-top: 0;
+}
+
+.block-editor ul,
+.block-editor ol {
+  margin: 0;
+  padding-left: 24px;
+  list-style: disc;
+}
+
+.block-editor ol {
+  list-style: decimal;
+}
+
+.block-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 2px;
+}
+
+.block-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.block-editor ul[data-type="taskList"] li > label {
+  flex: none;
+  user-select: none;
+}
+
+.block-editor ul[data-type="taskList"] input {
+  width: 15px;
+  height: 15px;
+  margin: 6px 0 0;
+  accent-color: var(--ink);
+}
+
+.block-editor ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.block-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.block-editor blockquote {
+  margin-left: 2px;
+  border-left: 2px solid var(--line-2);
+  padding-left: 14px;
+  color: var(--text-2);
+}
+
+.block-editor .callout {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  column-gap: 10px;
+  margin: 4px 0;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: var(--subtle);
+  font-size: 15px;
+  line-height: 25px;
+}
+
+.block-editor .callout::before {
+  content: "";
+  grid-row: 1 / span 99;
+  width: 16px;
+  height: 16px;
+  margin-top: 4px;
+  background: var(--text-2);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 8v5M12 16h.01'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.block-editor .callout[data-callout="WARNING"]::before,
+.block-editor .callout[data-callout="CAUTION"]::before {
+  background: var(--warn);
+}
+
+.block-editor .callout > * {
+  grid-column: 2;
+}
+
+.block-editor [data-type="details"] {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.block-editor [data-type="details"] > button {
+  flex: none;
+  width: 18px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.block-editor [data-type="details"] > button::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m10 7 5 5-5 5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: transform 0.12s;
+}
+
+.block-editor [data-type="details"].is-open > button::before {
+  transform: rotate(90deg);
+}
+
+.block-editor [data-type="details"] > div {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Outside a <details>, a <summary> still draws the browser's disclosure marker. */
+.block-editor [data-type="details"] summary {
+  display: block;
+  list-style: none;
+}
+
+.block-editor [data-type="details"] summary::-webkit-details-marker {
+  display: none;
+}
+
+.block-editor pre {
+  margin: 4px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-x: auto;
+}
+
+.block-editor code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.block-editor pre.raw-block {
+  border-style: dashed;
+  border-color: var(--line-2);
+  color: var(--text-3);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.block-editor .raw-inline {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ghost);
+}
+
+.block-editor hr {
+  margin: 12px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.block-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.block-editor th,
+.block-editor td {
+  border: 1px solid var(--line-2);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.block-editor th {
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--side);
+}
+
+.block-editor .page-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-2);
+  line-height: 20px;
+}
+
+.block-editor .page-link:hover {
+  background: var(--subtle);
+}
+
+.block-editor a {
+  color: var(--text);
+}
+
+.block-editor .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--ghost);
+  pointer-events: none;
+}
+
+.block-editor .ProseMirror-selectednode {
+  border-radius: 4px;
+  background: var(--accent-soft);
+}

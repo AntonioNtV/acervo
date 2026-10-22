@@ -1,0 +1,39 @@
+const PATHS: Record<string, string> = {
+  text: "M6 6h12M12 6v12",
+  h1: "M5 6v12M13 6v12M5 12h8M17 10l2-1v9",
+  h2: "M4 6v12M12 6v12M4 12h8M16 10a2 2 0 1 1 4 1l-4 7h4",
+  h3: "M4 6v12M12 6v12M4 12h8M16 9h4l-2 3a2 2 0 1 1-2 3",
+  bullet: "M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01",
+  numbered: "M10 7h10M10 12h10M10 17h10M4 6l1.5-1v4M4 15h2.5L4 19h2.5",
+  todo: "M4 5h5v5H4zM5.5 7.5l1 1 2-2M12 7.5h8M4 14h5v5H4zM12 16.5h8",
+  quote: "M5 5v14M10 8h9M10 12h9M10 16h6",
+  callout: "M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 8v5M12 16h.01",
+  toggle: "m9 6 6 6-6 6",
+  code: "m9 8-4 4 4 4M15 8l4 4-4 4",
+  table: "M4 5h16v14H4zM4 10h16M4 14.5h16M10 5v14",
+  divider: "M4 12h16",
+  subpage: "M7 3h7l4 4v14H7zM14 3v4h4",
+  pageLink: "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1",
+  page: "M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h5",
+  plus: "M12 5v14M5 12h14",
+  grip: "M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01",
+};
+
+export function Icon({ name, size = 16 }: { name: string; size?: number }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      aria-hidden="true"
+      className="flex-none"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={name === "grip" ? 2.5 : 1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={PATHS[name] ?? PATHS.text} />
+    </svg>
+  );
+}
