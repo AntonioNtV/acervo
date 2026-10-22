@@ -19,6 +19,7 @@ async def put(session: AsyncSession, node_id: uuid.UUID, markdown: str, base_ver
     else:
         draft.markdown, draft.base_version_id = markdown, base_version_id
     await session.flush()
+    await session.refresh(draft)
     return draft
 
 
