@@ -1,4 +1,4 @@
-from acervo.pages.sections import Section, sections
+from acervo.domain.sections import Section, sections
 
 
 def test_headings_become_anchors() -> None:

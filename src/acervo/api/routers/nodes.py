@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 from acervo.api.deps import get_tree_service, require_api_key
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.node import NodeAdd, NodeMove, NodeRead, NodeRename, NodeWithPath, RestoredNode, TreeNode
+from acervo.schemas.page import NodeDetail
 from acervo.services.tree_service import TreeService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -34,11 +35,19 @@ async def search_nodes(kb_id: UUID, q: str, service: Service) -> list[NodeWithPa
 
 @router.post("/kbs/{kb_id}/nodes", status_code=201, response_model=NodeRead, responses={404: ERROR, 409: ERROR})
 async def create_node(kb_id: UUID, body: NodeAdd, service: Service) -> NodeRead:
+    """A new folder, or a page with an empty first version."""
     return await service.create(kb_id, body)
+
+
+@router.get("/nodes/{node_id}", response_model=NodeDetail, responses={404: ERROR})
+async def get_node(node_id: UUID, service: Service) -> NodeDetail:
+    """The live node with its path, and a page's text or a file's current content."""
+    return await service.detail(node_id)
 
 
 @router.patch("/nodes/{node_id}", response_model=NodeRead, responses={404: ERROR, 409: ERROR})
 async def rename_node(node_id: UUID, body: NodeRename, service: Service) -> NodeRead:
+    """Renaming a page also fixes the `[[…]]` links that resolved to it, each as a new version of its page."""
     return await service.rename(node_id, body.title)
 
 
