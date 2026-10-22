@@ -165,7 +165,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
-          <div className="mx-auto box-border max-w-[720px] px-8 pt-10 pb-30">
+          <div className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30">
             <div className="mb-1 text-13 text-ghost">
               {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
             </div>

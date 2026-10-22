@@ -68,7 +68,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
       <TopBar kbId={kbId} nodeId={folderId ?? undefined} />
       <div
         className={cx(
-          "relative mx-auto box-border min-h-[calc(100%-44px)] max-w-[720px] px-8 pt-10 pb-30",
+          "relative mx-auto box-border min-h-[calc(100%-44px)] w-full max-w-[720px] px-8 pt-10 pb-30",
           over && "rounded-[8px] bg-accent-soft outline-1 outline-ink outline-dashed",
         )}
         onDragOver={(event) => {
@@ -92,12 +92,14 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
             {t("folder.drop", { name: title })}
           </p>
         )}
-        {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
-        {folder ? (
-          <Description node={folder} />
-        ) : (
-          description && <p className="m-0 mt-1.5 text-15 leading-6 text-text-2">{description}</p>
-        )}
+        <div className="group/header">
+          {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
+          {folder ? (
+            <Description node={folder} />
+          ) : (
+            description && <p className="m-0 mt-1.5 text-15 leading-6 text-text-2">{description}</p>
+          )}
+        </div>
 
         <ul className="m-0 mt-6 flex list-none flex-col p-0">
           {all.map((child) => (
@@ -162,8 +164,11 @@ function Description({ node }: { node: NodeDetail }) {
           setDraft(node.description ?? "");
         }}
         className={cx(
-          "mt-1.5 block cursor-text border-0 bg-transparent p-0 text-left font-[inherit] text-15 leading-6",
-          node.description ? "text-text-2" : "text-ghost",
+          "mt-1.5 block cursor-text border-0 bg-transparent p-0 text-left font-[inherit] leading-6",
+          // An empty description is only a hint, shown when the header is hovered or focused, as Notion does.
+          node.description
+            ? "text-15 text-text-2"
+            : "text-13 text-ghost opacity-0 group-hover/header:opacity-100 focus-visible:opacity-100",
         )}
       >
         {node.description || t("folder.describe")}
