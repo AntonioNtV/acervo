@@ -5,10 +5,14 @@ description: Acervo's visual system (the autoflow "Suíço" look with Segura's i
 
 # UI design
 
-The boards are on the canvas https://claude.ai/artifact/Jjq3r6SPUZ9E4jUG7WtqGR ("Acervo · Interface"): Bases, Base
-aberta, Soltar PDF, PDF aberto, Caixa de propostas, Página .md and Estados do chat. The look comes from autoflow's
-"v2 · Suíço" (https://claude.ai/artifact/6SKxSE3eQAZoNmfh2XBhQ8). Where a board and the code disagree on behavior,
-the code wins; the board sets the look.
+The boards are on the canvas https://claude.ai/artifact/Jjq3r6SPUZ9E4jUG7WtqGR ("Acervo · Interface"). Page
+"Notion · proposta" sets the look from phase A on: NPagina (shell, page and its blocks, "/" menu), NPasta (folder),
+NHistorico (history panel), NPdf (file), NChat (chat panel), NBusca (⌘K) and NMenu (page menu); NBusca, NMenu and
+the cover, icon and favorites on NPagina are phase B, and their places stay empty until then. Page "F1 · atual" keeps
+the F1 boards (Bases, Base aberta, Soltar PDF, PDF aberto, Caixa de propostas, Página .md, Estados do chat): the chat
+states and the proposal still come from there. The look comes from autoflow's "v2 · Suíço"
+(https://claude.ai/artifact/6SKxSE3eQAZoNmfh2XBhQ8). Where a board and the code disagree on behavior, the code wins;
+the board sets the look.
 
 ## The rules
 
@@ -19,7 +23,8 @@ the code wins; the board sets the look.
    and "proposta do chat" in histories. Nothing else is violet.
 5. Navigation recedes: text only, unselected in `--text-3`.
 6. Dense but breathing: 13 px body, rows of 44 to 64 px, thin separators.
-7. Sizes 11/12/13/15/20/24/32, weights 400 and 500. Index pages get a 32 px title with the count in `--ghost`.
+7. Sizes 11/12/13/15/20/24/32, weights 400 and 500. Index pages get a 32 px title with the count in `--ghost`. The
+   text of a page is the exception: 16 px body, headings 24/19/16 (see the shell below).
 8. System font and its mono. Files always show their extension in `--text-3` (`Emissão de apólice.md`,
    `Condições Gerais 2026.pdf`): the person always sees what is a page and what is a PDF.
 9. Tokens only, so light and dark both work.
@@ -44,10 +49,28 @@ the code wins; the board sets the look.
 
 | Screen | Layout |
 |---|---|
-| index (Bases, Propostas) | side nav 220–240 px, content max 1040 px, 72 px top padding, 32 px title |
-| inside a base | tree 248 px · content (max 720 px for a page) · chat 360–400 px |
-| PDF | tree · section map 210–230 px · the original page on a gray desk · chat |
+| shell | sidebar 248 px · the screen of the route under a top bar · chat panel 360–400 px at the right when open |
+| page | one column, max 720 px, centered; the title is the first line; children of the page as links at its end |
+| folder | header (icon, title, description), filters Tudo · Páginas · Arquivos, the list with edited and inside columns, drop zone |
+| PDF | the file's top bar (pager, zoom, Baixar, ⋯) · the original page on a gray desk |
+| history | panel at the right of the page, versions by day; the selected version shows its diff in the page |
 | proposal | inside the chat: title, path in mono, diff or folder choice, then Aceitar (ink) · Editar · Rejeitar · Outro lugar |
+
+The shell (NPagina):
+
+- **Sidebar** on `--side` with a right `--line`: "acervo" and the collapse button (remembered), "Buscar ⌘K" and
+  "Recentes" (inert until phase B), then one section per base: its name as a 12 px `--text-3` label with ⋯ and "+",
+  and its tree in 28 px rows indented 14 px per level, a caret on what has children, files with their extension.
+  "Nova base" and "Lixeira" sit at the bottom with the language and theme switches.
+- **Top bar**, 44 px: the breadcrumb (each part a link), the screen's status in 12 px `--text-3` ("Salvando…",
+  "Salvo"), its actions (history), "Chat" in `--ai-text` (it opens the AI) and the ⋯ menu last.
+- **Chat panel**: closed by default, toggled by "Chat" and ⌘J; disabled until F2.
+- **Blocks** (`web/src/editor/editor.css`): body 16/26 px; H1 24, H2 19, H3 16, weight 500; lists indented 24 px;
+  to-do checked in `--text-3` struck through; quote with a 2 px `--line-2` rule; callout on `--subtle`, radius 6, 15
+  px; toggle with a caret; code 13 px mono; table with `--line-2` borders and its header on `--side`; page link
+  underlined by `--line-2`; Markdown the editor cannot show in a raw block, mono 12 px `--text-3` in a dashed
+  `--line-2` border. The handle ("+" and the grip) sits left of the block in `--ghost`; the "/" menu is a 320 px
+  popover.
 
 States the chat must cover (board "Estados do chat"): reading a PDF, not sure where (3 options), conflict, already
 written, new version of a PDF, not found.

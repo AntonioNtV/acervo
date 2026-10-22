@@ -9,5 +9,6 @@ Knowledge bases in the style of Notion, with a side chat that files what you dro
 - `make migrate`, `make revision m="add x"`: Alembic.
 - `make openapi`: regenerates `docs/openapi.json` and the web client.
 - `make web-check`: the web app's install, typecheck, lint, test and build; `cd web && pnpm dev` runs it on :5173 with the key in `web/.env.local`.
+- The app: a sidebar with every base; pages that nest, written in a block editor that saves itself and keeps a version per editing session; folder and PDF screens; the chat as a panel (⌘J).
 
 How the code is laid out and the rules it never breaks are in [CLAUDE.md](CLAUDE.md); the screens are on the design canvas https://claude.ai/artifact/Jjq3r6SPUZ9E4jUG7WtqGR.

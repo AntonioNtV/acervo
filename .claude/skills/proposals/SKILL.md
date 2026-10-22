@@ -10,8 +10,9 @@ Agents never write to a base. They create proposals; the person accepts, edits o
 agent's behalf.
 
 The person's own actions (create, edit, rename, drag, upload, trash, restore) are not proposals: their action is
-their approval, and they write directly through `TreeService`, `PageService` and `FileService` with author `user`. The proposal
-service calls those same services for an accepted proposal, with author `agent` and the proposal's id.
+their approval, and they write directly through `TreeService`, `PageService` (the autosaved working text, skill
+`markdown-pages`) and `FileService` with author `user`. The proposal service calls those same services for an
+accepted proposal, with author `agent` and the proposal's id.
 
 | Piece | File |
 |---|---|
@@ -25,10 +26,10 @@ service calls those same services for an accepted proposal, with author `agent` 
 
 | Kind | Payload | Apply |
 |---|---|---|
-| `create_page` | folder, title, Markdown | new page, version 1 |
-| `append`, `edit` | `Patch` (skill `markdown-pages`) | rebase, new page version |
+| `create_page` | parent (folder or page), title, Markdown | new page, version 1 |
+| `append`, `edit` | `Patch` (skill `markdown-pages`) | cut the working text, rebase, new page version |
 | `conflict` | page, anchor, current text, new text | the person's choice: use new, keep current, keep both with a note |
-| `save_pdf` | staged file, folder, name | moves the file from staging to the folder |
+| `save_pdf` | staged file, parent (folder or page), name | moves the file from staging under the parent |
 | `replace_pdf` | staged file, existing PDF | new file version, old one in history |
 | `move`, `rename` | node, destination or name | updates paths and wiki links |
 | `new_folder` | parent, name | only as part of another proposal that needs it |
@@ -49,6 +50,9 @@ calibration (skill `evals`), so the UI always asks for one.
 
 - Accept is idempotent and runs in one transaction: apply, new version, link the version to the proposal, refresh
   the descriptions of the ancestors (as a job, after commit).
+- An agent patches the newest version, never the working text: the working text is cut as a version first, when the
+  agent reads the page and again at accept, so the rebase sees what the person typed. The applied version also becomes
+  the working text with a new `revision`, so an open editor reloads instead of overwriting it.
 - An edited proposal keeps the original payload and stores the edited one; both go to `evals` as data.
 - "Outro lugar" swaps the target for the second path the Curator logged; it does not run the Curator again.
 - Undo after accept is a restore of the previous version (pages) or of the previous location (files).
