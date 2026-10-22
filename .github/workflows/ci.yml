@@ -1,13 +1,10 @@
-name: CI
+name: ci
 
 on:
-  pull_request:
   push:
     branches: [main]
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  pull_request:
+  workflow_call:
 
 jobs:
   python:
@@ -15,44 +12,11 @@ jobs:
     defaults:
       run:
         working-directory: python
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: acervo
-          POSTGRES_PASSWORD: acervo
-          POSTGRES_DB: acervo
-        ports:
-          - 55433:5432
-        options: >-
-          --health-cmd "pg_isready -U acervo"
-          --health-interval 2s
-          --health-retries 30
-    env:
-      ACERVO_DATABASE_URL: postgresql+asyncpg://acervo:acervo@localhost:55433/acervo
-      ACERVO_S3_ENDPOINT: http://localhost:59000
-      ACERVO_S3_ACCESS_KEY: acervo
-      ACERVO_S3_SECRET_KEY: acervo-secret
     steps:
       - uses: actions/checkout@v4
-      # A service container cannot be given a command, and MinIO needs `server /data`.
-      - name: Start MinIO
-        working-directory: .
-        run: |
-          docker run -d --name minio -p 59000:9000 \
-            -e MINIO_ROOT_USER=acervo -e MINIO_ROOT_PASSWORD=acervo-secret \
-            cgr.dev/chainguard/minio:latest server /data
-          for _ in $(seq 30); do
-            curl -sf http://localhost:59000/minio/health/live && exit 0
-            sleep 1
-          done
-          docker logs minio
-          exit 1
       - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-          enable-cache: true
-          cache-dependency-glob: python/uv.lock
+      # Not minio-bucket: --wait fails on a container that exits, and the tests create their own bucket.
+      - run: docker compose -f ../docker-compose.yml up -d --wait postgres minio
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check
@@ -66,40 +30,12 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
+      - uses: astral-sh/setup-uv@v6
+      - uses: ./.github/actions/setup-pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
-
-  contract:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
-        with:
-          python-version: "3.12"
-          enable-cache: true
-          cache-dependency-glob: python/uv.lock
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-          cache-dependency-path: web/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
       - run: pnpm gen:api
-      - name: Generated client matches the API
+      - name: Generated contract types are up to date
         run: git diff --exit-code -- src/api/schema.gen.ts
