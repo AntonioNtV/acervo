@@ -38,7 +38,7 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
 
   /** Sends `markdown` typed on `revision`; resolves once its answer is handled. */
   const send = useCallback(
-    (markdown: string, revision: number, keepalive: boolean, resent = false): Promise<void> => {
+    (markdown: string, revision: number, keepalive: boolean): Promise<void> => {
       const s = state.current;
       return save({ markdown, revision }, keepalive).then(
         (saved) => {
@@ -48,8 +48,9 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
         },
         (error: unknown) => {
           if (!(error instanceof ApiError && error.code === "stale_page")) return setStatus("failed");
-          // The API keeps a refused text as a version: what was typed while it was on its way is kept the same way.
-          if (!resent && s.text !== markdown) return send(s.text, revision, false, true);
+          // The API keeps a refused text as a version: what was typed while it was on its way is kept the same way,
+          // until nothing new was typed during a resend.
+          if (s.text !== markdown) return send(s.text, revision, false);
           const newest = error.details as StaleText;
           replace(newest.markdown, newest.revision);
           setReloaded(true);
@@ -60,22 +61,27 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
     [save, replace],
   );
 
-  /** Waits for the save on its way, then sends what is still unsaved; resolves once that lands too. */
-  const flush = useCallback(
-    async (keepalive = false): Promise<void> => {
+  /** Sends the current text now, as the save on its way. */
+  const start = useCallback(
+    (keepalive: boolean): Promise<void> => {
       const s = state.current;
-      clearTimeout(s.timer);
-      while (s.inFlight) await s.inFlight;
-      if (s.text === s.saved) return;
       setStatus("saving");
       const landed: Promise<void> = send(s.text, s.revision, keepalive).finally(() => {
         if (s.inFlight === landed) s.inFlight = null;
       });
       s.inFlight = landed;
-      await landed;
+      return landed;
     },
     [send],
   );
+
+  /** Waits for the save on its way, then sends what is still unsaved; resolves once that lands too. */
+  const flush = useCallback(async (): Promise<void> => {
+    const s = state.current;
+    clearTimeout(s.timer);
+    while (s.inFlight) await s.inFlight;
+    if (s.text !== s.saved) await start(false);
+  }, [start]);
 
   const change = useCallback(
     (markdown: string) => {
@@ -96,14 +102,16 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
 
   // Leaving the page or hiding the tab saves what is pending and cuts the working text as a version.
   useEffect(() => {
-    const onVisibility = async () => {
+    const onVisibility = () => {
       if (document.visibilityState !== "hidden") return;
       const s = state.current;
       clearTimeout(s.timer);
-      while (s.inFlight) await s.inFlight;
-      // A closing tab never runs what waits for an answer: the save and the leave go out now, in that order.
-      const body = new Blob([JSON.stringify({ markdown: s.text, revision: s.revision })]);
-      void flush(body.size < KEEPALIVE_MAX_BYTES);
+      // A closing tab never runs what waits for an answer, not even a save on its way: the text and the leave go out
+      // now, in that order. If the save on its way lands first, this one is refused and kept as a version.
+      if (s.text !== s.saved) {
+        const body = new Blob([JSON.stringify({ markdown: s.text, revision: s.revision })]);
+        void start(body.size < KEEPALIVE_MAX_BYTES);
+      }
       void leavePage(nodeId);
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -111,7 +119,7 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
       document.removeEventListener("visibilitychange", onVisibility);
       void flush().then(() => leavePage(nodeId));
     };
-  }, [nodeId, flush]);
+  }, [nodeId, flush, start]);
 
   return { opened, status, reloaded, dismissReloaded: () => setReloaded(false), change, flush, replace };
 }

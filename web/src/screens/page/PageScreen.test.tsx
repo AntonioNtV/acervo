@@ -177,6 +177,51 @@ describe("PageScreen", () => {
     expect(screen.getByText("Boleto no portal")).toBeInTheDocument();
   });
 
+  it("text typed during the stale_page resend is sent as well", async () => {
+    const release = holdSaves(() => ({
+      status: 409,
+      body: {
+        error: "stale_page",
+        message: "page page-1 changed since revision 4",
+        details: { markdown: "## Documentos\n\n- Boleto no portal\n", revision: 7 },
+      },
+    }));
+    await openPage();
+
+    typeInPage("Segunda via");
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    await waitFor(() => expect(textPuts()).toHaveLength(1));
+    typeInPage("Apólice");
+    await release();
+    await waitFor(() => expect(textPuts()).toHaveLength(2));
+    typeInPage("Boleto");
+    await release();
+    await release();
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Esta página mudou em outra aba");
+    expect(textPuts().map((put) => (put.body as { markdown: string }).markdown)).toEqual([
+      "## Documentos\n\nSegunda via\n",
+      "## Documentos\n\nSegunda via\n\nApólice\n",
+      "## Documentos\n\nSegunda via\n\nApólice\n\nBoleto\n",
+    ]);
+  });
+
+  it("hiding the tab during a save sends the rest and leaves at once", async () => {
+    holdSaves();
+    await openPage();
+
+    typeInPage("Boleto");
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    await waitFor(() => expect(textPuts()).toHaveLength(1));
+    typeInPage("no portal");
+    hideTab();
+
+    // The first save never answers: a closing tab would not wait for it.
+    await waitFor(() => expect(leaves()).toHaveLength(1));
+    expect(textPuts().map((put) => put.keepalive)).toEqual([false, true]);
+    expect(textPuts()[1]!.body).toEqual({ markdown: "## Documentos\n\nBoleto\n\nno portal\n", revision: 4 });
+  });
+
   it("a newer revision from the API reloads an idle editor", async () => {
     const { queryClient } = await openPage();
 
