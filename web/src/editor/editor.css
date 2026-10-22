@@ -7,6 +7,12 @@
   white-space: pre-wrap;
 }
 
+/* Writing in the page shows no frame; the caret is the focus. Beats the global :focus-visible ring. */
+.block-editor:focus,
+.block-editor:focus-visible {
+  outline: none;
+}
+
 .block-editor > * {
   margin: 0;
   padding: 3px 2px;
