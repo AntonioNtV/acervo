@@ -1,12 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiBaseUrl } from "./client";
-import { ApiError, refreshContent, refreshTree, type NodeDetail } from "./queries";
-import type { components, paths } from "./schema.gen";
+import { apiHeaders } from "../api/client";
+import type { components, paths } from "../api/schema.gen";
+import { ApiError, refreshContent, refreshTree } from "./request";
 
-type UploadField = keyof components["schemas"]["Body_upload_file_kbs__kb_id__files_post"];
+type FileNode = components["schemas"]["FileNodeRead"];
+type UploadField = keyof components["schemas"]["Body_upload_file_v1_kbs__kb_id__files_post"];
 
-const UPLOAD = "/kbs/{kb_id}/files" satisfies keyof paths;
-const REPLACE = "/nodes/{node_id}/file" satisfies keyof paths;
+const UPLOAD = "/v1/kbs/{kb_id}/files" satisfies keyof paths;
+const REPLACE = "/v1/nodes/{node_id}/file" satisfies keyof paths;
 
 /** `loaded` and `total` in bytes, for one file. */
 export type OnProgress = (loaded: number, total: number) => void;
@@ -15,13 +16,14 @@ export type OnProgress = (loaded: number, total: number) => void;
 function send(path: string, fields: Partial<Record<UploadField, string | Blob>>, onProgress?: OnProgress) {
   const form = new FormData();
   for (const [name, value] of Object.entries(fields)) if (value !== undefined) form.append(name, value);
-  return new Promise<NodeDetail>((resolve, reject) => {
+  return new Promise<FileNode>((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("POST", `${apiBaseUrl}${path}`);
+    request.open("POST", path);
+    for (const [name, value] of Object.entries(apiHeaders)) request.setRequestHeader(name, value);
     request.responseType = "json";
     request.upload.onprogress = (event) => onProgress?.(event.loaded, event.total);
     request.onload = () => {
-      if (request.status >= 200 && request.status < 300) return resolve(request.response as NodeDetail);
+      if (request.status >= 200 && request.status < 300) return resolve(request.response as FileNode);
       reject(new ApiError(request.status, request.response, request.statusText));
     };
     request.onerror = () => reject(new ApiError(0, null, "network error"));
@@ -29,7 +31,7 @@ function send(path: string, fields: Partial<Record<UploadField, string | Blob>>,
   });
 }
 
-/** One file into a folder (`parentId` null for the base's root). A duplicate rejects with 409 and its path. */
+/** One file into a folder (`parentId` null for the base's root). A duplicate rejects with `duplicate` and its path. */
 export function uploadFile(kbId: string, parentId: string | null, file: File, onProgress?: OnProgress) {
   const path = UPLOAD.replace("{kb_id}", encodeURIComponent(kbId));
   return send(path, { file, ...(parentId ? { parent_id: parentId } : {}) }, onProgress);

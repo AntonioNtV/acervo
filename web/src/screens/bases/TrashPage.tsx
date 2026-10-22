@@ -1,4 +1,5 @@
-import { useRestoreKb, useTrashedKbs, type Kb } from "../../api/queries";
+import type { Kb } from "../../api/client";
+import { useRestoreKb, useTrashedKbs } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { fullDate, relativeTime } from "./when";

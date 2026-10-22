@@ -1,4 +1,4 @@
-import type { Version } from "../../api/queries";
+import type { PageVersion } from "../../api/client";
 import { AiMark } from "../../app/AiMark";
 import { locale, useI18n, type Lang } from "../../i18n";
 
@@ -23,7 +23,7 @@ export function versionsText(t: T, n: number): string {
 }
 
 /** Who wrote a version: the person, or (from F2) the chat, which is one of the few violet things. */
-export function AuthorLine({ author }: { author: Version["author"] }) {
+export function AuthorLine({ author }: { author: PageVersion["author"] }) {
   const { t } = useI18n();
   if (author === "agent") {
     return (

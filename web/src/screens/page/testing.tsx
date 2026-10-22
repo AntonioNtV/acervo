@@ -1,8 +1,8 @@
 import { screen } from "@testing-library/react";
 import { EditorView } from "codemirror";
-import type { NodeDetail, Version } from "../../api/queries";
+import type { NodeDetail, PageVersion } from "../../api/client";
+import { nodeFields, renderInBase } from "../../api/testing";
 import { NodeView } from "../../app/NodeView";
-import { renderInBase } from "../../testing";
 
 // jsdom has no layout, and CodeMirror measures text ranges.
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -10,6 +10,7 @@ Range.prototype.getBoundingClientRect ??= () => new DOMRect();
 
 export function pageNode(page: Partial<NonNullable<NodeDetail["page"]>> = {}): NodeDetail {
   return {
+    ...nodeFields,
     id: "page-1",
     kb_id: "kb-1",
     parent_id: "folder-1",
@@ -23,9 +24,9 @@ export function pageNode(page: Partial<NonNullable<NodeDetail["page"]>> = {}): N
   };
 }
 
-export const versions: Version[] = [
-  { id: "v2", created_at: "2026-10-14T16:10:00Z", author: "user", size: null },
-  { id: "v1", created_at: "2026-10-14T11:03:00Z", author: "user", size: null },
+export const versions: PageVersion[] = [
+  { id: "v2", created_at: "2026-10-14T16:10:00Z", author: "user" },
+  { id: "v1", created_at: "2026-10-14T11:03:00Z", author: "user" },
 ];
 
 export function renderPage() {

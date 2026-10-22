@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { NodeDetail } from "../../api/queries";
+import type { NodeDetail } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
 import { folderPath, splitExt } from "../../ui/names";
@@ -18,7 +18,7 @@ export function FileHeader({ node, detail, children }: Props) {
   const { t } = useI18n();
   const { name, ext } = splitExt(node.title);
   const folder = folderPath(node.path, node.title);
-  const subtitle = [folder, detail, t("pdf.original")].filter(Boolean).join(" · ");
+  const subtitle = [folder, detail, t("file.original")].filter(Boolean).join(" · ");
   return (
     <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-bg py-2 pr-4 pl-5">
       <span className="flex min-w-0 flex-col">
@@ -31,7 +31,7 @@ export function FileHeader({ node, detail, children }: Props) {
         {children}
         {children && <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-line-2" />}
         <FileActions node={node} />
-        <DownloadLink nodeId={node.id} />
+        <DownloadLink nodeId={node.id} filename={node.title} />
       </span>
     </header>
   );

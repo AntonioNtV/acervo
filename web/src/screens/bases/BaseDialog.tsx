@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
-import { useCreateKb, useUpdateKb, type KbSummary } from "../../api/queries";
+import type { KbSummary } from "../../api/client";
+import { useCreateKb, useUpdateKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";

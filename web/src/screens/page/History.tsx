@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useRestoreVersion, useVersionDiff, useVersions, type Version } from "../../api/queries";
+import type { PageVersion } from "../../api/client";
+import { usePageVersionDiff, usePageVersions, useRestorePageVersion } from "../../data/pages";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -7,7 +8,7 @@ import { AuthorLine, dayLabel, timeOf, versionsText } from "./format";
 import { DiffLines } from "./DiffLines";
 
 function VersionDiff({ nodeId, versionId }: { nodeId: string; versionId: string }) {
-  const diff = useVersionDiff(nodeId, versionId);
+  const diff = usePageVersionDiff(nodeId, versionId);
   if (!diff.data) return null;
   return (
     <div className="-mx-3 rounded-[7px] border border-line">
@@ -28,12 +29,12 @@ function Row({ time, highlighted, children }: { time: string; highlighted?: bool
 /** Every version, newest first and grouped by day. No version is ever changed or deleted. */
 export function History({ nodeId, editingNow, onClose }: { nodeId: string; editingNow: boolean; onClose: () => void }) {
   const { t, lang } = useI18n();
-  const versions = useVersions(nodeId);
-  const restore = useRestoreVersion(nodeId);
+  const versions = usePageVersions(nodeId);
+  const restore = useRestorePageVersion(nodeId);
   const [open, setOpen] = useState<string | null>(null);
   const list = versions.data ?? [];
 
-  const days: { label: string; items: { version: Version; number: number }[] }[] = [];
+  const days: { label: string; items: { version: PageVersion; number: number }[] }[] = [];
   list.forEach((version, i) => {
     const label = dayLabel(version.created_at, lang, t("page.history.today"));
     if (days.at(-1)?.label !== label) days.push({ label, items: [] });

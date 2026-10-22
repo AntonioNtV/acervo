@@ -1,4 +1,4 @@
-import type { StalePage } from "../../api/queries";
+import type { StalePage } from "../../api/client";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";

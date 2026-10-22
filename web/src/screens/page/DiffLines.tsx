@@ -1,4 +1,4 @@
-import type { DiffLine } from "../../api/queries";
+import type { DiffLine } from "../../api/client";
 import { cx } from "../../ui/cx";
 
 const marks = { same: "  ", add: "+ ", del: "- " };

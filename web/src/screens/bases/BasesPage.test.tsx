@@ -2,10 +2,10 @@ import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BasesPage } from "./BasesPage";
-import { resetApi } from "../../testing";
+import { resetApi } from "../../api/testing";
 import { fakeBases, renderPage, summary } from "./testing";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();

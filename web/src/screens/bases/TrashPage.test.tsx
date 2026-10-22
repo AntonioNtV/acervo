@@ -1,11 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { resetApi } from "../../testing";
+import { resetApi } from "../../api/testing";
 import { fakeBases, renderPage, summary } from "./testing";
 import { TrashPage } from "./TrashPage";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 let kbs: ReturnType<typeof fakeBases>;
 

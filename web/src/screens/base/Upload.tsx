@@ -1,7 +1,7 @@
 import { useRef, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
-import { ApiError } from "../../api/queries";
-import { useUploadFile } from "../../api/upload";
+import { ApiError } from "../../data/request";
+import { useUploadFile } from "../../data/upload";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { useTreeErrorText } from "./names";
@@ -56,9 +56,8 @@ export function useStartUpload(kbId: string) {
         .then(
           () => patch(id, { state: "done", percent: 100 }),
           (error: unknown) => {
-            const detail = error instanceof ApiError ? error.body.detail : null;
-            if (detail && "node_id" in detail) {
-              patch(id, { state: "duplicate", duplicate: detail as Row["duplicate"] });
+            if (error instanceof ApiError && error.code === "duplicate") {
+              patch(id, { state: "duplicate", duplicate: error.details as Row["duplicate"] });
             } else {
               patch(id, { state: "error", message: errorText(error) });
             }
@@ -74,13 +73,13 @@ export function UploadButton({ kbId, parentId }: { kbId: string; parentId: strin
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
-      <Button onClick={() => input.current?.click()}>{t("tree.upload")}</Button>
+      <Button onClick={() => input.current?.click()}>{t("base.upload")}</Button>
       <input
         ref={input}
         type="file"
         multiple
         hidden
-        aria-label={t("tree.upload")}
+        aria-label={t("base.upload")}
         onChange={(event) => {
           start(Array.from(event.target.files ?? []), parentId);
           event.target.value = "";
@@ -96,11 +95,11 @@ export function UploadList({ kbId }: { kbId: string }) {
   const mine = all.filter((row) => row.kbId === kbId);
   if (mine.length === 0) return null;
   return (
-    <section aria-label={t("tree.upload.list")} className="mt-3 flex flex-col border-t border-line pt-2">
+    <section aria-label={t("base.upload.list")} className="mt-3 flex flex-col border-t border-line pt-2">
       <div className="flex h-7 items-center justify-between px-2.5 text-12 text-text-3">
-        {t("tree.upload.list")}
+        {t("base.upload.list")}
         <Button variant="quiet" size="sm" onClick={() => clearUploads(kbId)}>
-          {t("tree.upload.clear")}
+          {t("base.upload.clear")}
         </Button>
       </div>
       <ul className="m-0 flex list-none flex-col p-0">
@@ -109,15 +108,15 @@ export function UploadList({ kbId }: { kbId: string }) {
             <span className="flex justify-between gap-2">
               <span className="truncate text-text-2">{row.name}</span>
               {row.state === "sending" && <span className="text-text-3 tabular-nums">{row.percent}%</span>}
-              {row.state === "done" && <span className="text-text-3">{t("tree.upload.done")}</span>}
+              {row.state === "done" && <span className="text-text-3">{t("base.upload.done")}</span>}
             </span>
             {row.state === "duplicate" && row.duplicate && (
               <span className="text-err">
                 {row.duplicate.trashed ? (
-                  t("tree.upload.duplicateTrashed", { path: row.duplicate.path })
+                  t("base.upload.duplicateTrashed", { path: row.duplicate.path })
                 ) : (
                   <>
-                    {t(row.duplicate.history ? "tree.upload.duplicateHistory" : "tree.upload.duplicate")}{" "}
+                    {t(row.duplicate.history ? "base.upload.duplicateHistory" : "base.upload.duplicate")}{" "}
                     <Link to={`/kbs/${kbId}/n/${row.duplicate.node_id}`} className="text-err underline">
                       {row.duplicate.path}
                     </Link>

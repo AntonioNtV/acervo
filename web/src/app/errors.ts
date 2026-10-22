@@ -1,5 +1,12 @@
-import { ApiError } from "../api/queries";
+import { ApiError } from "../data/request";
 import { useI18n } from "../i18n";
+
+// The codes any screen shows the same way; the others are told apart where they happen.
+const BY_CODE: Record<string, string> = {
+  not_found: "errors.notFound",
+  unauthorized: "errors.unauthorized",
+  validation: "errors.invalid",
+};
 
 function genericKey(status: number): string {
   if (status === 0) return "errors.network";
@@ -11,13 +18,15 @@ function genericKey(status: number): string {
 }
 
 /**
- * What the person reads for a failed call: the text its call site gave for that status, or a generic one by status.
- * The API's own `message` is never shown.
+ * What the person reads for a failed call: the text its call site gave for that error code, the shared one for the
+ * code, or a generic one by status. The API's own `message` is never shown.
  */
 export function useErrorText() {
   const { t } = useI18n();
-  return (error: unknown, known: Partial<Record<number, string>> = {}) => {
-    const status = error instanceof ApiError ? error.status : 0;
-    return known[status] ?? t(genericKey(status));
+  return (error: unknown, known: Partial<Record<string, string>> = {}) => {
+    if (!(error instanceof ApiError)) return t(genericKey(0));
+    const shared = BY_CODE[error.code];
+    return known[error.code] ?? (shared ? t(shared) : t(genericKey(error.status)));
   };
 }
+

@@ -49,6 +49,7 @@ export function SourceEditor({ value, label, onChange }: { value: string; label:
     });
     return () => view.destroy();
     // The editor owns its text once open; a new `value` comes in by remounting it with a new key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return <div ref={parent} />;

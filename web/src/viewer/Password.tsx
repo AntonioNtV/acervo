@@ -26,12 +26,12 @@ export function PasswordDialog({ open, incorrect, onSubmit, onCancel }: Props) {
     <Dialog
       open={open}
       onOpenChange={(next) => !next && onCancel()}
-      title={t("pdf.password.title")}
-      description={t("pdf.password.description")}
+      title={t("file.password.title")}
+      description={t("file.password.description")}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1.5">
-          <span className="text-12 text-text-2">{t("pdf.password.label")}</span>
+          <span className="text-12 text-text-2">{t("file.password.label")}</span>
           <Input
             type="password"
             autoFocus
@@ -40,14 +40,14 @@ export function PasswordDialog({ open, incorrect, onSubmit, onCancel }: Props) {
             onChange={(event) => setPassword(event.target.value)}
             aria-invalid={incorrect || undefined}
           />
-          {incorrect && <span className="text-12 text-err">{t("pdf.password.incorrect")}</span>}
+          {incorrect && <span className="text-12 text-err">{t("file.password.incorrect")}</span>}
         </label>
         <div className="flex justify-end gap-1.5">
           <Button variant="quiet" onClick={onCancel}>
-            {t("pdf.password.cancel")}
+            {t("file.password.cancel")}
           </Button>
           <Button type="submit" variant="ink" disabled={password === ""}>
-            {t("pdf.password.open")}
+            {t("file.password.open")}
           </Button>
         </div>
       </form>

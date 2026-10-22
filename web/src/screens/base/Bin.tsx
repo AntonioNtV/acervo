@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useKbTrash, useRestoreNode } from "../../api/queries";
+import { useKbTrash, useRestoreNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
@@ -19,7 +19,7 @@ function Items({ kbId }: { kbId: string }) {
           {notice.text}
         </p>
       )}
-      {trash.data && items.length === 0 && <p className="m-0 text-text-3">{t("tree.bin.empty")}</p>}
+      {trash.data && items.length === 0 && <p className="m-0 text-text-3">{t("base.bin.empty")}</p>}
       <ul className="m-0 flex max-h-[360px] list-none flex-col overflow-y-auto p-0">
         {items.map((item) => (
           <li key={item.id} className="flex min-h-11 items-center gap-3 border-t border-line first:border-t-0">
@@ -33,12 +33,12 @@ function Items({ kbId }: { kbId: string }) {
               onClick={() =>
                 restore.mutate(item.id, {
                   onSuccess: (node) =>
-                    setNotice({ text: t(node.to_root ? "tree.bin.restoredToRoot" : "tree.bin.restored", { name: node.title }) }),
+                    setNotice({ text: t(node.to_root ? "base.bin.restoredToRoot" : "base.bin.restored", { name: node.title }) }),
                   onError: (e) => setNotice({ text: errorText(e), error: true }),
                 })
               }
             >
-              {t("tree.bin.restore")}
+              {t("base.bin.restore")}
             </Button>
           </li>
         ))}
@@ -52,18 +52,18 @@ export function Bin({ kbId }: { kbId: string }) {
   const { t } = useI18n();
   return (
     <Dialog
-      title={t("tree.bin.open")}
+      title={t("base.bin.open")}
       trigger={
         <button
           type="button"
           className="flex h-7 cursor-pointer items-center rounded-[6px] border-0 bg-transparent px-2.5 text-13 text-text-3 hover:text-text"
         >
-          {t("tree.bin.open")}
+          {t("base.bin.open")}
         </button>
       }
       footer={
         <DialogClose asChild>
-          <Button>{t("tree.bin.close")}</Button>
+          <Button>{t("base.bin.close")}</Button>
         </DialogClose>
       }
     >

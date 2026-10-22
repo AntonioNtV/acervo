@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useChildren, useKbs, type NodeDetail } from "../../api/queries";
+import type { NodeDetail } from "../../api/client";
+import { useKbs } from "../../data/kbs";
+import { useChildren } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
 import { folderPath } from "../../ui/names";
@@ -45,7 +47,7 @@ function Folder({ kbId, folderId, title, path }: { kbId: string; folderId: strin
         <UploadButton kbId={kbId} parentId={folderId} />
       </div>
       <h1 className="mt-7 mb-6 text-32 font-medium tracking-[-0.035em]">{title}</h1>
-      {children.data?.length === 0 && <p className="m-0 text-text-3">{t("tree.empty")}</p>}
+      {children.data?.length === 0 && <p className="m-0 text-text-3">{t("base.empty")}</p>}
       <ul className="m-0 flex list-none flex-col p-0">
         {children.data?.map((child) => (
           <li key={child.id} className="border-t border-line first:border-t-0">

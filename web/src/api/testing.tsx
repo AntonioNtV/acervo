@@ -3,13 +3,13 @@ import { render } from "@testing-library/react";
 import createClient from "openapi-fetch";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import type { paths } from "./api/schema.gen";
-import { I18nProvider } from "./i18n";
+import { I18nProvider } from "../i18n";
+import type { paths } from "./schema.gen";
 
 /** `body` is sent as JSON, or as plain text when it is a string (a proxy's 500). */
 type Reply = { status?: number; body: unknown };
 type Handler = { method: string; path: string; reply: (url: URL, body: unknown) => Reply };
-type Call = { method: string; path: string; query: string; body: unknown };
+type Call = { method: string; path: string; query: string; body: unknown; key: string | null };
 
 let handlers: Handler[] = [];
 export const calls: Call[] = [];
@@ -28,9 +28,9 @@ async function fakeFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const text = await request.text();
   const body = text ? JSON.parse(text) : undefined;
-  calls.push({ method: request.method, path: url.pathname, query: url.search, body });
+  calls.push({ method: request.method, path: url.pathname, query: url.search, body, key: request.headers.get("X-API-Key") });
   const handler = handlers.find((h) => h.method === request.method && h.path === url.pathname);
-  const reply = handler?.reply(url, body) ?? { status: 404, body: { error: "NotFoundError", message: "not found" } };
+  const reply = handler?.reply(url, body) ?? { status: 404, body: { error: "not_found", message: "not found" } };
   const plain = typeof reply.body === "string";
   return new Response(plain ? (reply.body as string) : JSON.stringify(reply.body), {
     status: reply.status ?? 200,
@@ -39,12 +39,12 @@ async function fakeFetch(request: Request): Promise<Response> {
 }
 
 /**
- * For `vi.mock("<…>/api/client", () => import("<…>/testing").then((m) => m.mockClient()))`: the generated client,
+ * For `vi.mock("<…>/api/client", () => import("<…>/api/testing").then((m) => m.mockClient()))`: the generated client,
  * talking to the handlers above. openapi-fetch keeps the `fetch` it finds when built, so the client is replaced.
  */
 export function mockClient() {
-  const apiBaseUrl = "http://api.test";
-  return { apiBaseUrl, api: createClient<paths>({ baseUrl: apiBaseUrl, fetch: fakeFetch }) };
+  const apiHeaders = { "X-API-Key": "test-key" };
+  return { apiHeaders, api: createClient<paths>({ baseUrl: "http://api.test", headers: apiHeaders, fetch: fakeFetch }) };
 }
 
 /** Also gives the query client, to make a test refetch. */
@@ -71,6 +71,32 @@ export function renderInBase(ui: ReactNode, path = "/kbs/kb-1") {
   );
 }
 
+/** The fields every node read carries that the tests do not look at. */
+export const nodeFields = {
+  description: "",
+  description_locked: false,
+  sort: "a0",
+  trashed_with: null,
+  created_at: "2026-10-14T10:00:00Z",
+  updated_at: "2026-10-14T10:00:00Z",
+};
+
 export function node(id: string, kind: "folder" | "page" | "file", title: string, parent_id: string | null = null) {
-  return { id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false };
+  return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false };
+}
+
+/** A node's file part; `fields` sets what a test looks at. */
+export function filePart(nodeId: string, fields: { size: number; mime: string; pages: number | null; protected: boolean; sha256: string }) {
+  return {
+    ...fields,
+    id: `file-${nodeId}`,
+    node_id: nodeId,
+    storage_key: `files/${fields.sha256}`,
+    doc_type: null,
+    sensitive: false,
+    map: null,
+    map_origin: null,
+    created_at: nodeFields.created_at,
+    updated_at: nodeFields.updated_at,
+  };
 }

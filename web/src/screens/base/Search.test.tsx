@@ -2,16 +2,16 @@ import "@testing-library/jest-dom/vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BaseLayout } from "./BaseLayout";
-import { node, renderInBase, resetApi, respond } from "../../testing";
+import { node, renderInBase, resetApi, respond } from "../../api/testing";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();
   resetApi();
-  respond("GET", "/kbs", { body: [] });
-  respond("GET", "/kbs/kb-1/children", { body: [] });
-  respond("GET", "/kbs/kb-1/search", (url) => ({
+  respond("GET", "/v1/kbs", { body: [] });
+  respond("GET", "/v1/kbs/kb-1/children", { body: [] });
+  respond("GET", "/v1/kbs/kb-1/search", (url) => ({
     body:
       url.searchParams.get("q") === "apolice"
         ? [
