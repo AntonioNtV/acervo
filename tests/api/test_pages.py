@@ -1,4 +1,5 @@
 from typing import Any
+from uuid import uuid4
 
 import httpx
 from sqlalchemy import func, select
@@ -15,17 +16,23 @@ async def _page(client: httpx.AsyncClient, title: str = "Emissão de apólice") 
     return kb_id, node_id
 
 
-async def _base(client: httpx.AsyncClient, node_id: str) -> str:
-    version_id: str = (await client.get(f"/v1/pages/{node_id}")).json()["version_id"]
-    return version_id
+async def _revision(client: httpx.AsyncClient, node_id: str) -> int:
+    revision: int = (await client.get(f"/v1/pages/{node_id}")).json()["revision"]
+    return revision
 
 
-async def _save(client: httpx.AsyncClient, node_id: str, markdown: str) -> dict[str, Any]:
-    body = {"markdown": markdown, "base_version_id": await _base(client, node_id)}
-    response = await client.put(f"/v1/pages/{node_id}", json=body)
+async def _type(client: httpx.AsyncClient, node_id: str, markdown: str) -> dict[str, Any]:
+    body = {"markdown": markdown, "revision": await _revision(client, node_id)}
+    response = await client.put(f"/v1/pages/{node_id}/text", json=body)
     assert response.status_code == 200, response.text
     saved: dict[str, Any] = response.json()
     return saved
+
+
+async def _save(client: httpx.AsyncClient, node_id: str, markdown: str) -> None:
+    """Types `markdown` and leaves the page: one version of it."""
+    await _type(client, node_id, markdown)
+    assert (await client.post(f"/v1/pages/{node_id}/leave")).status_code == 204
 
 
 async def _versions(client: httpx.AsyncClient, node_id: str) -> list[dict[str, Any]]:
@@ -39,42 +46,65 @@ async def test_create_page_has_version_1(client: httpx.AsyncClient) -> None:
     node = (await client.get(f"/v1/nodes/{node_id}")).json()
 
     assert (node["kind"], node["path"], node["versions"], node["file"]) == ("page", "Emissão de apólice", 1, None)
-    assert (node["page"]["markdown"], node["page"]["draft"], node["page"]["sections"]) == ("", None, [])
+    assert (node["page"]["markdown"], node["page"]["revision"], node["page"]["sections"]) == ("", 0, [])
     assert (await client.get(f"/v1/pages/{node_id}")).json() == node["page"]
     [version] = await _versions(client, node_id)
     assert (version["id"], version["author"]) == (node["page"]["version_id"], "user")
 
 
-async def test_save_stale_is_409_stale_page_with_diff(client: httpx.AsyncClient) -> None:
+async def test_text_put_and_get_round_trip(client: httpx.AsyncClient) -> None:
     _, node_id = await _page(client)
-    opened = await _base(client, node_id)
-    saved = await _save(client, node_id, "## Prazo\n\nCinco dias.\n")
 
-    stale = await client.put(f"/v1/pages/{node_id}", json={"markdown": "Minha versão\n", "base_version_id": opened})
+    saved = await _type(client, node_id, "## Prazo\n\nCinco dias.\n")
+
+    page = (await client.get(f"/v1/pages/{node_id}")).json()
+    assert (page["markdown"], page["revision"], page["saved_at"]) == (
+        "## Prazo\n\nCinco dias.\n",
+        saved["revision"],
+        saved["saved_at"],
+    )
+    assert page["sections"] == [{"anchor": "prazo", "heading": "Prazo"}]
+    assert (await client.get(f"/v1/nodes/{node_id}")).json()["versions"] == 1
+
+
+async def test_stale_revision_is_409_stale_page(client: httpx.AsyncClient) -> None:
+    _, node_id = await _page(client)
+    opened = await _revision(client, node_id)
+    saved = await _type(client, node_id, "Primeira aba\n")
+
+    stale = await client.put(f"/v1/pages/{node_id}/text", json={"markdown": "Segunda aba\n", "revision": opened})
 
     assert (stale.status_code, stale.json()["error"]) == (409, "stale_page")
-    details = stale.json()["details"]
-    assert (details["current_version_id"], details["markdown"]) == (saved["id"], "## Prazo\n\nCinco dias.\n")
-    assert {"op": "add", "text": "## Prazo"} in details["diff"]
-    forced = await client.put(
-        f"/v1/pages/{node_id}", json={"markdown": "Minha versão\n", "base_version_id": opened, "force": True}
-    )
-    assert forced.status_code == 200
-    assert len(await _versions(client, node_id)) == 3
+    assert stale.json()["details"] == {"markdown": "Primeira aba\n", "revision": saved["revision"]}
+    assert (await client.get(f"/v1/nodes/{node_id}")).json()["versions"] == 2
 
 
-async def test_draft_round_trip(client: httpx.AsyncClient) -> None:
+async def test_leave_route(client: httpx.AsyncClient) -> None:
     _, node_id = await _page(client)
-    base = await _base(client, node_id)
+    await _type(client, node_id, "Antes de sair\n")
 
-    put = await client.put(f"/v1/pages/{node_id}/draft", json={"markdown": "Rascunho\n", "base_version_id": base})
-    assert put.json()["markdown"] == "Rascunho\n"
-    draft = (await client.get(f"/v1/pages/{node_id}")).json()["draft"]
-    assert (draft["markdown"], draft["base_version_id"]) == ("Rascunho\n", base)
+    left = await client.post(f"/v1/pages/{node_id}/leave")
 
-    assert (await client.delete(f"/v1/pages/{node_id}/draft")).status_code == 204
-    node = (await client.get(f"/v1/nodes/{node_id}")).json()
-    assert (node["page"]["draft"], node["versions"]) == (None, 1)
+    assert left.status_code == 204
+    page = (await client.get(f"/v1/pages/{node_id}")).json()
+    assert (await client.get(f"/v1/nodes/{node_id}")).json()["versions"] == 2
+    diff = (await client.get(f"/v1/pages/{node_id}/versions/{page['version_id']}/diff")).json()
+    assert diff["lines"] == [{"op": "add", "text": "Antes de sair"}]
+    assert (await client.post(f"/v1/pages/{uuid4()}/leave")).json()["error"] == "not_found"
+
+
+async def test_old_save_and_draft_routes_are_gone(client: httpx.AsyncClient) -> None:
+    _, node_id = await _page(client)
+    body = {"markdown": "Velha\n", "base_version_id": (await client.get(f"/v1/pages/{node_id}")).json()["version_id"]}
+
+    responses = [
+        await client.put(f"/v1/pages/{node_id}", json=body),
+        await client.put(f"/v1/pages/{node_id}/draft", json=body),
+        await client.delete(f"/v1/pages/{node_id}/draft"),
+    ]
+
+    assert [r.status_code for r in responses] == [405, 404, 404]
+    assert (await client.get(f"/v1/pages/{node_id}")).json()["markdown"] == ""
 
 
 async def test_rename_fixes_links(client: httpx.AsyncClient) -> None:
@@ -115,19 +145,19 @@ async def test_history_has_no_text(client: httpx.AsyncClient) -> None:
 
     versions = await _versions(client, node_id)
 
-    assert [set(version) for version in versions] == [{"id", "author", "created_at"}] * 2
+    assert [set(version) for version in versions] == [
+        {"id", "author", "created_at", "edit_started_at", "edit_ended_at"}
+    ] * 2
 
 
 async def test_401_without_the_key(client: httpx.AsyncClient, session: AsyncSession) -> None:
     _, node_id = await _page(client)
-    base = await _base(client, node_id)
     del client.headers["X-API-Key"]
 
-    body = {"markdown": "Outra\n", "base_version_id": base}
     responses = [
         await client.get(f"/v1/pages/{node_id}"),
-        await client.put(f"/v1/pages/{node_id}", json=body),
-        await client.put(f"/v1/pages/{node_id}/draft", json=body),
+        await client.put(f"/v1/pages/{node_id}/text", json={"markdown": "Outra\n", "revision": 0}),
+        await client.post(f"/v1/pages/{node_id}/leave"),
         await client.get(f"/v1/nodes/{node_id}"),
     ]
 

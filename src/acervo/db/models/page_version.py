@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import CheckConstraint, ForeignKey, Text
@@ -14,3 +15,5 @@ class PageVersion(UUIDPkMixin, TimestampMixin, Base):
     markdown: Mapped[str] = mapped_column(Text)
     author: Mapped[str] = mapped_column(Text)
     proposal_id: Mapped[UUID | None] = mapped_column(ForeignKey("proposal.id"))
+    edit_started_at: Mapped[datetime | None]
+    edit_ended_at: Mapped[datetime | None]
