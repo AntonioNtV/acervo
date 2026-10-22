@@ -1,10 +1,8 @@
 import type { Version } from "../../api/queries";
 import { AiMark } from "../../app/AiMark";
-import { useI18n, type Lang } from "../../i18n";
+import { locale, useI18n, type Lang } from "../../i18n";
 
 type T = ReturnType<typeof useI18n>["t"];
-
-const locale = (lang: Lang) => (lang === "en" ? "en" : "pt-BR");
 
 export function timeOf(iso: string, lang: Lang): string {
   return new Date(iso).toLocaleTimeString(locale(lang), { hour: "2-digit", minute: "2-digit" });

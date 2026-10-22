@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { api } from "./client";
+import { api, apiBaseUrl } from "./client";
 import type { components, paths } from "./schema.gen";
 
 type Schemas = components["schemas"];
@@ -14,24 +14,28 @@ export type Version = Schemas["VersionResponse"];
 export type DiffLine = Schemas["DiffLineResponse"];
 export type StalePage = Schemas["StalePageDetail"];
 
-export const apiBaseUrl: string = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-
-/** Any answer outside 2xx; `status` 0 when the request never reached the API. */
+/** Any answer outside 2xx; `status` 0 when the request never reached the API. Its text is never shown as is. */
 export class ApiError extends Error {
+  readonly body: ErrorResponse;
+
+  /** `raw` is whatever the response held: the API's JSON error, or the text of a proxy's 500. */
   constructor(
     readonly status: number,
-    readonly body: ErrorResponse,
+    raw: unknown,
+    statusText = "",
   ) {
+    const body =
+      typeof raw === "object" && raw !== null && "message" in raw
+        ? (raw as ErrorResponse)
+        : { error: "HttpError", message: statusText || `HTTP ${status}` };
     super(body.message);
+    this.body = body;
   }
 }
 
 async function call<T>(request: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   const { data, error, response } = await request;
-  if (!response.ok) {
-    const body = (error as ErrorResponse | undefined) ?? { error: "HttpError", message: response.statusText };
-    throw new ApiError(response.status, body);
-  }
+  if (!response.ok) throw new ApiError(response.status, error, response.statusText);
   return data as T;
 }
 

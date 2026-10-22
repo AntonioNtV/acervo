@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { useNode, useVersions, type NodeDetail } from "../../api/queries";
+import { useVersions, type NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Dot } from "../../ui/Dot";
+import { folderPath } from "../../ui/names";
 import { TextTabs } from "../../ui/TextTabs";
 import { Conflict } from "./Conflict";
 import { dateOf, versionsText } from "./format";
@@ -31,14 +31,14 @@ function Page({ kbId, node, page }: { kbId: string; node: NodeDetail; page: NonN
   const [historyOpen, setHistoryOpen] = useState(false);
   const [draftSettled, setDraftSettled] = useState(false);
   const [resumes, setResumes] = useState(0);
-  const editing = useEditing(node.id, page);
+  const draft = draftSettled ? null : page.draft;
+  const editing = useEditing(node.id, page, draft !== null);
   const versions = useVersions(node.id);
   const now = useNow(editing.savedAt !== null);
   const toRead = () => setMode("read");
 
-  const parent = node.path.split("/").slice(0, -1).join(" / ");
+  const parent = folderPath(node.path, node.title);
   const lastEdit = versions.data?.[0]?.created_at;
-  const draft = !editing.editing && !draftSettled ? page.draft : null;
 
   let status: string | null = null;
   if (editing.savedAt !== null) {
@@ -110,7 +110,7 @@ function Page({ kbId, node, page }: { kbId: string; node: NodeDetail; page: NonN
                   variant="quiet"
                   size="sm"
                   onClick={() => {
-                    editing.discard();
+                    editing.discardStoredDraft();
                     setDraftSettled(true);
                   }}
                 >
@@ -152,12 +152,8 @@ function Page({ kbId, node, page }: { kbId: string; node: NodeDetail; page: NonN
   );
 }
 
-/** A page: Ler · Editar · Dividir, its draft, "Concluir" and its history. Other kinds belong to other views. */
-export function PageView() {
-  const { kbId = "", nodeId = "" } = useParams();
-  const { t } = useI18n();
-  const node = useNode(nodeId);
-  if (node.isError) return <p className="px-14 pt-10 text-text-3">{t("page.error")}</p>;
-  if (node.data?.kind !== "page" || !node.data.page) return null;
-  return <Page key={nodeId} kbId={kbId} node={node.data} page={node.data.page} />;
+/** A page: Ler · Editar · Dividir, its draft, "Concluir" and its history. */
+export function PageView({ node }: { node: NodeDetail }) {
+  if (!node.page) return null;
+  return <Page kbId={node.kb_id} node={node} page={node.page} />;
 }

@@ -3,13 +3,13 @@ import { useKbTrash, useRestoreNode } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
-import { NodeName, useErrorText } from "./names";
+import { NodeName, useTreeErrorText } from "./names";
 
 function Items({ kbId }: { kbId: string }) {
   const { t } = useI18n();
   const trash = useKbTrash(kbId);
   const restore = useRestoreNode();
-  const errorText = useErrorText();
+  const errorText = useTreeErrorText();
   const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const items = trash.data ?? [];
   return (

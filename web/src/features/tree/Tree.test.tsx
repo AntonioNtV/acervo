@@ -2,9 +2,9 @@ import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BaseLayout } from "./BaseLayout";
-import { calls, node, renderInBase, resetApi, respond } from "./testing";
+import { calls, node, renderInBase, resetApi, respond } from "../../testing";
 
-vi.mock("../../api/client", () => import("./testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();

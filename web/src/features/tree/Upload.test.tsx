@@ -2,10 +2,10 @@ import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NodeView } from "../../app/NodeView";
-import { node, renderInBase, resetApi, respond } from "./testing";
+import { node, renderInBase, resetApi, respond } from "../../testing";
 import { clearUploads, UploadList } from "./Upload";
 
-vi.mock("../../api/client", () => import("./testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
 
 class FakeXhr {
   static sent: FakeXhr[] = [];

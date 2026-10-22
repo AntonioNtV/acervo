@@ -14,7 +14,7 @@ import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { Input } from "../../ui/Input";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
-import { NodeName, useErrorText } from "./names";
+import { NodeName, useTreeErrorText } from "./names";
 import { useStartUpload } from "./Upload";
 
 const NODE_TYPE = "application/x-acervo-node";
@@ -32,6 +32,11 @@ type TreeState = {
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   setNotice: (text: string | null) => void;
+  errorText: (error: unknown) => string;
+  rename: ReturnType<typeof useRenameNode>;
+  trash: ReturnType<typeof useTrashNode>;
+  move: ReturnType<typeof useMoveNode>;
+  startUpload: ReturnType<typeof useStartUpload>;
 };
 
 const TreeContext = createContext<TreeState | null>(null);
@@ -59,9 +64,12 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [rootDrop, setRootDrop] = useState(false);
+  // Created once here: every row calls these.
+  const rename = useRenameNode();
+  const trash = useTrashNode();
   const move = useMoveNode();
   const startUpload = useStartUpload(kbId);
-  const errorText = useErrorText();
+  const errorText = useTreeErrorText();
 
   const [setOpen] = useState(() => (id: string, open: boolean) =>
     setExpanded((current) => {
@@ -78,7 +86,22 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
     setDraftState(next);
   };
 
-  const state: TreeState = { kbId, selectedId, expanded, setOpen, draft, setDraft, editingId, setEditingId, setNotice };
+  const state: TreeState = {
+    kbId,
+    selectedId,
+    expanded,
+    setOpen,
+    draft,
+    setDraft,
+    editingId,
+    setEditingId,
+    setNotice,
+    errorText,
+    rename,
+    trash,
+    move,
+    startUpload,
+  };
 
   const dropOnRoot = (event: DragEvent) => {
     event.preventDefault();
@@ -187,10 +210,9 @@ function NameInput({
 
 function DraftRow({ draft, depth }: { draft: Draft; depth: number }) {
   const { t } = useI18n();
-  const { kbId, setDraft } = useTree();
+  const { kbId, setDraft, errorText } = useTree();
   const create = useCreateNode(kbId);
   const navigate = useNavigate();
-  const errorText = useErrorText();
   const [error, setError] = useState<string | null>(null);
   return (
     <li role="none" style={indent(depth, draft.kind === "page")}>
@@ -220,11 +242,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useI18n();
   const tree = useTree();
   const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, setDraft, setNotice } = tree;
-  const rename = useRenameNode();
-  const trash = useTrashNode();
-  const move = useMoveNode();
-  const startUpload = useStartUpload(kbId);
-  const errorText = useErrorText();
+  const { errorText, rename, trash, move, startUpload } = tree;
   const [renameError, setRenameError] = useState<string | null>(null);
   const [drop, setDrop] = useState<Drop["zone"] | null>(null);
   const folder = node.kind === "folder";

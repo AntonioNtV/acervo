@@ -1,18 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { screen } from "@testing-library/react";
 import { rawFileUrl, type NodeDetail } from "../../api/queries";
-import { I18nProvider } from "../../i18n";
-import { FileView } from "./FileView";
+import { NodeView } from "../../app/NodeView";
+import { renderInBase, resetApi, respond } from "../../testing";
 import { openPdf } from "./pdfjs";
 
-// openapi-fetch keeps the `fetch` it finds when the client module loads.
-const fetchMock = vi.hoisted(() => {
-  const fn = vi.fn<typeof fetch>();
-  globalThis.fetch = fn;
-  return fn;
-});
+vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
 vi.mock("./pdfjs", () => ({ openPdf: vi.fn() }));
 
 const NODE_ID = "11111111-1111-1111-1111-111111111111";
@@ -33,19 +26,8 @@ function fileNode(title: string, mime: string, pages: number | null = null): Nod
 }
 
 function renderFile(node: NodeDetail, search = "") {
-  fetchMock.mockImplementation(async () => Response.json(node));
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <I18nProvider>
-        <MemoryRouter initialEntries={[`/kbs/kb-1/n/${NODE_ID}${search}`]}>
-          <Routes>
-            <Route path="/kbs/:kbId/n/:nodeId" element={<FileView />} />
-          </Routes>
-        </MemoryRouter>
-      </I18nProvider>
-    </QueryClientProvider>,
-  );
+  respond("GET", `/nodes/${NODE_ID}`, { body: node });
+  return renderInBase(<NodeView />, `/kbs/kb-1/n/${NODE_ID}${search}`);
 }
 
 function fakePdf(numPages: number) {
@@ -62,6 +44,7 @@ function fakePdf(numPages: number) {
 
 beforeEach(() => {
   localStorage.clear();
+  resetApi();
   vi.mocked(openPdf).mockReset();
 });
 
@@ -81,11 +64,11 @@ describe("FileView", () => {
     expect(screen.getByRole("textbox", { name: "Página" })).toHaveValue("16");
   });
 
-  it("shows an image fitted on the desk", async () => {
+  it("shows an image fitted on the desk, its URL changing with its content", async () => {
     renderFile(fileNode("Fachada.png", "image/png"));
 
     const image = await screen.findByRole("img", { name: "Fachada.png" });
-    expect(image).toHaveAttribute("src", rawFileUrl(NODE_ID));
+    expect(image).toHaveAttribute("src", `${rawFileUrl(NODE_ID)}?v=abc`);
     expect(openPdf).not.toHaveBeenCalled();
   });
 

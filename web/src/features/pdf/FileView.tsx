@@ -1,5 +1,4 @@
-import { useParams } from "react-router-dom";
-import { rawFileUrl, useNode, type NodeDetail } from "../../api/queries";
+import { rawFileUrl, type NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { FileHeader } from "./FileHeader";
 import { formatSize } from "./format";
@@ -12,27 +11,21 @@ function viewerFor(mime: string): Viewer {
   return mime.startsWith("image/") ? "image" : "other";
 }
 
-/** A file node of `/kbs/:kbId/n/:nodeId`, shown as the original file; `?p=` opens a PDF at a page. */
-export function FileView() {
-  const { t } = useI18n();
-  const { nodeId = "" } = useParams();
-  const node = useNode(nodeId);
-
-  let body;
-  if (node.isPending) body = <p className="m-0 p-6 text-text-3">{t("pdf.loading")}</p>;
-  else if (node.isError || !node.data.file) body = <p className="m-0 p-6 text-err">{t("pdf.error.file")}</p>;
-  else {
-    const viewer = viewerFor(node.data.file.mime);
-    body =
-      viewer === "pdf" ? (
-        <PdfViewer key={node.data.id} node={node.data} />
+/** A file node, shown as the original file; `?p=` opens a PDF at a page. */
+export function FileView({ node }: { node: NodeDetail }) {
+  if (!node.file) return null;
+  const viewer = viewerFor(node.file.mime);
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-desk">
+      {viewer === "pdf" ? (
+        <PdfViewer node={node} />
       ) : viewer === "image" ? (
-        <ImageView node={node.data} />
+        <ImageView node={node} />
       ) : (
-        <OtherFile node={node.data} />
-      );
-  }
-  return <div className="flex h-full min-h-0 flex-col bg-desk">{body}</div>;
+        <OtherFile node={node} />
+      )}
+    </div>
+  );
 }
 
 function ImageView({ node }: { node: NodeDetail }) {
@@ -41,8 +34,7 @@ function ImageView({ node }: { node: NodeDetail }) {
       <FileHeader node={node} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
         <img
-          key={node.file?.sha256}
-          src={rawFileUrl(node.id)}
+          src={`${rawFileUrl(node.id)}?v=${node.file?.sha256 ?? ""}`}
           alt={node.title}
           className="block max-h-full max-w-full object-contain"
         />

@@ -1,45 +1,43 @@
 import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { json, pageNode, renderPage, serve, versions } from "./testing";
+import { calls, resetApi, respond } from "../../testing";
+import { pageNode, renderPage, versions } from "./testing";
 
-const fetchMock = vi.hoisted(() => {
-  const fn = vi.fn<(request: Request) => Promise<Response>>();
-  globalThis.fetch = fn as unknown as typeof fetch;
-  return fn;
-});
+vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();
-  fetchMock.mockReset();
+  resetApi();
 });
 
 describe("Conflict", () => {
   it("a 409 opens the dialog with the diff and Manter a minha sends force", async () => {
     const mine = "## Documentos\n- Segunda via\n";
-    const save = vi.fn((body: unknown) =>
-      (body as { force: boolean }).force
-        ? versions[0]
-        : json(409, {
-            error: "ConflictError",
-            message: "page page-1 changed",
-            detail: {
-              current_version_id: "v3",
-              markdown: "## Documentos\n- Boleto no portal\n",
-              diff: [
-                { op: "same", text: "## Documentos" },
-                { op: "add", text: "- Boleto no portal" },
-              ],
-            },
-          }),
-    );
-    serve(fetchMock, {
-      "GET /nodes/page-1": pageNode({
-        draft: { markdown: mine, base_version_id: "v2", updated_at: "2026-10-22T09:52:00Z" },
-      }),
-      "GET /nodes/page-1/versions": versions,
-      "PUT /nodes/page-1": save,
+    respond("GET", "/nodes/page-1", {
+      body: pageNode({ draft: { markdown: mine, base_version_id: "v2", updated_at: "2026-10-22T09:52:00Z" } }),
     });
+    respond("GET", "/nodes/page-1/versions", { body: versions });
+    respond("PUT", "/nodes/page-1", (_url, body) =>
+      (body as { force: boolean }).force
+        ? { body: versions[0] }
+        : {
+            status: 409,
+            body: {
+              error: "ConflictError",
+              message: "page page-1 changed",
+              detail: {
+                current_version_id: "v3",
+                markdown: "## Documentos\n- Boleto no portal\n",
+                diff: [
+                  { op: "same", text: "## Documentos" },
+                  { op: "add", text: "- Boleto no portal" },
+                ],
+              },
+            },
+          },
+    );
+    const saves = () => calls.filter((call) => call.method === "PUT" && call.path === "/nodes/page-1");
     renderPage();
 
     await userEvent.click(await screen.findByRole("button", { name: "Continuar rascunho" }));
@@ -49,7 +47,7 @@ describe("Conflict", () => {
     expect(within(dialog).getByText(/Boleto no portal/)).toHaveAttribute("data-op", "add");
 
     await userEvent.click(within(dialog).getByRole("button", { name: "Manter a minha" }));
-    await waitFor(() => expect(save).toHaveBeenLastCalledWith({ markdown: mine, base_version_id: "v3", force: true }));
+    await waitFor(() => expect(saves().at(-1)?.body).toEqual({ markdown: mine, base_version_id: "v3", force: true }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
   });
 });

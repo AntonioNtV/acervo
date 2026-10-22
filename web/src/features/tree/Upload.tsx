@@ -4,7 +4,7 @@ import { ApiError } from "../../api/queries";
 import { useUploadFile } from "../../api/upload";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
-import { useErrorText } from "./names";
+import { useTreeErrorText } from "./names";
 
 type Row = {
   id: number;
@@ -42,7 +42,7 @@ export function clearUploads(kbId: string) {
 /** Sends each file into `parentId` (null for the root), one row of progress per file. */
 export function useStartUpload(kbId: string) {
   const upload = useUploadFile(kbId);
-  const errorText = useErrorText();
+  const errorText = useTreeErrorText();
   return (files: Iterable<File>, parentId: string | null) => {
     for (const file of files) {
       const id = nextId++;
