@@ -207,3 +207,28 @@ async def test_401_without_the_key(client: httpx.AsyncClient, session: AsyncSess
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(401, "unauthorized")] * 3
     rows = await session.execute(select(Node.title, Node.deleted_at).where(Node.kb_id == tree.kb.id))
     assert list(rows) == [("Bradesco", None)]
+
+
+async def test_open_a_file_and_a_folder_node(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["CG 2026.pdf"]})
+    file = tree["Bradesco/CG 2026.pdf"]
+    await client.post(f"/v1/nodes/{file.id}/file", files={"file": ("CG 2026.pdf", b"%PDF-broken")})
+
+    folder = (await client.get(f"/v1/nodes/{tree['Bradesco'].id}")).json()
+    opened = (await client.get(f"/v1/nodes/{file.id}")).json()
+
+    assert (folder["kind"], folder["path"], folder["page"], folder["file"], folder["versions"]) == (
+        "folder",
+        "Bradesco",
+        None,
+        None,
+        0,
+    )
+    assert (opened["kind"], opened["path"], opened["page"], opened["versions"]) == (
+        "file",
+        "Bradesco/CG 2026.pdf",
+        None,
+        2,
+    )
+    assert (opened["file"]["mime"], opened["file"]["size"], opened["file"]["pages"]) == ("application/pdf", 11, None)
+    assert set(opened["file"]) == {"size", "mime", "pages", "protected", "sha256"}

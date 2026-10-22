@@ -74,7 +74,3 @@ class Storage:
                     yield chunk
             finally:
                 body.close()
-
-    async def delete(self, key: str) -> None:
-        async with self._client() as s3:
-            await s3.delete_object(Bucket=self.bucket, Key=key)

@@ -3,7 +3,7 @@ from uuid import UUID
 from acervo.core.errors import TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.file import FileRead
+from acervo.schemas.file import FileResponse
 from acervo.schemas.node import (
     NodeAdd,
     NodeCreate,
@@ -38,13 +38,13 @@ class TreeService:
         """The live node with its path and, for a page, its text; for a file, its current content."""
         node = await self._uow.nodes.live(node_id)
         page: PageRead | None = None
-        file: FileRead | None = None
+        file: FileResponse | None = None
         versions = 0
         if node.kind == "page":
             page = await self._pages.read(node.id)
             versions = await self._uow.page_versions.count({"node_id": node.id})
         elif node.kind == "file":
-            file = await self._uow.files.of_node(node.id)
+            file = FileResponse.model_validate(await self._uow.files.of_node(node.id), from_attributes=True)
             versions = await self._uow.file_versions.count({"node_id": node.id}) + 1
         path = await self._uow.nodes.path(node.id)
         return NodeDetail(**node.model_dump(), path=path, page=page, file=file, versions=versions)
@@ -84,6 +84,7 @@ class TreeService:
         """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None."""
         nodes = self._uow.nodes
         node = await nodes.live(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         await nodes.live_folder(node.kb_id, data.parent_id)
         if data.parent_id is not None and node.id in await nodes.ancestors(data.parent_id):
             raise ValidationError(
@@ -121,6 +122,7 @@ class TreeService:
     async def restore(self, node_id: UUID) -> RestoredNode:
         nodes = self._uow.nodes
         node = await nodes.trashed_root(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         to_root = node.parent_id is not None and await nodes.is_trashed(node.parent_id)
         parent_id = None if to_root else node.parent_id
         await self._ensure_title_free(node.kb_id, parent_id, node.kind, node.title)

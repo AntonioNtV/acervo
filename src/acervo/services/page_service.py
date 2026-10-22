@@ -103,6 +103,7 @@ class PageService:
     async def _save(
         self, node: NodeRead, markdown: str, base_version_id: UUID, *, force: bool = False
     ) -> PageVersionSummary:
+        await self._uow.kbs.lock(node.kb_id)
         latest = await self._uow.page_versions.current(node.id)
         if markdown == latest.markdown:
             await self._uow.page_drafts.discard(node.id)

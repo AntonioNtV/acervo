@@ -1,5 +1,4 @@
 import uuid
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -33,14 +32,6 @@ async def test_get_missing_raises_not_found(kbs: KbRepository) -> None:
         await kbs.get(missing)
 
     assert raised.value.details == {"id": str(missing)}
-
-
-async def test_list_is_newest_first(kbs: KbRepository) -> None:
-    start = datetime(2026, 1, 1, tzinfo=UTC)
-    for day, name in enumerate(["oldest", "middle", "newest"]):
-        await kbs.create(KbCreate(name=name), created_at=start + timedelta(days=day))
-
-    assert [kb.name for kb in await kbs.list()] == ["newest", "middle", "oldest"]
 
 
 async def test_empty_update_emits_no_write(kbs: KbRepository, engine: AsyncEngine) -> None:

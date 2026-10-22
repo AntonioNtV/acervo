@@ -57,5 +57,8 @@ asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 testpaths = ["tests"]
 
+[tool.coverage.run]
+concurrency = ["greenlet", "thread"]
+
 [tool.coverage.report]
 fail_under = 85

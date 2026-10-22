@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import BaseModel, SecretStr
+from pydantic import BaseModel, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     thresholds: Thresholds = Thresholds()
     navigator_budget: NavigatorBudget = NavigatorBudget()
+
+    @field_validator("api_key")
+    @classmethod
+    def _api_key_is_set(cls, value: SecretStr) -> SecretStr:
+        if not value.get_secret_value():
+            raise ValueError("API_KEY cannot be empty")
+        return value
 
 
 @lru_cache

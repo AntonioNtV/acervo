@@ -5,10 +5,11 @@ description: The contract between Acervo's API and the web app - FastAPI routers
 
 # HTTP API
 
-FastAPI, created by `create_app()` in `api/main.py`. Every route is under `/v1` and requires `X-API-Key` (the
-value of `API_KEY`), except `GET /v1/health`. The OpenAPI document it produces is committed as
-`docs/openapi.json` and generates the web app's types; no path string lives in the web app outside the generated
-client. Exemplar: `api/routers/nodes.py`.
+FastAPI, created by `create_app()` in `api/main.py`. Every route is under `/v1` and every route but `/v1/health`
+requires `X-API-Key` (the value of `API_KEY`, never empty); health is open on purpose, the compose healthcheck calls
+it. The raw route also takes a signed link, so the key never appears in a URL. The OpenAPI document it produces is
+committed as `docs/openapi.json` and generates the web app's types; no path string lives in the web app outside the
+generated client. Exemplar: `api/routers/nodes.py`.
 
 | Piece | File |
 |---|---|
@@ -34,7 +35,7 @@ client. Exemplar: `api/routers/nodes.py`.
 
 | Method and path | Does |
 |---|---|
-| `GET /v1/health` | liveness, no key |
+| `GET /v1/health` | liveness, no key on purpose (the compose healthcheck) |
 | `GET /v1/kbs?q=` · `POST /v1/kbs` · `PATCH /v1/kbs/{kb_id}` | list (with counts and last edit), create, rename or describe bases |
 | `DELETE /v1/kbs/{kb_id}` · `GET /v1/kbs/trash` · `POST /v1/kbs/{kb_id}/restore` | a base to the global trash and back |
 | `GET /v1/kbs/{kb_id}/children?parent_id=` | one folder's children in the person's order; files carry `protected` |
@@ -51,6 +52,7 @@ client. Exemplar: `api/routers/nodes.py`.
 | `POST /v1/nodes/{node_id}/file` | replace a file; the current content goes to its history (`same_file` when identical) |
 | `GET /v1/files/{node_id}/versions` · `POST /v1/files/{node_id}/versions/{version_id}/restore` | a file's older contents, and restoring one |
 | `GET /v1/files/{node_id}/raw?version_id=` | the original bytes, one `Range` honored (open-ended too), under the original file name |
+| `POST /v1/files/{node_id}/link?version_id=` | `{url, expires_at}`: the raw route with `expires` and `signature` (HMAC-SHA256 with the key over node, version and expiry, `core/signing.py`), valid 60 s; the raw route takes it instead of the header for exactly that node and version |
 
 From F2: `POST /v1/kbs/{kb_id}/chat` (Capturar or Perguntar; progress and answer by websocket),
 `GET /v1/kbs/{kb_id}/proposals?status=`, `POST /v1/proposals/{id}/accept` (optional edited payload),

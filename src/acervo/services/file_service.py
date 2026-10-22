@@ -1,24 +1,49 @@
 import asyncio
 import hashlib
 import mimetypes
+import re
 import shutil
 import tempfile
+import time
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import BinaryIO
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
+from acervo.core import signing
 from acervo.core.errors import Duplicate, NotFoundError, SameFile, TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.file import FileContent, FileCreate, FileNodeRead, FileVersionCreate, FileVersionRead
+from acervo.schemas.file import (
+    FileContent,
+    FileCreate,
+    FileLink,
+    FileNodeRead,
+    FileResponse,
+    FileVersionCreate,
+    FileVersionRead,
+    FileVersionResponse,
+)
 from acervo.schemas.node import NodeCreate, NodeRead
 from acervo.services.storage import Storage, key_for
 
 CHUNK_SIZE = 1024 * 1024
 PDF = "application/pdf"
+_RANGE = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+@dataclass(frozen=True)
+class Download:
+    """What the raw route sends: a status, its headers and, unless the range is outside the file, the bytes."""
+
+    status: int
+    headers: dict[str, str]
+    media_type: str | None = None
+    body: AsyncIterator[bytes] | None = None
 
 
 def _hash(source: BinaryIO) -> tuple[str, int, bytes]:
@@ -109,10 +134,11 @@ class FileService:
         await self._uow.files.set_content(current.id, content)
         return await self._commit(node)
 
-    async def versions(self, node_id: UUID) -> list[FileVersionRead]:
+    async def versions(self, node_id: UUID) -> list[FileVersionResponse]:
         """The file's older contents, newest first; its current one is the node's."""
         node = await self._file_node(node_id)
-        return await self._uow.file_versions.history(node.id)
+        history = await self._uow.file_versions.history(node.id)
+        return [FileVersionResponse.model_validate(version, from_attributes=True) for version in history]
 
     async def restore(self, node_id: UUID, version_id: UUID) -> FileNodeRead:
         """An old content becomes current again; the current one goes to history and no version is removed."""
@@ -134,6 +160,40 @@ class FileService:
         # The bytes come from the bucket; the database is not held while they are sent.
         await self._uow.rollback()
         return node, content
+
+    async def link(self, node_id: UUID, version_id: UUID | None, secret: str, raw_url: str) -> FileLink:
+        """`raw_url` signed for this content of the file, so it opens without the key for a short while."""
+        node = await self._file_node(node_id)
+        if version_id is not None:
+            await self._version(node.id, version_id)
+        expires = int(time.time()) + signing.LINK_SECONDS
+        query: dict[str, object] = {"version_id": version_id} if version_id is not None else {}
+        query |= {"expires": expires, "signature": signing.sign(secret, node.id, version_id, expires)}
+        return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
+
+    async def download(self, node_id: UUID, version_id: UUID | None, range_header: str | None) -> Download:
+        """The file byte for byte under its own name, or the one `Range` of bytes asked for."""
+        node, content = await self.open(node_id, version_id)
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(node.title)}",
+            "ETag": f'"{content.sha256}"',
+        }
+        # A malformed or multi-part Range is ignored and the whole file is served, as RFC 9110 allows.
+        match = _RANGE.fullmatch(range_header.strip()) if range_header else None
+        if match is None or match.groups() == ("", ""):
+            headers["Content-Length"] = str(content.size)
+            return Download(200, headers, content.mime, self.stream(content))
+        first, last = match.groups()
+        if first:
+            start, end = int(first), min(int(last), content.size - 1) if last else content.size - 1
+        else:
+            start, end = max(content.size - int(last), 0), content.size - 1
+        if start > end:
+            return Download(416, {"Content-Range": f"bytes */{content.size}"})
+        headers["Content-Range"] = f"bytes {start}-{end}/{content.size}"
+        headers["Content-Length"] = str(end - start + 1)
+        return Download(206, headers, content.mime, self.stream(content, (start, end)))
 
     def stream(self, content: FileContent, byte_range: tuple[int, int] | None = None) -> AsyncIterator[bytes]:
         """The stored bytes, or bytes `start` to `end` of them, both included."""
@@ -176,7 +236,7 @@ class FileService:
         detail = FileNodeRead(
             **node.model_dump(),
             path=await self._uow.nodes.path(node.id),
-            file=await self._uow.files.of_node(node.id),
+            file=FileResponse.model_validate(await self._uow.files.of_node(node.id), from_attributes=True),
             versions=await self._uow.file_versions.count({"node_id": node.id}) + 1,
         )
         await self._uow.commit()
