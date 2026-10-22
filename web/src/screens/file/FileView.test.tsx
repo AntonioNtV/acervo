@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { NodeDetail } from "../../api/client";
 import { calls, nodeFields, renderInBase, resetApi, respond } from "../../api/testing";
@@ -66,8 +66,9 @@ describe("FileView", () => {
 
     expect(await screen.findByRole("img", { name: "Página 16 do PDF" })).toBeInTheDocument();
     expect(openPdf).toHaveBeenCalledWith({ url: RAW, httpHeaders: { "X-API-Key": "test-key" } }, expect.any(Function));
-    expect(getPage).toHaveBeenCalledWith(16);
-    expect(screen.getByText("Bradesco / Residencial · 180 páginas · arquivo original")).toBeInTheDocument();
+    // The page is asked for in an effect, which may run after the canvas is on screen.
+    await waitFor(() => expect(getPage).toHaveBeenCalledWith(16));
+    expect(screen.getByText("arquivo original · 180 páginas · 2,3 MB")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Página" })).toHaveValue("16");
   });
 
@@ -103,9 +104,9 @@ describe("FileView", () => {
   it("shows any other file's type, size and versions", async () => {
     renderFile(fileNode("Tabela.xlsx", "application/vnd.ms-excel"));
 
-    expect(await screen.findByText("application/vnd.ms-excel")).toBeInTheDocument();
-    expect(screen.getByText("2,3 MB")).toBeInTheDocument();
-    expect(screen.getByText("2 versões")).toBeInTheDocument();
+    const details = (await screen.findByText("application/vnd.ms-excel")).closest("dl") as HTMLElement;
+    expect(within(details).getByText("2,3 MB")).toBeInTheDocument();
+    expect(within(details).getByText("2 versões")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(openPdf).not.toHaveBeenCalled();
   });
@@ -137,5 +138,32 @@ describe("FileView", () => {
       await screen.findByText("A API recusou a chave. Confira VITE_API_KEY em web/.env.local."),
     ).toBeInTheDocument();
     expect(click).not.toHaveBeenCalled();
+  });
+
+  it("says what the file is, how many versions it has and where it is", async () => {
+    fakePdf(3);
+    respond("GET", "/v1/nodes/folder-1", {
+      body: { ...fileNode("x", "x"), id: "folder-1", parent_id: null, kind: "folder", title: "Residencial", file: null, versions: 0 },
+    });
+    respond("GET", `/v1/files/${NODE_ID}/versions`, {
+      body: [{ id: "v1", size: 1000, replaced_at: "2026-10-20T10:00:00Z" }],
+    });
+    renderFile(fileNode("Condições Gerais 2026.pdf", "application/pdf", 3));
+
+    expect(await screen.findByText("2 versões · substituído em 20 de out.")).toBeInTheDocument();
+    expect(within(screen.getByText(/^Dentro de/)).getByRole("link", { name: "Residencial" })).toHaveAttribute("href", "/kbs/kb-1/n/folder-1");
+  });
+
+  it("keeps Substituir and Versões in the ⋯ menu", async () => {
+    fakePdf(3);
+    respond("GET", `/v1/files/${NODE_ID}/versions`, { body: [] });
+    renderFile(fileNode("Condições Gerais 2026.pdf", "application/pdf", 3));
+
+    await userEvent.click(await screen.findByRole("button", { name: "Mais opções do arquivo" }));
+    expect(screen.getByRole("menuitem", { name: "Substituir" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Versões" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Versões anteriores" });
+    expect(await within(dialog).findByText("Nenhuma versão anterior.")).toBeInTheDocument();
   });
 });

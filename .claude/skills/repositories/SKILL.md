@@ -40,9 +40,9 @@ async with UnitOfWork(session_factory) as uow:
 | Attribute | Repository |
 |---|---|
 | `kbs` | `KbRepository`: `lock`, `get_in` (live or trashed), `summaries` (counts, last edit), `trashed` |
-| `nodes` | `NodeRepository`: `paths`, `live_folder`, `title_taken`, `children`, `ancestors`, sort keys, `trash_subtree`, `restore_trashed_with`, `trash_roots` |
+| `nodes` | `NodeRepository`: `paths`, `live_parent` (a live folder or page of the base), `title_taken`, `children` (with `has_children`), `ancestors`, sort keys, `trash_subtree`, `restore_trashed_with`, `trash_roots` |
 | `files`, `file_versions` | the current file of a `file` node and its history |
-| `page_versions`, `page_drafts`, `page_links` | immutable versions, the one draft per page, the `[[…]]` targets |
+| `page_versions`, `page_drafts`, `page_links` | immutable versions, the one working text per page (with its `revision`), the `[[…]]` targets |
 
 One `UnitOfWork` per HTTP request (`api/deps.py:get_uow`); the service calls `commit()` at the end of the use case,
 and an exception rolls everything back. From F2 the worker opens one per job step, so a failure late in a job keeps

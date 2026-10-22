@@ -5,9 +5,10 @@ import { call, invalidate, refreshTree } from "./request";
 
 type Schemas = components["schemas"];
 
-export function useChildren(kbId: string, parentId: string | null = null) {
+export function useChildren(kbId: string, parentId: string | null = null, enabled = true) {
   return useQuery({
     queryKey: ["children", kbId, parentId],
+    enabled,
     queryFn: () =>
       call(
         api.GET("/v1/kbs/{kb_id}/children", {
@@ -33,9 +34,10 @@ export function useKbTrash(kbId: string) {
 }
 
 /** A folder, page or file with its path, its page and file parts and its version count. */
-export function useNode(nodeId: string) {
+export function useNode(nodeId: string, enabled = true) {
   return useQuery({
     queryKey: ["node", nodeId],
+    enabled,
     queryFn: () => call(api.GET("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } } })),
   });
 }
@@ -55,6 +57,15 @@ export function useRenameNode() {
     mutationFn: ({ nodeId, title }: { nodeId: string; title: string }) =>
       call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body: { title } })),
     onSuccess: () => Promise.all([refreshTree(queryClient), invalidate(queryClient, ["versions"], ["diff"])]),
+  });
+}
+
+export function useDescribeNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, description }: { nodeId: string; description: string }) =>
+      call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body: { description } })),
+    onSuccess: () => refreshTree(queryClient),
   });
 }
 

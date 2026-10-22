@@ -14,8 +14,11 @@ export function DownloadLink({ nodeId, filename, versionId }: { nodeId: string; 
         type="button"
         disabled={download.isPending}
         onClick={() => download.mutate(versionId)}
-        className="inline-flex h-[26px] shrink-0 cursor-pointer items-center rounded-[6px] border-0 bg-transparent px-2 text-12 font-medium whitespace-nowrap text-text-2 no-underline hover:bg-subtle hover:text-text"
+        className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-[6px] border-0 bg-transparent px-2 text-13 whitespace-nowrap text-text-2 no-underline hover:bg-subtle hover:text-text"
       >
+        <svg viewBox="0 0 24 24" width={16} height={16} aria-hidden="true" className="shrink-0 fill-none stroke-current stroke-[1.5]">
+          <path d="M12 4v12M6 10l6 6 6-6M5 20h14" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
         {t("file.download")}
       </button>
     </>

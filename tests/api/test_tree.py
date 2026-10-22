@@ -97,6 +97,50 @@ async def test_move_into_own_descendant_is_422(client: httpx.AsyncClient, make_t
     assert await _titles(client, tree.kb.id) == ["Bradesco", "Porto"]
 
 
+async def test_sub_page_create_move_trash_restore(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md"], "Porto": ["Vistoria.md"], "CG 2026.pdf": None})
+    page = tree["Bradesco/Renovação.md"].id
+    sub_page = await _node(client, tree.kb.id, "Checklist", parent_id=page)
+    await _node(client, tree.kb.id, "Itens", parent_id=sub_page)
+    folder = await _move(client, tree["Porto"].id, page)
+    file = await _move(client, tree["CG 2026.pdf"].id, page)
+
+    assert (folder.status_code, file.status_code) == (200, 200)
+    assert await _titles(client, tree.kb.id, page) == ["Checklist", "Porto", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, sub_page) == ["Itens"]
+    opened = (await client.get(f"/v1/nodes/{tree['Porto/Vistoria.md'].id}")).json()
+    assert opened["path"] == "Bradesco/Renovação/Porto/Vistoria"
+
+    await client.delete(f"/v1/nodes/{sub_page}")
+    restored = (await client.post(f"/v1/nodes/{sub_page}/restore")).json()
+    assert (restored["parent_id"], restored["to_root"]) == (str(page), False)
+
+    await client.delete(f"/v1/nodes/{page}")
+    gone = await client.get(f"/v1/kbs/{tree.kb.id}/children", params={"parent_id": str(page)})
+    assert (gone.status_code, gone.json()["error"]) == (404, "not_found")
+    assert await _titles(client, tree.kb.id) == ["Bradesco"]
+    assert [item["title"] for item in (await client.get(f"/v1/kbs/{tree.kb.id}/trash")).json()] == ["Renovação"]
+
+    restored = (await client.post(f"/v1/nodes/{page}/restore")).json()
+    assert (restored["parent_id"], restored["to_root"]) == (str(tree["Bradesco"].id), False)
+    assert await _titles(client, tree.kb.id, page) == ["Checklist", "Porto", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, sub_page) == ["Itens"]
+    assert await _titles(client, tree.kb.id, tree["Porto"].id) == ["Vistoria"]
+
+
+async def test_move_page_into_its_own_sub_page_is_422(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Renovação.md": None, "CG 2026.pdf": None})
+    page = tree["Renovação.md"].id
+    sub_page = await _node(client, tree.kb.id, "Checklist", parent_id=page)
+    deeper = await _node(client, tree.kb.id, "Itens", parent_id=sub_page)
+
+    for target in [page, sub_page, deeper, tree["CG 2026.pdf"].id]:
+        response = await _move(client, page, target)
+        assert (response.status_code, response.json()["error"]) == (422, "validation")
+    assert await _titles(client, tree.kb.id) == ["Renovação", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, page) == ["Checklist"]
+
+
 async def test_title_clash_is_409_title_taken(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
     tree = await make_tree({"Bradesco": ["Renovação.md", "Sinistro.md"], "Renovação.md": None})
     bradesco = tree["Bradesco"].id
@@ -232,3 +276,56 @@ async def test_open_a_file_and_a_folder_node(client: httpx.AsyncClient, make_tre
     )
     assert (opened["file"]["mime"], opened["file"]["size"], opened["file"]["pages"]) == ("application/pdf", 11, None)
     assert set(opened["file"]) == {"size", "mime", "pages", "protected", "sha256"}
+
+
+async def test_edit_description_locks_it_and_children_carry_counts(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": {"Residencial": ["A.md", "B.md"]}, "Vazia": None})
+    residencial = tree["Bradesco/Residencial"].id
+
+    edited = await client.patch(f"/v1/nodes/{residencial}", json={"description": "  Produto residencial.  "})
+
+    assert edited.status_code == 200
+    row = await session.get(Node, residencial, populate_existing=True)
+    assert row is not None and (row.description, row.description_locked, row.title) == (
+        "Produto residencial.",
+        True,
+        "Residencial",
+    )
+    top = {node["title"]: node for node in await _children(client, tree.kb.id, None)}
+    assert (top["Bradesco"]["child_count"], top["Vazia"]["child_count"]) == (1, 0)
+    inside = await _children(client, tree.kb.id, tree["Bradesco"].id)
+    assert (inside[0]["child_count"], inside[0]["pages"], inside[0]["size"]) == (2, None, None)
+
+
+async def test_clearing_the_description_unlocks_it(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": None})
+    bradesco = tree["Bradesco"].id
+    await client.patch(f"/v1/nodes/{bradesco}", json={"description": "Seguradora."})
+
+    cleared = await client.patch(f"/v1/nodes/{bradesco}", json={"description": "   "})
+
+    assert cleared.status_code == 200
+    row = await session.get(Node, bradesco, populate_existing=True)
+    assert row is not None and (row.description, row.description_locked) == ("", False)
+
+
+async def test_a_file_is_not_a_parent(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md", "CG 2026.pdf"]})
+    file = tree["Bradesco/CG 2026.pdf"].id
+
+    responses = [
+        await client.post(
+            f"/v1/kbs/{tree.kb.id}/nodes", json={"kind": "page", "title": "Dentro", "parent_id": str(file)}
+        ),
+        await _move(client, tree["Bradesco/Renovação.md"].id, file),
+        await client.get(f"/v1/kbs/{tree.kb.id}/children", params={"parent_id": str(file)}),
+    ]
+
+    assert [(r.status_code, r.json()["error"], r.json()["message"]) for r in responses] == [
+        (422, "validation", "um arquivo não guarda itens")
+    ] * 3
+    assert await _titles(client, tree.kb.id, tree["Bradesco"].id) == ["Renovação", "CG 2026.pdf"]

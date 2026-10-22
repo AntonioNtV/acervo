@@ -16,11 +16,12 @@ from acervo.db.models import Kb, Node, PageDraft, PageLink, PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
-from acervo.schemas.page import DraftPut, PageSave, PageVersionSummary
+from acervo.schemas.page import PageTextPut, PageTextSaved, PageVersionSummary
 from acervo.services.page_service import PageService
 from acervo.services.tree_service import TreeService
 
 MakeTree = Callable[..., Awaitable[Any]]
+IDLE = 300
 
 PAGE = "Bradesco/Residencial/Emissão de apólice.md"
 TREE = {
@@ -42,9 +43,25 @@ async def services(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Serv
         yield Services(PageService(uow), TreeService(uow))
 
 
+async def _type(pages: PageService, node_id: UUID, markdown: str, idle: int = IDLE) -> PageTextSaved:
+    revision = (await pages.read(node_id)).revision
+    return await pages.put_text(node_id, PageTextPut(markdown=markdown, revision=revision), idle)
+
+
 async def _write(pages: PageService, node_id: UUID, markdown: str) -> PageVersionSummary:
-    base = (await pages.read(node_id)).version_id
-    return await pages.save(node_id, PageSave(markdown=markdown, base_version_id=base))
+    """Types `markdown` and leaves the page: its newest version."""
+    await _type(pages, node_id, markdown)
+    await pages.cut(node_id)
+    return (await pages.versions(node_id))[0]
+
+
+async def _stored(session: AsyncSession, node_id: UUID) -> list[tuple[str, bool]]:
+    """Every version's text, oldest first, and whether it carries an editing span; without cutting first."""
+    query = select(PageVersion).where(PageVersion.node_id == node_id).order_by(PageVersion.created_at)
+    return [
+        (v.markdown, v.edit_started_at is not None and v.edit_ended_at is not None)
+        for v in await session.scalars(query.execution_options(populate_existing=True))
+    ]
 
 
 async def _markdown(pages: PageService, node_id: UUID) -> str:
@@ -57,7 +74,7 @@ async def test_create_writes_an_empty_version_1(services: Services, make_tree: M
     node = await services.tree.create(tree.kb.id, NodeAdd(parent_id=tree["Bradesco"].id, kind="page", title="Prazos"))
 
     page = await services.pages.read(node.id)
-    assert (page.markdown, page.draft, page.links, page.sections) == ("", None, {}, [])
+    assert (page.markdown, page.revision, page.links, page.sections) == ("", 0, {}, [])
     assert [(v.id, v.author) for v in await services.pages.versions(node.id)] == [(page.version_id, "user")]
 
 
@@ -74,43 +91,90 @@ async def test_save_creates_a_whole_file_version_by_user(services: Services, mak
     assert [(s.anchor, s.heading) for s in current.sections] == [("documentos", "Documentos")]
 
 
-async def test_unchanged_text_creates_no_version(services: Services, make_tree: MakeTree) -> None:
+async def test_autosave_writes_no_version(services: Services, make_tree: MakeTree, session: AsyncSession) -> None:
     page = (await make_tree(TREE))[PAGE]
-    first = await services.pages.read(page.id)
+    opened = await services.pages.read(page.id)
 
-    assert (await _write(services.pages, page.id, first.markdown)).id == first.version_id
-    assert len(await services.pages.versions(page.id)) == 1
+    await _type(services.pages, page.id, "# Emissão de apólice\nUm\n")
+    saved = await _type(services.pages, page.id, "# Emissão de apólice\nUm\nDois\n")
+
+    current = await services.pages.read(page.id)
+    assert (current.markdown, current.revision, current.saved_at) == (
+        "# Emissão de apólice\nUm\nDois\n",
+        saved.revision,
+        saved.saved_at,
+    )
+    assert (saved.revision, current.version_id) == (opened.revision + 2, opened.version_id)
+    assert await _stored(session, page.id) == [(opened.markdown, False)]
 
 
-async def test_stale_base_raises_with_diff_and_keeps_the_draft(services: Services, make_tree: MakeTree) -> None:
+async def test_idle_save_cuts_the_previous_session(
+    services: Services, make_tree: MakeTree, session: AsyncSession
+) -> None:
     page = (await make_tree(TREE))[PAGE]
-    base = (await services.pages.read(page.id)).version_id
-    theirs = await _write(services.pages, page.id, "# Emissão de apólice\nNova linha\n")
-    await services.pages.put_draft(page.id, DraftPut(markdown="Minha linha\n", base_version_id=base))
+    opened = await services.pages.read(page.id)
+    await _type(services.pages, page.id, "Primeira sessão\n")
+
+    await _type(services.pages, page.id, "Segunda sessão\n", idle=0)
+
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Primeira sessão\n", True)]
+    assert (await services.pages.read(page.id)).markdown == "Segunda sessão\n"
+
+
+async def test_leave_cuts_a_version(services: Services, make_tree: MakeTree, session: AsyncSession) -> None:
+    page = (await make_tree(TREE))[PAGE]
+    opened = await services.pages.read(page.id)
+    await _type(services.pages, page.id, "Um\n")
+    await _type(services.pages, page.id, "Um\nDois\n")
+
+    await services.pages.cut(page.id)
+
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Um\nDois\n", True)]
+    [newest, _] = await services.pages.versions(page.id)
+    assert newest.edit_started_at is not None and newest.edit_ended_at is not None
+    assert newest.edit_started_at < newest.edit_ended_at <= newest.created_at
+
+
+async def test_unchanged_cut_writes_nothing(services: Services, make_tree: MakeTree, session: AsyncSession) -> None:
+    page = (await make_tree(TREE))[PAGE]
+    opened = await services.pages.read(page.id)
+    await _type(services.pages, page.id, opened.markdown)
+    await services.pages.cut(page.id)
+    await _type(services.pages, page.id, "Nova\n")
+    await services.pages.cut(page.id)
+
+    await services.pages.cut(page.id)
+
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Nova\n", True)]
+
+
+async def test_stale_revision_keeps_the_refused_text_as_version(
+    services: Services, make_tree: MakeTree, session: AsyncSession
+) -> None:
+    page = (await make_tree(TREE))[PAGE]
+    opened = await services.pages.read(page.id)
+    first_tab = await _type(services.pages, page.id, "Aba 1\n")
 
     with pytest.raises(StalePage) as raised:
-        await services.pages.save(page.id, PageSave(markdown="Minha linha\n", base_version_id=base))
+        await services.pages.put_text(page.id, PageTextPut(markdown="Aba 2\n", revision=opened.revision), IDLE)
 
-    assert raised.value.details == {
-        "current_version_id": str(theirs.id),
-        "markdown": "# Emissão de apólice\nNova linha\n",
-        "diff": [{"op": "same", "text": "# Emissão de apólice"}, {"op": "add", "text": "Nova linha"}],
-    }
-    assert len(await services.pages.versions(page.id)) == 2
-    draft = (await services.pages.read(page.id)).draft
-    assert draft is not None and (draft.markdown, draft.base_version_id) == ("Minha linha\n", base)
+    assert raised.value.details == {"markdown": "Aba 1\n", "revision": first_tab.revision}
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Aba 2\n", False)]
+    current = await services.pages.read(page.id)
+    assert (current.markdown, current.revision) == ("Aba 1\n", first_tab.revision)
 
 
-async def test_force_saves_on_top_and_keeps_both(services: Services, make_tree: MakeTree) -> None:
+async def test_history_read_cuts_first(services: Services, make_tree: MakeTree) -> None:
     page = (await make_tree(TREE))[PAGE]
-    base = (await services.pages.read(page.id)).version_id
-    theirs = await _write(services.pages, page.id, "# Emissão de apólice\nNova linha\n")
+    opened = await services.pages.read(page.id)
+    await _type(services.pages, page.id, "Antes do histórico\n")
 
-    mine = await services.pages.save(
-        page.id, PageSave(markdown="# Emissão de apólice\nMinha linha\n", base_version_id=base, force=True)
-    )
+    history = await services.pages.versions(page.id)
 
-    assert [v.id for v in await services.pages.versions(page.id)] == [mine.id, theirs.id, base]
+    assert [v.id for v in history][1:] == [opened.version_id]
+    assert (await services.pages.read(page.id)).version_id == history[0].id
+    diff = await services.pages.diff(page.id, history[0].id)
+    assert ("add", "Antes do histórico") in [(line.op, line.text) for line in diff.lines]
 
 
 async def test_restore_writes_a_new_version(services: Services, make_tree: MakeTree) -> None:
@@ -131,29 +195,22 @@ async def test_restore_writes_a_new_version(services: Services, make_tree: MakeT
     ]
 
 
-async def test_save_drops_the_draft(services: Services, make_tree: MakeTree) -> None:
+async def test_restore_sets_the_working_text(services: Services, make_tree: MakeTree, session: AsyncSession) -> None:
     page = (await make_tree(TREE))[PAGE]
-    first = (await services.pages.read(page.id)).version_id
-    draft = DraftPut(markdown="# Emissão de apólice\nRascunho\n", base_version_id=first)
-    await services.pages.put_draft(page.id, draft)
+    first = await services.pages.read(page.id)
+    await _write(services.pages, page.id, "Segunda\n")
+    typing = await _type(services.pages, page.id, "Rascunho\n")
 
-    await _write(services.pages, page.id, "# Emissão de apólice\nRascunho\n")
+    restored = await services.pages.restore(page.id, first.version_id)
 
-    assert (await services.pages.read(page.id)).draft is None
-
-
-async def test_draft_is_replaced_discarded_and_never_a_version(services: Services, make_tree: MakeTree) -> None:
-    page = (await make_tree(["Renovação.md"]))["Renovação.md"]
-    base = (await services.pages.read(page.id)).version_id
-
-    await services.pages.put_draft(page.id, DraftPut(markdown="primeiro", base_version_id=base))
-    await services.pages.put_draft(page.id, DraftPut(markdown="segundo", base_version_id=base))
-
-    current = await services.pages.read(page.id)
-    assert current.draft is not None and (current.draft.markdown, current.draft.base_version_id) == ("segundo", base)
-    assert (current.markdown, [v.id for v in await services.pages.versions(page.id)]) == ("# Renovação\n", [base])
-    await services.pages.discard_draft(page.id)
-    assert (await services.pages.read(page.id)).draft is None
+    assert (restored.markdown, restored.revision) == (first.markdown, typing.revision + 1)
+    assert [text for text, _ in await _stored(session, page.id)] == [
+        first.markdown,
+        "Segunda\n",
+        "Rascunho\n",
+        first.markdown,
+    ]
+    assert (await services.pages.read(page.id)).markdown == first.markdown
 
 
 async def test_history_newest_first_without_text(services: Services, make_tree: MakeTree) -> None:
@@ -247,6 +304,23 @@ async def test_rename_fixes_only_links_to_that_page(services: Services, make_tre
     assert (await services.pages.read(ambiguous)).version_id == ambiguous_version.id
 
 
+async def test_rename_fixes_links_in_an_open_working_text(
+    services: Services, make_tree: MakeTree, session: AsyncSession
+) -> None:
+    tree = await make_tree(TREE)
+    page = tree["Porto/Vistoria.md"]
+    opened = await services.pages.read(page.id)
+    typing = await _type(services.pages, page.id, "Digitando [[Renovação]]\n")
+
+    await services.tree.rename(tree["Bradesco/Residencial/Renovação.md"].id, "Renovação anual")
+
+    current = await services.pages.read(page.id)
+    assert (current.markdown, current.revision) == ("Digitando [[Renovação anual]]\n", typing.revision + 1)
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Digitando [[Renovação anual]]\n", False)]
+    with pytest.raises(StalePage):
+        await services.pages.put_text(page.id, PageTextPut(markdown="Digitando mais\n", revision=typing.revision), IDLE)
+
+
 async def test_link_table_follows_the_latest_version(
     services: Services, make_tree: MakeTree, session: AsyncSession
 ) -> None:
@@ -284,24 +358,25 @@ async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_s
 
 
 async def _save_committed(
-    sessions: async_sessionmaker[AsyncSession], node_id: UUID, base: UUID, markdown: str
-) -> PageVersionSummary:
+    sessions: async_sessionmaker[AsyncSession], node_id: UUID, revision: int, markdown: str
+) -> PageTextSaved:
     async with UnitOfWork(sessions) as uow:
-        return await PageService(uow).save(node_id, PageSave(markdown=markdown, base_version_id=base))
+        return await PageService(uow).put_text(node_id, PageTextPut(markdown=markdown, revision=revision), IDLE)
 
 
-async def test_concurrent_saves_from_one_version_give_one_stale_page(
+async def test_concurrent_saves_from_one_revision_give_one_stale_page(
     committed_page: tuple[async_sessionmaker[AsyncSession], UUID],
 ) -> None:
     sessions, node_id = committed_page
     async with UnitOfWork(sessions) as uow:
-        base = (await PageService(uow).read(node_id)).version_id
+        revision = (await PageService(uow).read(node_id)).revision
 
     results = await asyncio.gather(
-        *(_save_committed(sessions, node_id, base, f"# Prazos\n{name}\n") for name in ("Ana", "Bruno")),
+        *(_save_committed(sessions, node_id, revision, f"# Prazos\n{name}\n") for name in ("Ana", "Bruno")),
         return_exceptions=True,
     )
 
     assert sorted(isinstance(result, StalePage) for result in results) == [False, True]
     async with UnitOfWork(sessions) as uow:
-        assert len(await PageService(uow).versions(node_id)) == 2
+        # The empty first version, the refused text and, cut by the history, the text that won.
+        assert len(await PageService(uow).versions(node_id)) == 3

@@ -1,25 +1,20 @@
 import type { RouteObject } from "react-router-dom";
 import { BasesPage } from "../screens/bases/BasesPage";
-import { TrashPage } from "../screens/bases/TrashPage";
-import { BaseFrame } from "./BaseFrame";
-import { IndexFrame } from "./IndexFrame";
-import { BaseRootView } from "../screens/base/FolderView";
+import { BaseRootScreen } from "../screens/folder/FolderScreen";
+import { Lixeira } from "../screens/shell/Lixeira";
+import { Home } from "./Home";
 import { NodeView } from "./NodeView";
+import { ShellFrame } from "./ShellFrame";
 
 export const routes: RouteObject[] = [
   {
-    element: <IndexFrame />,
+    element: <ShellFrame />,
     children: [
-      { path: "/", element: <BasesPage /> },
-      { path: "/lixeira", element: <TrashPage /> },
-    ],
-  },
-  {
-    path: "/kbs/:kbId",
-    element: <BaseFrame />,
-    children: [
-      { index: true, element: <BaseRootView /> },
-      { path: "n/:nodeId", element: <NodeView /> },
+      { path: "/", element: <Home /> },
+      { path: "/bases", element: <BasesPage /> },
+      { path: "/lixeira", element: <Lixeira /> },
+      { path: "/kbs/:kbId", element: <BaseRootScreen /> },
+      { path: "/kbs/:kbId/n/:nodeId", element: <NodeView /> },
     ],
   },
 ];

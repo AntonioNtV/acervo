@@ -43,10 +43,11 @@ generated client. Exemplar: `api/routers/nodes.py`.
 | `GET /v1/kbs/{kb_id}/trash` | the base's trashed items, with where they were |
 | `POST /v1/kbs/{kb_id}/nodes` | a folder or a page; a page gets its first version |
 | `GET /v1/nodes/{node_id}` · `PATCH /v1/nodes/{node_id}` | a node with its path; rename (a page rename fixes the `[[…]]` links to it) |
-| `POST /v1/nodes/{node_id}/move` | to a folder, before a sibling or last |
+| `POST /v1/nodes/{node_id}/move` | into a folder or a page of the same base, before a sibling or last |
 | `DELETE /v1/nodes/{node_id}` · `POST /v1/nodes/{node_id}/restore` | to the trash with its subtree, and back (`to_root`) |
-| `GET /v1/pages/{node_id}` · `PUT /v1/pages/{node_id}` | a page's Markdown, version, draft, links and sections; save a version (`stale_page` with the current text and the diff, unless `force`) |
-| `PUT /v1/pages/{node_id}/draft` · `DELETE /v1/pages/{node_id}/draft` | the page's autosaved draft |
+| `GET /v1/pages/{node_id}` | a page's current text (working text, else the newest version), `revision`, `saved_at`, links and sections |
+| `PUT /v1/pages/{node_id}/text` | autosave the working text with the `revision` it read (`stale_page` with the newest `markdown` and `revision`; the refused text is kept as a version) |
+| `POST /v1/pages/{node_id}/leave` | cut a version from the working text now (no-op when unchanged) |
 | `GET /v1/pages/{node_id}/versions` · `…/versions/{version_id}/diff` · `…/versions/{version_id}/restore` | history, diff against the version before, restore as a new version |
 | `POST /v1/kbs/{kb_id}/files` | multipart `file` and `parent_id`: a file into a folder; `duplicate` with its path |
 | `POST /v1/nodes/{node_id}/file` | replace a file; the current content goes to its history (`same_file` when identical) |

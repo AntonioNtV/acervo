@@ -3,9 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_page_service, require_api_key
+from acervo.api.deps import get_page_service, get_settings, require_api_key
+from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
-from acervo.schemas.page import DraftPut, PageDiff, PageDraftRead, PageRead, PageSave, PageVersionSummary
+from acervo.schemas.page import PageDiff, PageRead, PageTextPut, PageTextSaved, PageVersionSummary
 from acervo.services.page_service import PageService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -18,6 +19,7 @@ router = APIRouter(
 )
 
 Service = Annotated[PageService, Depends(get_page_service)]
+AppSettings = Annotated[Settings, Depends(get_settings)]
 
 
 @router.get("/{node_id}", response_model=PageRead, responses={404: ERROR})
@@ -25,26 +27,22 @@ async def get_page(node_id: UUID, service: Service) -> PageRead:
     return await service.read(node_id)
 
 
-@router.put("/{node_id}", response_model=PageVersionSummary, responses={404: ERROR, 409: ERROR})
-async def save_page(node_id: UUID, body: PageSave, service: Service) -> PageVersionSummary:
-    """A new whole-file version. A 409 `stale_page` carries the current version, its text and the diff from the base
-    in `details`."""
-    return await service.save(node_id, body)
+@router.put("/{node_id}/text", response_model=PageTextSaved, responses={404: ERROR, 409: ERROR})
+async def put_page_text(node_id: UUID, body: PageTextPut, service: Service, settings: AppSettings) -> PageTextSaved:
+    """Autosave of the working text. A 409 `stale_page` carries the newest `markdown` and `revision` in `details`;
+    the refused text was kept as a version."""
+    return await service.put_text(node_id, body, settings.version_idle_seconds)
 
 
-@router.put("/{node_id}/draft", response_model=PageDraftRead, responses={404: ERROR})
-async def put_draft(node_id: UUID, body: DraftPut, service: Service) -> PageDraftRead:
-    return await service.put_draft(node_id, body)
-
-
-@router.delete("/{node_id}/draft", status_code=204, responses={404: ERROR})
-async def discard_draft(node_id: UUID, service: Service) -> None:
-    await service.discard_draft(node_id)
+@router.post("/{node_id}/leave", status_code=204, responses={404: ERROR})
+async def leave_page(node_id: UUID, service: Service) -> None:
+    """The person left the page: the working text becomes a version, unless it already is one."""
+    await service.cut(node_id)
 
 
 @router.get("/{node_id}/versions", response_model=list[PageVersionSummary], responses={404: ERROR})
 async def list_page_versions(node_id: UUID, service: Service) -> list[PageVersionSummary]:
-    """The page's versions, newest first, without their text."""
+    """The page's versions, newest first, without their text; the working text is cut as a version first."""
     return await service.versions(node_id)
 
 

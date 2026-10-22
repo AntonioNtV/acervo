@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     thresholds: Thresholds = Thresholds()
     navigator_budget: NavigatorBudget = NavigatorBudget()
+    # A save after this long without a change to the working text starts a new editing session, cutting a version.
+    version_idle_seconds: int = 300
 
     @field_validator("api_key")
     @classmethod

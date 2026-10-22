@@ -1,9 +1,10 @@
-import { useRef, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../../data/request";
 import { useUploadFile } from "../../data/upload";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
+import { cx } from "../../ui/cx";
 import { useTreeErrorText } from "./names";
 
 type Row = {
@@ -86,6 +87,60 @@ export function UploadButton({ kbId, parentId }: { kbId: string; parentId: strin
         }}
       />
     </>
+  );
+}
+
+export function UploadGlyph() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={14}
+      height={14}
+      aria-hidden="true"
+      className="shrink-0 fill-none stroke-current stroke-[1.5]"
+    >
+      <path d="M12 16V4M6 10l6-6 6 6M5 20h14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+type DropZoneProps = { kbId: string; parentId: string | null; name: string; className?: string; children: ReactNode };
+
+/**
+ * The whole area takes files dropped on it into `parentId`, and only shows itself while files are dragged over it.
+ * It takes them before any text editor inside does.
+ */
+export function FileDropZone({ kbId, parentId, name, className, children }: DropZoneProps) {
+  const { t } = useI18n();
+  const startUpload = useStartUpload(kbId);
+  const [over, setOver] = useState(false);
+  return (
+    <div
+      className={cx("relative", className, over && "rounded-[8px] bg-accent-soft outline-1 outline-ink outline-dashed")}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        setOver(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
+      }}
+      onDropCapture={(event) => {
+        if (!event.dataTransfer.files.length) return;
+        event.preventDefault();
+        event.stopPropagation();
+        setOver(false);
+        startUpload(Array.from(event.dataTransfer.files), parentId);
+      }}
+    >
+      {over && (
+        <p className="pointer-events-none absolute inset-x-0 top-3 m-0 flex items-center justify-center gap-2 text-13 text-text-2">
+          <UploadGlyph />
+          {t("folder.drop", { name })}
+        </p>
+      )}
+      {children}
+    </div>
   );
 }
 

@@ -15,8 +15,8 @@ Exemplar: `migrations/versions/0001_initial.py`.
 |---|---|
 | `kb` | bases; `deleted_at` while the base is in the global trash |
 | `node` | the tree: `kind` folder, page or file; `parent_id` (null at the root), `title` (a file's keeps its extension), `description`, `description_locked`, `sort` (fractional index), `deleted_at`, `trashed_with` (the node whose trashing hid this one) |
-| `page_version` | immutable whole Markdown per version, `author` (`user` or `agent`), `proposal_id` |
-| `page_draft` | one unsaved draft per page, with its `base_version_id`; never in the history, never seen by agents |
+| `page_version` | immutable whole Markdown per version, `author` (`user` or `agent`), `proposal_id`, `edit_started_at`/`edit_ended_at` (set when cut from an editing session) |
+| `page_draft` | the page's working text: `markdown`, `revision`, `started_at` (the editing session), `base_version_id`; versions are cut from it (skill `markdown-pages`) |
 | `page_link` | `[[…]]` links: `from_node_id` and the normalized `target` title, to fix links on rename |
 | `file` | the current file of a `file` node: `storage_key`, `sha256`, `size`, `mime`, `pages`, `protected`, `doc_type`, `sensitive`, `map` (jsonb), `map_origin` |
 | `file_version` | earlier files of a `file` node, same columns plus `replaced_at` |

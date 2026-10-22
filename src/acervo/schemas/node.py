@@ -57,10 +57,13 @@ class NodeAdd(BaseModel):
     title: str = Field(description="Title; no live sibling of the same kind may have it already.")
 
 
-class NodeRename(BaseModel):
-    """A new title for a node."""
+class NodeEdit(BaseModel):
+    """What the person changes on a node; omitted fields keep their value."""
 
-    title: str = Field(description="New title; no live sibling of the same kind may have it already.")
+    title: str | None = Field(default=None, description="New title; no live sibling of the same kind may have it.")
+    description: str | None = Field(
+        default=None, max_length=200, description="New description; once the person edits it, agents keep it."
+    )
 
 
 class NodeMove(BaseModel):
@@ -74,6 +77,9 @@ class TreeNode(NodeRead):
     """A node as the tree shows it."""
 
     protected: bool = Field(description="A password-protected PDF; false for anything else.")
+    child_count: int = Field(description="How many live nodes are right under it.")
+    pages: int | None = Field(description="A PDF's page count; null for anything else.")
+    size: int | None = Field(description="A file's size in bytes; null for folders and pages.")
 
 
 class NodeWithPath(NodeRead):

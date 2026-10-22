@@ -102,20 +102,20 @@ class FileService:
         self._uow = uow
         self._storage = storage
 
-    async def save(self, kb_id: UUID, folder_id: UUID | None, filename: str | None, source: BinaryIO) -> FileNodeRead:
-        """Stores a file byte for byte into a folder of the base, as the last of its siblings."""
+    async def save(self, kb_id: UUID, parent_id: UUID | None, filename: str | None, source: BinaryIO) -> FileNodeRead:
+        """Stores a file byte for byte into a folder or a page of the base, as the last of its siblings."""
         if not filename:
             raise ValidationError("the file has no name")
         content = await _stage(kb_id, source, filename)
         await self._uow.kbs.lock(kb_id)
-        await self._uow.nodes.live_folder(kb_id, folder_id)
+        await self._uow.nodes.live_parent(kb_id, parent_id)
         await self._refuse_duplicate(kb_id, content.sha256)
-        if await self._uow.nodes.title_taken(kb_id, folder_id, "file", filename):
+        if await self._uow.nodes.title_taken(kb_id, parent_id, "file", filename):
             raise TitleTaken("já existe", {"title": filename})
         await self._storage.put(content.storage_key, source, content.size)
-        last = await self._uow.nodes.last_sort(kb_id, folder_id)
+        last = await self._uow.nodes.last_sort(kb_id, parent_id)
         node = await self._uow.nodes.create(
-            NodeCreate(kb_id=kb_id, parent_id=folder_id, kind="file", title=filename, sort=key_between(last, None))
+            NodeCreate(kb_id=kb_id, parent_id=parent_id, kind="file", title=filename, sort=key_between(last, None))
         )
         await self._uow.files.create(FileCreate(node_id=node.id, **content.model_dump()))
         return await self._commit(node)

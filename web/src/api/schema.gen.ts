@@ -295,10 +295,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename Node
-         * @description Renaming a page also fixes the `[[…]]` links that resolved to it, each as a new version of its page.
+         * Edit Node
+         * @description Renaming a page also fixes the `[[…]]` links that resolved to it; a description the person edits is locked.
          */
-        patch: operations["rename_node_v1_nodes__node_id__patch"];
+        patch: operations["edit_node_v1_nodes__node_id__patch"];
         trace?: never;
     };
     "/v1/nodes/{node_id}/file": {
@@ -361,12 +361,7 @@ export interface paths {
         };
         /** Get Page */
         get: operations["get_page_v1_pages__node_id__get"];
-        /**
-         * Save Page
-         * @description A new whole-file version. A 409 `stale_page` carries the current version, its text and the diff from the base
-         *     in `details`.
-         */
-        put: operations["save_page_v1_pages__node_id__put"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -374,7 +369,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/pages/{node_id}/draft": {
+    "/v1/pages/{node_id}/leave": {
         parameters: {
             query?: never;
             header?: never;
@@ -382,11 +377,34 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Put Draft */
-        put: operations["put_draft_v1_pages__node_id__draft_put"];
+        put?: never;
+        /**
+         * Leave Page
+         * @description The person left the page: the working text becomes a version, unless it already is one.
+         */
+        post: operations["leave_page_v1_pages__node_id__leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Page Text
+         * @description Autosave of the working text. A 409 `stale_page` carries the newest `markdown` and `revision` in `details`;
+         *     the refused text was kept as a version.
+         */
+        put: operations["put_page_text_v1_pages__node_id__text_put"];
         post?: never;
-        /** Discard Draft */
-        delete: operations["discard_draft_v1_pages__node_id__draft_delete"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -401,7 +419,7 @@ export interface paths {
         };
         /**
          * List Page Versions
-         * @description The page's versions, newest first, without their text.
+         * @description The page's versions, newest first, without their text; the working text is cut as a version first.
          */
         get: operations["list_page_versions_v1_pages__node_id__versions_get"];
         put?: never;
@@ -481,23 +499,6 @@ export interface components {
              * @description The line, without its line break.
              */
             text: string;
-        };
-        /**
-         * DraftPut
-         * @description The draft of a page, replacing the previous one.
-         */
-        DraftPut: {
-            /**
-             * Base Version Id
-             * Format: uuid
-             * @description The version the person is editing.
-             */
-            base_version_id: string;
-            /**
-             * Markdown
-             * @description The draft's whole text.
-             */
-            markdown: string;
         };
         /**
          * ErrorResponse
@@ -944,6 +945,22 @@ export interface components {
             versions: number;
         };
         /**
+         * NodeEdit
+         * @description What the person changes on a node; omitted fields keep their value.
+         */
+        NodeEdit: {
+            /**
+             * Description
+             * @description New description; once the person edits it, agents keep it.
+             */
+            description?: string | null;
+            /**
+             * Title
+             * @description New title; no live sibling of the same kind may have it.
+             */
+            title?: string | null;
+        };
+        /**
          * NodeMove
          * @description Where to put a node.
          */
@@ -1029,17 +1046,6 @@ export interface components {
              * @description When the node last changed.
              */
             updated_at: string;
-        };
-        /**
-         * NodeRename
-         * @description A new title for a node.
-         */
-        NodeRename: {
-            /**
-             * Title
-             * @description New title; no live sibling of the same kind may have it already.
-             */
-            title: string;
         };
         /**
          * NodeWithPath
@@ -1129,35 +1135,10 @@ export interface components {
             lines: components["schemas"]["DiffLine"][];
         };
         /**
-         * PageDraftRead
-         * @description The page's single autosaved draft. Never a version.
-         */
-        PageDraftRead: {
-            /**
-             * Base Version Id
-             * Format: uuid
-             * @description The version the person was editing.
-             */
-            base_version_id: string;
-            /**
-             * Markdown
-             * @description The draft's whole text.
-             */
-            markdown: string;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description When it was last autosaved.
-             */
-            updated_at: string;
-        };
-        /**
          * PageRead
          * @description What a page holds now.
          */
         PageRead: {
-            /** @description An unsaved draft to offer to continue; null if there is none. */
-            draft: components["schemas"]["PageDraftRead"] | null;
             /**
              * Links
              * @description Each `[[…]]` target, keyed with its whitespace collapsed to single spaces and lowercased: the page it opens, or why it shows in gray.
@@ -1167,9 +1148,20 @@ export interface components {
             };
             /**
              * Markdown
-             * @description The current version's whole text.
+             * @description The page's whole text now: the working text, else the newest version's.
              */
             markdown: string;
+            /**
+             * Revision
+             * @description The revision of that text, to send with the next save.
+             */
+            revision: number;
+            /**
+             * Saved At
+             * Format: date-time
+             * @description When that text was saved.
+             */
+            saved_at: string;
             /**
              * Sections
              * @description The page's `##` headings, in order.
@@ -1178,32 +1170,42 @@ export interface components {
             /**
              * Version Id
              * Format: uuid
-             * @description The current version, the base of the next save.
+             * @description The newest version.
              */
             version_id: string;
         };
         /**
-         * PageSave
-         * @description A new whole-file version of a page.
+         * PageTextPut
+         * @description The page's whole text as the person typed it.
          */
-        PageSave: {
-            /**
-             * Base Version Id
-             * Format: uuid
-             * @description The version the person opened.
-             */
-            base_version_id: string;
-            /**
-             * Force
-             * @description Save on top even if the page changed since `base_version_id`.
-             * @default false
-             */
-            force: boolean;
+        PageTextPut: {
             /**
              * Markdown
              * @description The page's whole text.
              */
             markdown: string;
+            /**
+             * Revision
+             * @description The revision the person was editing, from the last read or save.
+             */
+            revision: number;
+        };
+        /**
+         * PageTextSaved
+         * @description The page's text, saved.
+         */
+        PageTextSaved: {
+            /**
+             * Revision
+             * @description The new revision, to send with the next save.
+             */
+            revision: number;
+            /**
+             * Saved At
+             * Format: date-time
+             * @description When it was saved.
+             */
+            saved_at: string;
         };
         /**
          * PageVersionSummary
@@ -1222,6 +1224,16 @@ export interface components {
              * @description When it was written.
              */
             created_at: string;
+            /**
+             * Edit Ended At
+             * @description Last change of the editing session it came from; null when it did not come from one.
+             */
+            edit_ended_at: string | null;
+            /**
+             * Edit Started At
+             * @description First change of the editing session it came from; null when it did not come from one.
+             */
+            edit_started_at: string | null;
             /**
              * Id
              * Format: uuid
@@ -1327,6 +1339,11 @@ export interface components {
          */
         TreeNode: {
             /**
+             * Child Count
+             * @description How many live nodes are right under it.
+             */
+            child_count: number;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1366,6 +1383,11 @@ export interface components {
              */
             kind: "folder" | "page" | "file";
             /**
+             * Pages
+             * @description A PDF's page count; null for anything else.
+             */
+            pages: number | null;
+            /**
              * Parent Id
              * @description Folder that holds the node; null for the base's root.
              */
@@ -1375,6 +1397,11 @@ export interface components {
              * @description A password-protected PDF; false for anything else.
              */
             protected: boolean;
+            /**
+             * Size
+             * @description A file's size in bytes; null for folders and pages.
+             */
+            size: number | null;
             /**
              * Sort
              * @description Fractional sort key among its siblings.
@@ -2315,7 +2342,7 @@ export interface operations {
             };
         };
     };
-    rename_node_v1_nodes__node_id__patch: {
+    edit_node_v1_nodes__node_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2328,7 +2355,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NodeRename"];
+                "application/json": components["schemas"]["NodeEdit"];
             };
         };
         responses: {
@@ -2618,126 +2645,7 @@ export interface operations {
             };
         };
     };
-    save_page_v1_pages__node_id__put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PageSave"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageVersionSummary"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    put_draft_v1_pages__node_id__draft_put: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
-            path: {
-                node_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DraftPut"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PageDraftRead"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    discard_draft_v1_pages__node_id__draft_delete: {
+    leave_page_v1_pages__node_id__leave_post: {
         parameters: {
             query?: never;
             header?: {
@@ -2768,6 +2676,70 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_page_text_v1_pages__node_id__text_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PageTextPut"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PageTextSaved"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

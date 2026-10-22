@@ -68,28 +68,6 @@
         "title": "DiffLine",
         "type": "object"
       },
-      "DraftPut": {
-        "description": "The draft of a page, replacing the previous one.",
-        "properties": {
-          "base_version_id": {
-            "description": "The version the person is editing.",
-            "format": "uuid",
-            "title": "Base Version Id",
-            "type": "string"
-          },
-          "markdown": {
-            "description": "The draft's whole text.",
-            "title": "Markdown",
-            "type": "string"
-          }
-        },
-        "required": [
-          "markdown",
-          "base_version_id"
-        ],
-        "title": "DraftPut",
-        "type": "object"
-      },
       "ErrorResponse": {
         "description": "Body of every error response.",
         "properties": {
@@ -763,6 +741,38 @@
         "title": "NodeDetail",
         "type": "object"
       },
+      "NodeEdit": {
+        "description": "What the person changes on a node; omitted fields keep their value.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description; once the person edits it, agents keep it.",
+            "title": "Description"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New title; no live sibling of the same kind may have it.",
+            "title": "Title"
+          }
+        },
+        "title": "NodeEdit",
+        "type": "object"
+      },
       "NodeMove": {
         "description": "Where to put a node.",
         "properties": {
@@ -910,21 +920,6 @@
         "title": "NodeRead",
         "type": "object"
       },
-      "NodeRename": {
-        "description": "A new title for a node.",
-        "properties": {
-          "title": {
-            "description": "New title; no live sibling of the same kind may have it already.",
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title"
-        ],
-        "title": "NodeRename",
-        "type": "object"
-      },
       "NodeWithPath": {
         "description": "A node found by the name search, or trashed on its own.",
         "properties": {
@@ -1063,49 +1058,9 @@
         "title": "PageDiff",
         "type": "object"
       },
-      "PageDraftRead": {
-        "description": "The page's single autosaved draft. Never a version.",
-        "properties": {
-          "base_version_id": {
-            "description": "The version the person was editing.",
-            "format": "uuid",
-            "title": "Base Version Id",
-            "type": "string"
-          },
-          "markdown": {
-            "description": "The draft's whole text.",
-            "title": "Markdown",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "When it was last autosaved.",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "markdown",
-          "base_version_id",
-          "updated_at"
-        ],
-        "title": "PageDraftRead",
-        "type": "object"
-      },
       "PageRead": {
         "description": "What a page holds now.",
         "properties": {
-          "draft": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/PageDraftRead"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "An unsaved draft to offer to continue; null if there is none."
-          },
           "links": {
             "additionalProperties": {
               "anyOf": [
@@ -1127,8 +1082,19 @@
             "type": "object"
           },
           "markdown": {
-            "description": "The current version's whole text.",
+            "description": "The page's whole text now: the working text, else the newest version's.",
             "title": "Markdown",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The revision of that text, to send with the next save.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "saved_at": {
+            "description": "When that text was saved.",
+            "format": "date-time",
+            "title": "Saved At",
             "type": "string"
           },
           "sections": {
@@ -1140,7 +1106,7 @@
             "type": "array"
           },
           "version_id": {
-            "description": "The current version, the base of the next save.",
+            "description": "The newest version.",
             "format": "uuid",
             "title": "Version Id",
             "type": "string"
@@ -1149,39 +1115,55 @@
         "required": [
           "version_id",
           "markdown",
-          "draft",
+          "revision",
+          "saved_at",
           "links",
           "sections"
         ],
         "title": "PageRead",
         "type": "object"
       },
-      "PageSave": {
-        "description": "A new whole-file version of a page.",
+      "PageTextPut": {
+        "description": "The page's whole text as the person typed it.",
         "properties": {
-          "base_version_id": {
-            "description": "The version the person opened.",
-            "format": "uuid",
-            "title": "Base Version Id",
-            "type": "string"
-          },
-          "force": {
-            "default": false,
-            "description": "Save on top even if the page changed since `base_version_id`.",
-            "title": "Force",
-            "type": "boolean"
-          },
           "markdown": {
             "description": "The page's whole text.",
             "title": "Markdown",
             "type": "string"
+          },
+          "revision": {
+            "description": "The revision the person was editing, from the last read or save.",
+            "title": "Revision",
+            "type": "integer"
           }
         },
         "required": [
           "markdown",
-          "base_version_id"
+          "revision"
         ],
-        "title": "PageSave",
+        "title": "PageTextPut",
+        "type": "object"
+      },
+      "PageTextSaved": {
+        "description": "The page's text, saved.",
+        "properties": {
+          "revision": {
+            "description": "The new revision, to send with the next save.",
+            "title": "Revision",
+            "type": "integer"
+          },
+          "saved_at": {
+            "description": "When it was saved.",
+            "format": "date-time",
+            "title": "Saved At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "saved_at"
+        ],
+        "title": "PageTextSaved",
         "type": "object"
       },
       "PageVersionSummary": {
@@ -1202,6 +1184,32 @@
             "title": "Created At",
             "type": "string"
           },
+          "edit_ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Last change of the editing session it came from; null when it did not come from one.",
+            "title": "Edit Ended At"
+          },
+          "edit_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First change of the editing session it came from; null when it did not come from one.",
+            "title": "Edit Started At"
+          },
           "id": {
             "description": "Version ID.",
             "format": "uuid",
@@ -1212,7 +1220,9 @@
         "required": [
           "id",
           "author",
-          "created_at"
+          "created_at",
+          "edit_started_at",
+          "edit_ended_at"
         ],
         "title": "PageVersionSummary",
         "type": "object"
@@ -1361,6 +1371,11 @@
       "TreeNode": {
         "description": "A node as the tree shows it.",
         "properties": {
+          "child_count": {
+            "description": "How many live nodes are right under it.",
+            "title": "Child Count",
+            "type": "integer"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1412,6 +1427,18 @@
             "title": "Kind",
             "type": "string"
           },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's page count; null for anything else.",
+            "title": "Pages"
+          },
           "parent_id": {
             "anyOf": [
               {
@@ -1429,6 +1456,18 @@
             "description": "A password-protected PDF; false for anything else.",
             "title": "Protected",
             "type": "boolean"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A file's size in bytes; null for folders and pages.",
+            "title": "Size"
           },
           "sort": {
             "description": "Fractional sort key among its siblings.",
@@ -1473,7 +1512,10 @@
           "trashed_with",
           "created_at",
           "updated_at",
-          "protected"
+          "protected",
+          "child_count",
+          "pages",
+          "size"
         ],
         "title": "TreeNode",
         "type": "object"
@@ -3002,8 +3044,8 @@
         ]
       },
       "patch": {
-        "description": "Renaming a page also fixes the `[[\u2026]]` links that resolved to it, each as a new version of its page.",
-        "operationId": "rename_node_v1_nodes__node_id__patch",
+        "description": "Renaming a page also fixes the `[[\u2026]]` links that resolved to it; a description the person edits is locked.",
+        "operationId": "edit_node_v1_nodes__node_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -3036,7 +3078,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NodeRename"
+                "$ref": "#/components/schemas/NodeEdit"
               }
             }
           },
@@ -3094,7 +3136,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Rename Node",
+        "summary": "Edit Node",
         "tags": [
           "nodes"
         ]
@@ -3464,109 +3506,12 @@
         "tags": [
           "pages"
         ]
-      },
-      "put": {
-        "description": "A new whole-file version. A 409 `stale_page` carries the current version, its text and the diff from the base\nin `details`.",
-        "operationId": "save_page_v1_pages__node_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "node_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Node Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PageSave"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PageVersionSummary"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Conflict"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        },
-        "summary": "Save Page",
-        "tags": [
-          "pages"
-        ]
       }
     },
-    "/v1/pages/{node_id}/draft": {
-      "delete": {
-        "operationId": "discard_draft_v1_pages__node_id__draft_delete",
+    "/v1/pages/{node_id}/leave": {
+      "post": {
+        "description": "The person left the page: the working text becomes a version, unless it already is one.",
+        "operationId": "leave_page_v1_pages__node_id__leave_post",
         "parameters": [
           {
             "in": "path",
@@ -3630,13 +3575,16 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Discard Draft",
+        "summary": "Leave Page",
         "tags": [
           "pages"
         ]
-      },
+      }
+    },
+    "/v1/pages/{node_id}/text": {
       "put": {
-        "operationId": "put_draft_v1_pages__node_id__draft_put",
+        "description": "Autosave of the working text. A 409 `stale_page` carries the newest `markdown` and `revision` in `details`;\nthe refused text was kept as a version.",
+        "operationId": "put_page_text_v1_pages__node_id__text_put",
         "parameters": [
           {
             "in": "path",
@@ -3669,7 +3617,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DraftPut"
+                "$ref": "#/components/schemas/PageTextPut"
               }
             }
           },
@@ -3680,7 +3628,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PageDraftRead"
+                  "$ref": "#/components/schemas/PageTextSaved"
                 }
               }
             },
@@ -3706,6 +3654,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3717,7 +3675,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Put Draft",
+        "summary": "Put Page Text",
         "tags": [
           "pages"
         ]
@@ -3725,7 +3683,7 @@
     },
     "/v1/pages/{node_id}/versions": {
       "get": {
-        "description": "The page's versions, newest first, without their text.",
+        "description": "The page's versions, newest first, without their text; the working text is cut as a version first.",
         "operationId": "list_page_versions_v1_pages__node_id__versions_get",
         "parameters": [
           {

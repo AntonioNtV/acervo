@@ -16,6 +16,8 @@ class PageVersionCreate(BaseModel):
     node_id: UUID = Field(description="Page the version belongs to.")
     markdown: str = Field(description="The page's whole text.")
     author: Author = Field(description="Who wrote it.")
+    edit_started_at: datetime | None = Field(default=None, description="First change of the editing session it ends.")
+    edit_ended_at: datetime | None = Field(default=None, description="Last change of the editing session it ends.")
 
 
 class PageVersionSummary(BaseModel):
@@ -26,6 +28,12 @@ class PageVersionSummary(BaseModel):
     id: UUID = Field(description="Version ID.")
     author: Author = Field(description="Who wrote it.")
     created_at: datetime = Field(description="When it was written.")
+    edit_started_at: datetime | None = Field(
+        description="First change of the editing session it came from; null when it did not come from one."
+    )
+    edit_ended_at: datetime | None = Field(
+        description="Last change of the editing session it came from; null when it did not come from one."
+    )
 
 
 class PageVersionRead(PageVersionSummary):
@@ -36,21 +44,20 @@ class PageVersionRead(PageVersionSummary):
 
 
 class PageDraftCreate(BaseModel):
-    """The page's draft, to store in place of the one it had."""
+    """The page's working text, to store in place of the one it had."""
 
-    node_id: UUID = Field(description="Page the draft belongs to.")
-    markdown: str = Field(description="The draft's whole text.")
-    base_version_id: UUID = Field(description="The version the person was editing.")
+    node_id: UUID = Field(description="Page the working text belongs to.")
+    markdown: str = Field(description="The page's whole text.")
+    revision: int = Field(description="Bumped on every save; a save from an older revision is refused.")
+    started_at: datetime = Field(description="First change of the editing session not yet cut as a version.")
 
 
-class PageDraftRead(BaseModel):
-    """The page's single autosaved draft. Never a version."""
+class PageDraftRead(PageDraftCreate):
+    """The page's working text: what the person sees, saved as they type. Not a version until cut."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    markdown: str = Field(description="The draft's whole text.")
-    base_version_id: UUID = Field(description="The version the person was editing.")
-    updated_at: datetime = Field(description="When it was last autosaved.")
+    updated_at: datetime = Field(description="When it last changed.")
 
 
 class PageLinkCreate(BaseModel):
@@ -79,9 +86,10 @@ class Section(BaseModel):
 class PageRead(BaseModel):
     """What a page holds now."""
 
-    version_id: UUID = Field(description="The current version, the base of the next save.")
-    markdown: str = Field(description="The current version's whole text.")
-    draft: PageDraftRead | None = Field(description="An unsaved draft to offer to continue; null if there is none.")
+    version_id: UUID = Field(description="The newest version.")
+    markdown: str = Field(description="The page's whole text now: the working text, else the newest version's.")
+    revision: int = Field(description="The revision of that text, to send with the next save.")
+    saved_at: datetime = Field(description="When that text was saved.")
     links: dict[str, UUID | Literal["missing", "ambiguous"]] = Field(
         description="Each `[[…]]` target, keyed with its whitespace collapsed to single spaces and lowercased: the "
         "page it opens, or why it shows in gray."
@@ -89,19 +97,18 @@ class PageRead(BaseModel):
     sections: list[Section] = Field(description="The page's `##` headings, in order.")
 
 
-class PageSave(BaseModel):
-    """A new whole-file version of a page."""
+class PageTextPut(BaseModel):
+    """The page's whole text as the person typed it."""
 
     markdown: str = Field(description="The page's whole text.")
-    base_version_id: UUID = Field(description="The version the person opened.")
-    force: bool = Field(default=False, description="Save on top even if the page changed since `base_version_id`.")
+    revision: int = Field(description="The revision the person was editing, from the last read or save.")
 
 
-class DraftPut(BaseModel):
-    """The draft of a page, replacing the previous one."""
+class PageTextSaved(BaseModel):
+    """The page's text, saved."""
 
-    markdown: str = Field(description="The draft's whole text.")
-    base_version_id: UUID = Field(description="The version the person is editing.")
+    revision: int = Field(description="The new revision, to send with the next save.")
+    saved_at: datetime = Field(description="When it was saved.")
 
 
 class DiffLine(BaseModel):

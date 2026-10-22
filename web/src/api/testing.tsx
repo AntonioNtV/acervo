@@ -8,14 +8,16 @@ import type { paths } from "./schema.gen";
 
 /** `body` is sent as JSON, or as plain text when it is a string (a proxy's 500). */
 type Reply = { status?: number; body: unknown };
-type Handler = { method: string; path: string; reply: (url: URL, body: unknown) => Reply };
-type Call = { method: string; path: string; query: string; body: unknown; key: string | null };
+/** A promise holds the answer back until it resolves. */
+type Answer = (url: URL, body: unknown) => Reply | Promise<Reply>;
+type Handler = { method: string; path: string; reply: Answer };
+type Call = { method: string; path: string; query: string; body: unknown; key: string | null; keepalive: boolean };
 
 let handlers: Handler[] = [];
 export const calls: Call[] = [];
 
 /** Answers `method path` (path without query) from now on; the last one registered wins. */
-export function respond(method: string, path: string, reply: Reply | ((url: URL, body: unknown) => Reply)) {
+export function respond(method: string, path: string, reply: Reply | Answer) {
   handlers.unshift({ method, path, reply: typeof reply === "function" ? reply : () => reply });
 }
 
@@ -28,9 +30,16 @@ async function fakeFetch(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const text = await request.text();
   const body = text ? JSON.parse(text) : undefined;
-  calls.push({ method: request.method, path: url.pathname, query: url.search, body, key: request.headers.get("X-API-Key") });
+  calls.push({
+    method: request.method,
+    path: url.pathname,
+    query: url.search,
+    body,
+    key: request.headers.get("X-API-Key"),
+    keepalive: request.keepalive,
+  });
   const handler = handlers.find((h) => h.method === request.method && h.path === url.pathname);
-  const reply = handler?.reply(url, body) ?? { status: 404, body: { error: "not_found", message: "not found" } };
+  const reply = (await handler?.reply(url, body)) ?? { status: 404, body: { error: "not_found", message: "not found" } };
   const plain = typeof reply.body === "string";
   return new Response(plain ? (reply.body as string) : JSON.stringify(reply.body), {
     status: reply.status ?? 200,
@@ -82,5 +91,5 @@ export const nodeFields = {
 };
 
 export function node(id: string, kind: "folder" | "page" | "file", title: string, parent_id: string | null = null) {
-  return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false };
+  return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false, child_count: 0, pages: null, size: null };
 }
