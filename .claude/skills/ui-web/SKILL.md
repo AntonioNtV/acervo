@@ -22,8 +22,9 @@ talks only to the Acervo API (skill `http-api`). The look is skill `ui-design`.
 ## The key and errors
 
 - The client sends `X-API-Key` from `VITE_API_KEY` in `web/.env.local` (copy `web/.env.local.example`; the same
-  value as `API_KEY` in `.env`). The raw file goes with the header too: pdf.js through `httpHeaders`, images and
-  "Baixar" through a fetched blob URL. The key never goes in a URL.
+  value as `API_KEY` in `.env`). pdf.js reads the raw file with the header (`httpHeaders`); images and "Baixar" use
+  a signed link from `POST /v1/files/{id}/link` (60 s, path and query only, so it goes through the proxy), so the
+  browser streams the file itself. The key never goes in a URL.
 - Errors are shown through `app/errors.ts` from `error.error`, the code (`title_taken`, `duplicate` with
   `details.path`, `stale_page`, `same_file`, `not_found`, `unauthorized`), in both locales; a generic text by status
   otherwise. Never the raw `message`.
