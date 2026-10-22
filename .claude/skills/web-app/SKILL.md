@@ -12,7 +12,7 @@ skill `ui-design`; the routes and types come from skill `http-contract`.
 |---|---|
 | `app/` | router, providers (query client, websocket, theme, i18n) |
 | `features/bases/` | the Bases screen |
-| `features/tree/` | the tree of a base, drag to move (which creates a `move` proposal) |
+| `features/tree/` | the tree of a base, drag to move or reorder (the person's own action: it moves directly) |
 | `features/page/` | page reading, editing (Ler · Editar · Dividir) and history |
 | `features/pdf/` | the PDF viewer and the section map |
 | `features/chat/` | the chat: Capturar and Perguntar, messages, proposal blocks, navigation steps, citations |

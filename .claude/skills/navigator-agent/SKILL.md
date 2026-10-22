@@ -9,6 +9,9 @@ Answers a question the way a person would: pick the folder, open the file, look 
 pages, check if it is enough. There is no index of chunks and no vector search. If you are about to add one, stop:
 it breaks rule 2 of `CLAUDE.md`.
 
+The trigram index on node titles (skill `creating-migrations`) serves the person's name filter in the tree. It
+matches titles only, never content, and no agent tool uses it: the Navigator finds things by descending.
+
 | Piece | File |
 |---|---|
 | tools | `navigator/tools.py` |

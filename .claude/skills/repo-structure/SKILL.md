@@ -13,9 +13,9 @@ access; there are no layers (no controller → service → repository chain).
 |---|---|---|
 | `config.py` | settings and `Thresholds` (every cut-off a probability is compared to) | `config.py` |
 | `errors.py` | every error with its HTTP status | `errors.py` |
-| `tree/` | the node tree of a base: folders, pages, PDFs, paths, moves, renames, node descriptions | `tree/nodes.py` |
+| `tree/` | the node tree of a base: folders, pages, files, paths, moves, renames, trash, node descriptions | `tree/nodes.py` |
 | `pages/` | Markdown pages: versions, sections and anchors, patches | `pages/patch.py` |
-| `pdfs/` | PDF files: storage, hashing, the section map, reading pages as text or image, file versions | `pdfs/reader.py`, `pdfs/map.py` |
+| `pdfs/` | uploaded files, PDFs and any other type: storage, hashing, file versions; for PDFs the section map and reading pages as text or image | `pdfs/reader.py`, `pdfs/map.py` |
 | `decide/` | the `Decider` protocol, `JevDecider`, `LlmDecider`, the decision log, the response cache | `decide/decider.py` |
 | `llm/` | the `Writer`: every call that generates text, its prompts in `llm/prompts/*.md` | `llm/writer.py` |
 | `proposals/` | proposal models, the lifecycle, accept (apply), reject, rebase | `proposals/lifecycle.py` |
@@ -33,8 +33,10 @@ access; there are no layers (no controller → service → repository chain).
 - A new kind of decision → a question builder in the concept that asks it (`curator/questions.py`,
   `navigator/questions.py`), sent through a `Decider` (skill `jev-decisions`). Never a direct HTTP call to Jev.
 - Something the LLM writes → a method on `Writer` and a prompt file (skill `llm-calls`).
-- A rule about what may happen to a PDF → `pdfs/` and the allowed proposal kinds (skill `pdf-files`).
-- Anything that changes a base → a proposal kind and its `apply` in `proposals/apply.py` (skill `proposals`).
+- A rule about what may happen to a PDF or any file → `pdfs/` and the allowed proposal kinds (skill `pdf-files`).
+- Anything an agent changes in a base → a proposal kind and its `apply` in `proposals/apply.py` (skill
+  `proposals`). The person's own actions write directly through `tree/`, `pages/` and `pdfs/`, the same functions
+  `apply.py` calls.
 - A table or column → `store/models.py` and a migration (skill `creating-migrations`).
 - Something the UI calls → a route in `api/routes.py` (skill `http-contract`).
 
