@@ -13,7 +13,7 @@ dependencies = [
     "aioboto3",
     "pymupdf",
     "python-multipart",
-    "typer",
+    "uuid6>=2025.0.1",
 ]
 
 [dependency-groups]
@@ -22,11 +22,9 @@ dev = [
     "pytest-asyncio",
     "httpx",
     "ruff",
-    "import-linter",
+    "mypy>=2.4.0",
+    "pytest-cov>=7.1.0",
 ]
-
-[project.scripts]
-acervo = "acervo.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.8,<0.14"]
@@ -39,26 +37,24 @@ line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+
+[tool.mypy]
+strict = true
+plugins = ["pydantic.mypy"]
+# The concept packages of the old layout leave as cards 03-05 move them into the layers.
+exclude = ["^src/acervo/(tree|pages|pdfs|store)/"]
+
+[[tool.mypy.overrides]]
+module = ["aioboto3", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 testpaths = ["tests"]
-
-[tool.importlinter]
-root_package = "acervo"
-
-[[tool.importlinter.contracts]]
-name = "Imports go down the order of skill repo-structure"
-type = "layers"
-layers = [
-    "acervo.cli",
-    "acervo.api",
-    "acervo.jobs",
-    "acervo.curator | acervo.navigator",
-    "acervo.proposals",
-    "acervo.decide | acervo.llm | acervo.pages | acervo.pdfs | acervo.tree",
-    "acervo.store",
-    "acervo.config | acervo.errors",
-]
