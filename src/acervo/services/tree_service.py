@@ -3,6 +3,7 @@ from uuid import UUID
 from acervo.core.errors import TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.file import FileRead
 from acervo.schemas.node import (
     NodeAdd,
     NodeCreate,
@@ -14,6 +15,8 @@ from acervo.schemas.node import (
     RestoredNode,
     TreeNode,
 )
+from acervo.schemas.page import NodeDetail, PageRead
+from acervo.services.page_service import PageService
 
 
 def _title(title: str) -> str:
@@ -29,6 +32,22 @@ class TreeService:
 
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
+        self._pages = PageService(uow)
+
+    async def detail(self, node_id: UUID) -> NodeDetail:
+        """The live node with its path and, for a page, its text; for a file, its current content."""
+        node = await self._uow.nodes.live(node_id)
+        page: PageRead | None = None
+        file: FileRead | None = None
+        versions = 0
+        if node.kind == "page":
+            page = await self._pages.read(node.id)
+            versions = await self._uow.page_versions.count({"node_id": node.id})
+        elif node.kind == "file":
+            file = await self._uow.files.of_node(node.id)
+            versions = await self._uow.file_versions.count({"node_id": node.id}) + 1
+        path = await self._uow.nodes.path(node.id)
+        return NodeDetail(**node.model_dump(), path=path, page=page, file=file, versions=versions)
 
     async def children(self, kb_id: UUID, parent_id: UUID | None) -> list[TreeNode]:
         await self._uow.nodes.live_folder(kb_id, parent_id)
@@ -43,14 +62,20 @@ class TreeService:
         node = await self._uow.nodes.create(
             NodeCreate(kb_id=kb_id, parent_id=data.parent_id, kind=data.kind, title=title, sort=sort)
         )
+        if node.kind == "page":
+            await self._pages.create(node)
         await self._uow.commit()
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:
+        """A page's rename also fixes the links that resolve to it, in the same transaction."""
         node = await self._uow.nodes.live(node_id)
         title = _title(title)
+        await self._uow.kbs.lock(node.kb_id)
         if title.lower() != node.title.lower():
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
+        if node.kind == "page" and title != node.title:
+            await self._pages.fix_links(node, title)
         renamed = await self._uow.nodes.update(node_id, NodeUpdate(title=title))
         await self._uow.commit()
         return renamed
