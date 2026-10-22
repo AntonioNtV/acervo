@@ -1,8 +1,9 @@
 import { Placeholder } from "@tiptap/extensions";
+import type { Transaction } from "@tiptap/pm/state";
 import { EditorContent, ReactNodeViewRenderer, useEditor, type Editor } from "@tiptap/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
-import { BlockHandle, blockAt, type HoveredBlock } from "./BlockHandle";
+import { BlockHandle, blockAt, measureBlock, type HoveredBlock } from "./BlockHandle";
 import { BLOCK_KINDS, findKinds, findPages } from "./blocks";
 import { blockExtensions, PageLink, Toggle } from "./extensions";
 import { bindSource, parseMarkdown, serializeMarkdown, type Source } from "./markdown";
@@ -19,28 +20,39 @@ type Props = {
   /** The whole page as Markdown, after each edit; never on load. */
   onChange: (markdown: string) => void;
   resolveLink: (title: string) => LinkTarget;
-  /** Creates a sub-page and resolves to the title it got, which the editor links to. */
-  onCreateSubPage: (title: string) => Promise<string>;
-  /** The titles the page picker (`[[`, `@`) offers. */
+  /** Creates a sub-page and resolves to the title it got, which the editor links to; the caller says why it failed. */
+  onCreateSubPage: () => Promise<string>;
+  /** The titles the page picker (`[[`, `@`) offers for what is typed after it. */
   pageTitles?: string[];
+  /** What is typed after `[[` or `@` while the picker is open; null once it closes. */
+  onPageQuery?: (query: string | null) => void;
 };
 
 const PageLinkWithView = PageLink.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) });
 
-export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, pageTitles = [] }: Props) {
+export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, pageTitles = [], onPageQuery }: Props) {
   const { t } = useI18n();
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [active, setActive] = useState(0);
   const [block, setBlock] = useState<HoveredBlock | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
-  const latest = useRef({ onChange, onCreateSubPage, items: [] as MenuItem[], active: 0, pick: (() => {}) as (i: number) => void });
+  const latest = useRef({
+    onChange,
+    onCreateSubPage,
+    onPageQuery,
+    items: [] as MenuItem[],
+    active: 0,
+    pick: (() => {}) as (i: number) => void,
+  });
   latest.current.onChange = onChange;
   latest.current.onCreateSubPage = onCreateSubPage;
+  latest.current.onPageQuery = onPageQuery;
 
   const bridge = useRef<MenuBridge>({
     show: (next) => {
       setMenu(next);
       setActive(0);
+      latest.current.onPageQuery?.(next?.kind === "page" ? next.query : null);
     },
     key: (event) => {
       const { items, active: current, pick } = latest.current;
@@ -92,6 +104,23 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     },
   });
 
+  // An edit moves blocks: the hovered one is followed to where it went, or let go when it was deleted.
+  useEffect(() => {
+    if (!editor) return;
+    const follow = ({ transaction }: { transaction: Transaction }) => {
+      if (!transaction.docChanged) return;
+      setBlock((current) => {
+        if (!current || !wrapper.current) return current;
+        const mapped = transaction.mapping.mapResult(current.pos);
+        return mapped.deleted ? null : measureBlock(editor, wrapper.current, mapped.pos);
+      });
+    };
+    editor.on("transaction", follow);
+    return () => {
+      editor.off("transaction", follow);
+    };
+  }, [editor]);
+
   const items: MenuItem[] = !menu
     ? []
     : menu.kind === "slash"
@@ -133,9 +162,12 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     if (id === "divider") return chain.setHorizontalRule().run();
     if (id === "pageLink") return chain.insertContent("[[").run();
     chain.run();
-    void latest.current.onCreateSubPage(t("editor.subpage.title")).then((title) => {
-      editor.chain().focus().insertContent({ type: "pageLink", attrs: { title } }).run();
-    });
+    latest.current.onCreateSubPage().then(
+      (title) => {
+        if (!editor.isDestroyed) editor.chain().focus().insertContent({ type: "pageLink", attrs: { title } }).run();
+      },
+      () => undefined,
+    );
   };
 
   latest.current.items = items;

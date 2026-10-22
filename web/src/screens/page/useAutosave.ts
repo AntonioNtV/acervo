@@ -3,6 +3,8 @@ import { leavePage, useSavePageText, type StaleText } from "../../data/pages";
 import { ApiError } from "../../data/request";
 
 const SAVE_DELAY_MS = 1000;
+// Browsers refuse a keepalive request whose body is over 64 KB.
+const KEEPALIVE_MAX_BYTES = 60_000;
 
 export type SaveStatus = "saving" | "saved" | "failed";
 
@@ -10,18 +12,19 @@ type Opened = { markdown: string; key: number };
 
 /**
  * The page's working text, saved a second after typing stops with the revision it was typed on. `opened` is the text
- * the editor opens with; its `key` changes when another text replaces it (a refused save, a restore).
+ * the editor opens with; its `key` changes when another text replaces it (a refused save, a restore, a newer revision).
  */
 export function useAutosave(nodeId: string, page: { markdown: string; revision: number }) {
   const [opened, setOpened] = useState<Opened>({ markdown: page.markdown, key: 0 });
   const [status, setStatus] = useState<SaveStatus>("saved");
   const [reloaded, setReloaded] = useState(false);
-  const { mutateAsync: save } = useSavePageText(nodeId);
+  const save = useSavePageText(nodeId);
   const state = useRef({
     text: page.markdown,
     saved: page.markdown,
     revision: page.revision,
-    inFlight: false,
+    /** The save on its way; it never rejects. */
+    inFlight: null as Promise<void> | null,
     timer: undefined as ReturnType<typeof setTimeout> | undefined,
   });
 
@@ -33,35 +36,45 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
     setOpened((current) => ({ markdown, key: current.key + 1 }));
   }, []);
 
-  const flush = useCallback(
-    async (keepalive = false): Promise<void> => {
+  /** Sends `markdown` typed on `revision`; resolves once its answer is handled. */
+  const send = useCallback(
+    (markdown: string, revision: number, keepalive: boolean, resent = false): Promise<void> => {
       const s = state.current;
-      clearTimeout(s.timer);
-      if (s.inFlight || s.text === s.saved) return;
-      s.inFlight = true;
-      setStatus("saving");
-      const markdown = s.text;
-      try {
-        s.revision = (await save({ markdown, revision: s.revision, keepalive })).revision;
-        s.saved = markdown;
-        setStatus("saved");
-      } catch (error) {
-        s.inFlight = false;
-        if (error instanceof ApiError && error.code === "stale_page") {
+      return save({ markdown, revision }, keepalive).then(
+        (saved) => {
+          s.revision = saved.revision;
+          s.saved = markdown;
+          setStatus(s.text === markdown ? "saved" : "saving");
+        },
+        (error: unknown) => {
+          if (!(error instanceof ApiError && error.code === "stale_page")) return setStatus("failed");
+          // The API keeps a refused text as a version: what was typed while it was on its way is kept the same way.
+          if (!resent && s.text !== markdown) return send(s.text, revision, false, true);
           const newest = error.details as StaleText;
           replace(newest.markdown, newest.revision);
           setReloaded(true);
           setStatus("saved");
-        } else {
-          setStatus("failed");
-        }
-        return;
-      }
-      s.inFlight = false;
-      // Typed while the save was on its way.
-      if (s.text !== s.saved) await flush(keepalive);
+        },
+      );
     },
     [save, replace],
+  );
+
+  /** Waits for the save on its way, then sends what is still unsaved; resolves once that lands too. */
+  const flush = useCallback(
+    async (keepalive = false): Promise<void> => {
+      const s = state.current;
+      clearTimeout(s.timer);
+      while (s.inFlight) await s.inFlight;
+      if (s.text === s.saved) return;
+      setStatus("saving");
+      const landed: Promise<void> = send(s.text, s.revision, keepalive).finally(() => {
+        if (s.inFlight === landed) s.inFlight = null;
+      });
+      s.inFlight = landed;
+      await landed;
+    },
+    [send],
   );
 
   const change = useCallback(
@@ -75,16 +88,28 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
     [flush],
   );
 
+  // A newer text from the API (a rename fixed a link in it, another tab restored a version) replaces an idle editor.
+  useEffect(() => {
+    const s = state.current;
+    if (page.revision > s.revision && s.text === s.saved && !s.inFlight) replace(page.markdown, page.revision);
+  }, [page.revision, page.markdown, replace]);
+
   // Leaving the page or hiding the tab saves what is pending and cuts the working text as a version.
   useEffect(() => {
-    const leave = () => void flush(true).finally(() => leavePage(nodeId));
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") leave();
+    const onVisibility = async () => {
+      if (document.visibilityState !== "hidden") return;
+      const s = state.current;
+      clearTimeout(s.timer);
+      while (s.inFlight) await s.inFlight;
+      // A closing tab never runs what waits for an answer: the save and the leave go out now, in that order.
+      const body = new Blob([JSON.stringify({ markdown: s.text, revision: s.revision })]);
+      void flush(body.size < KEEPALIVE_MAX_BYTES);
+      void leavePage(nodeId);
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
-      leave();
+      void flush().then(() => leavePage(nodeId));
     };
   }, [nodeId, flush]);
 

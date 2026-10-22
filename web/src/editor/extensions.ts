@@ -1,6 +1,7 @@
 import { InputRule, Node, type AnyExtension, type JSONContent, type MarkdownToken } from "@tiptap/core";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { Paragraph } from "@tiptap/extension-paragraph";
 import { TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -51,10 +52,10 @@ export const PageLink = Node.create({
   },
 });
 
-// Inline HTML (a provenance comment, `<br>`, `<sup>`), footnote and reference links are kept exactly as written:
-// each block is read on its own, without the page's definitions.
+// Inline HTML (a provenance comment, `<br>`, `<sup>`), images, footnote and reference links are kept exactly as
+// written: each block is read on its own, without the page's definitions, and the schema has no image.
 const RAW_INLINE =
-  /^(?:<!--[\s\S]*?-->|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>|\[\^[^\]\s]+\]|\[[^[\]\n]+\]\[[^[\]\n]*\])/;
+  /^(?:<!--[\s\S]*?-->|!\[[^\]\n]*\]\([^)\n]*\)|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>|\[\^[^\]\s]+\]|\[[^[\]\n]+\]\[[^[\]\n]*\])/;
 
 export const RawInline = Node.create({
   name: "rawInline",
@@ -68,7 +69,7 @@ export const RawInline = Node.create({
   markdownTokenizer: {
     name: "rawInline",
     level: "inline",
-    start: (src) => src.search(/<|\[/),
+    start: (src) => src.search(/<|!?\[/),
     tokenize: (src) => {
       const match = RAW_INLINE.exec(src);
       return match ? { type: "rawInline", raw: match[0], text: match[0] } : undefined;
@@ -208,10 +209,22 @@ export const Toggle = Details.extend({
   },
 });
 
+const LIST_MARKER = /^( {0,3})([-+*]|\d{1,9}[.)])(?=[ \t]|$)/gm;
+
+/** A line of text that starts like a list item is escaped (`1\.`, `\-`), so it reads back as the same paragraph. */
+const TextParagraph = Paragraph.extend({
+  renderMarkdown(node, h, context) {
+    const markdown = this.parent?.(node, h, context) ?? "";
+    return markdown.replace(LIST_MARKER, (_line, indent: string, marker: string) =>
+      /\d/.test(marker) ? `${indent}${marker.slice(0, -1)}\\${marker.slice(-1)}` : `${indent}\\${marker}`,
+    );
+  },
+});
+
 // Their own `:::` syntax would turn such text in a page into blocks; the toggle writes them instead.
 const noMarkdown = { markdownTokenizer: null, parseMarkdown: null, renderMarkdown: null } as unknown as object;
 
-/** `[] ` or `[ ] ` at the start of a bulleted item turns its list into a to-do list. */
+/** `[] ` or `[ ] ` at the start of a line or of a bulleted item makes a to-do (a bulleted list turns whole). */
 const TodoItem = TaskItem.extend({
   addInputRules() {
     return [
@@ -219,7 +232,9 @@ const TodoItem = TaskItem.extend({
         find: /^\[( |x)?\]\s$/,
         handler: ({ state, range, match, chain }) => {
           const $from = state.doc.resolve(range.from);
-          if ($from.node(-1)?.type.name !== "listItem" || $from.node(-2)?.type.name !== "bulletList") return null;
+          const item = $from.node(-1)?.type.name;
+          const bulleted = item === "listItem" && $from.node(-2)?.type.name === "bulletList";
+          if ((item === "listItem" || item === "taskItem") && !bulleted) return null;
           chain()
             .deleteRange(range)
             .toggleList("taskList", "taskItem")
@@ -234,7 +249,8 @@ const TodoItem = TaskItem.extend({
 
 /** The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. */
 export const blockExtensions: AnyExtension[] = [
-  StarterKit.configure({ underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
+  TextParagraph,
+  StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
   TaskList,
   TodoItem.configure({ nested: true }),
   TableKit.configure({ table: { resizable: false } }),

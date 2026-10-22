@@ -19,7 +19,7 @@ function renderEditor(markdown: string) {
           markdown={markdown}
           onChange={onChange}
           resolveLink={(title) => (title === "Renovação" ? { href: "/kbs/kb-1/n/page-2" } : "missing")}
-          onCreateSubPage={async (title) => title}
+          onCreateSubPage={async () => "Sem título"}
         />
       </I18nProvider>
     </MemoryRouter>,
@@ -63,6 +63,28 @@ describe("BlockEditor", () => {
 
     expect(screen.getByRole("checkbox")).not.toBeChecked();
     expect(onChange).toHaveBeenLastCalledWith("- [ ] Boleto no portal\n");
+  });
+
+  it("[] makes a to-do", () => {
+    const { editor, onChange } = renderEditor("");
+
+    type(editor, "[] Boleto no portal");
+
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    expect(onChange).toHaveBeenLastCalledWith("- [ ] Boleto no portal\n");
+  });
+
+  it("the handle acts on its block after an edit above it", () => {
+    const { editor, onChange } = renderEditor("Primeiro\n\nSegundo\n");
+
+    fireEvent.mouseMove(screen.getByText("Segundo"));
+    act(() => {
+      editor.commands.insertContentAt(0, { type: "paragraph", content: [{ type: "text", text: "Novo" }] });
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Arrastar para mover ou clicar para abrir o menu" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Excluir" }));
+
+    expect(onChange).toHaveBeenLastCalledWith("Novo\n\nPrimeiro\n");
   });
 
   it("pasting Markdown builds blocks", async () => {

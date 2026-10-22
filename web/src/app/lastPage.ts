@@ -25,3 +25,12 @@ export function forgetBase(kbId: string) {
     // Nothing was stored.
   }
 }
+
+/** After the last page turned out to be gone, so `/` falls back. */
+export function forgetLastPage() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Nothing was stored.
+  }
+}
