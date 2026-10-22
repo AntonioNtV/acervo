@@ -13,7 +13,7 @@ type Row = {
   percent: number;
   state: "sending" | "done" | "duplicate" | "error";
   message?: string;
-  duplicate?: { node_id: string; path: string; trashed: boolean };
+  duplicate?: { node_id: string; path: string; trashed: boolean; history?: boolean };
 };
 
 // Module state, so a drop on the tree and the folder view's button feed the same list in the tree column.
@@ -117,7 +117,7 @@ export function UploadList({ kbId }: { kbId: string }) {
                   t("tree.upload.duplicateTrashed", { path: row.duplicate.path })
                 ) : (
                   <>
-                    {t("tree.upload.duplicate")}{" "}
+                    {t(row.duplicate.history ? "tree.upload.duplicateHistory" : "tree.upload.duplicate")}{" "}
                     <Link to={`/kbs/${kbId}/n/${row.duplicate.node_id}`} className="text-err underline">
                       {row.duplicate.path}
                     </Link>

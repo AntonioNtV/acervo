@@ -109,7 +109,7 @@ async def refuse_duplicate(
         message = f"já está no histórico de {where}"
     else:
         message = f"está na Lixeira: {where}" if trashed else f"já está em {where}"
-    raise ConflictError(message, {"node_id": str(holder.id), "path": where, "trashed": trashed})
+    raise ConflictError(message, {"node_id": str(holder.id), "path": where, "trashed": trashed, "history": in_history})
 
 
 async def save(

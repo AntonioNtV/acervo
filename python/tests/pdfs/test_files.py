@@ -107,6 +107,7 @@ async def test_duplicate_in_base_is_refused_with_its_path(session, storage, make
 
     assert refused.value.message == "já está em Bradesco/Residencial/CG 2026.pdf"
     assert refused.value.detail["node_id"] == str(first.node_id)
+    assert refused.value.detail["history"] is False
     assert await _live_files(session, tree) == 1
 
 
@@ -134,6 +135,7 @@ async def test_duplicate_of_an_old_version_is_refused_with_its_path(session, sto
 
     assert refused.value.message == "já está no histórico de Bradesco/CG 2026.pdf"
     assert refused.value.detail["node_id"] == str(first.node_id)
+    assert refused.value.detail["history"] is True
     assert await _live_files(session, tree) == 1
 
 

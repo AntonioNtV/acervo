@@ -13,9 +13,11 @@ function useFileErrorText() {
   const { t } = useI18n();
   const errorText = useErrorText();
   return (error: unknown) => {
-    const detail = error instanceof ApiError ? (error.body.detail as { path?: string; trashed?: boolean } | null) : null;
+    const detail = error instanceof ApiError ? (error.body.detail as { path?: string; trashed?: boolean; history?: boolean } | null) : null;
     const conflict = detail?.path
-      ? t(detail.trashed ? "pdf.replace.duplicateTrashed" : "pdf.replace.duplicate", { path: detail.path })
+      ? t(detail.history ? "pdf.replace.duplicateHistory" : detail.trashed ? "pdf.replace.duplicateTrashed" : "pdf.replace.duplicate", {
+          path: detail.path,
+        })
       : t("pdf.replace.same");
     return errorText(error, { 409: conflict });
   };

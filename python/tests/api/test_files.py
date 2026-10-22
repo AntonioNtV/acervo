@@ -75,7 +75,7 @@ async def test_duplicate_is_409_with_path(client) -> None:
     assert again.status_code == 409
     body = again.json()
     assert body["message"] == "já está em Residencial/Condições Gerais 2026.pdf"
-    assert body["detail"] == {"node_id": first["id"], "path": first["path"], "trashed": False}
+    assert body["detail"] == {"node_id": first["id"], "path": first["path"], "trashed": False, "history": False}
     assert [n["title"] for n in (await client.get(f"/kbs/{kb_id}/children")).json()] == ["Residencial"]
 
 

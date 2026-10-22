@@ -83,4 +83,27 @@ describe("Upload", () => {
     );
     expect(within(newRow).getByText("40%")).toBeInTheDocument();
   });
+
+  it("says when a duplicate is an earlier version of another file", async () => {
+    renderInBase(
+      <>
+        <NodeView />
+        <UploadList kbId="kb-1" />
+      </>,
+      "/kbs/kb-1/n/residencial",
+    );
+
+    await screen.findByRole("heading", { name: "Residencial" });
+    await userEvent.upload(screen.getByLabelText("Enviar arquivos"), files("Antiga.pdf"));
+    const [sent] = FakeXhr.sent as [FakeXhr];
+    sent.reply(409, {
+      error: "ConflictError",
+      message: "já está no histórico de Bradesco/CG 2026.pdf",
+      detail: { node_id: "cg", path: "Bradesco/CG 2026.pdf", trashed: false, history: true },
+    });
+
+    const row = within(screen.getByRole("region", { name: "Envios" })).getAllByRole("listitem").at(-1) as HTMLElement;
+    expect(await within(row).findByText(/já está no histórico de/)).toBeInTheDocument();
+    expect(within(row).getByRole("link", { name: "Bradesco/CG 2026.pdf" })).toHaveAttribute("href", "/kbs/kb-1/n/cg");
+  });
 });
