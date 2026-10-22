@@ -2,28 +2,14 @@ import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { NodeDetail, TreeNode } from "../../api/client";
 import { useKbs } from "../../data/kbs";
-import { useChildren, useCreateNode, useDescribeNode, useRenameNode } from "../../data/tree";
+import { useChildren, useDescribeNode, useRenameNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
 import { Icon } from "../../ui/Icon";
-import { NodeName, useTreeErrorText } from "../base/names";
-import { useStartUpload } from "../base/Upload";
+import { NodeName, useCreateUntitledPage, useTreeErrorText } from "../base/names";
+import { FileDropZone, UploadGlyph, useStartUpload } from "../base/Upload";
 import { formatSize } from "../file/format";
 import { TopBar } from "../shell/TopBar";
-
-function UploadGlyph() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={14}
-      height={14}
-      aria-hidden="true"
-      className="shrink-0 fill-none stroke-current stroke-[1.5]"
-    >
-      <path d="M12 16V4M6 10l6-6 6 6M5 20h14" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 /** A folder opened, as a page: its title, its description, its children as links, and how to add to it. */
 export function FolderScreen({ node }: { node: NodeDetail }) {
@@ -44,54 +30,29 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
   const title = folder ? folder.title : (kb?.name ?? "");
   const description = folder ? folder.description : (kb?.description ?? "");
   const children = useChildren(kbId, folderId);
-  const create = useCreateNode(kbId);
+  const untitled = useCreateUntitledPage(kbId, folderId);
+  const errorText = useTreeErrorText();
   const startUpload = useStartUpload(kbId);
   const input = useRef<HTMLInputElement>(null);
-  // The whole screen is the drop target; it only shows itself while files are dragged over it.
-  const [over, setOver] = useState(false);
 
   const all = children.data ?? [];
 
   function newPage() {
-    const taken = new Set(all.filter((child) => child.kind === "page").map((page) => page.title));
-    const base = t("folder.untitled");
-    let name = base;
-    for (let n = 2; taken.has(name); n++) name = `${base} ${n}`;
-    create.mutate(
-      { kind: "page", parent_id: folderId, title: name },
-      { onSuccess: (page) => navigate(`/kbs/${kbId}/n/${page.id}`) },
+    untitled.create().then(
+      (page) => navigate(`/kbs/${kbId}/n/${page.id}`),
+      () => undefined,
     );
   }
 
   return (
     <>
       <TopBar kbId={kbId} nodeId={folderId ?? undefined} />
-      <div
-        className={cx(
-          "relative mx-auto box-border min-h-[calc(100%-44px)] w-full max-w-[720px] px-8 pt-10 pb-30",
-          over && "rounded-[8px] bg-accent-soft outline-1 outline-ink outline-dashed",
-        )}
-        onDragOver={(event) => {
-          if (!event.dataTransfer.types.includes("Files")) return;
-          event.preventDefault();
-          setOver(true);
-        }}
-        onDragLeave={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
-        }}
-        onDrop={(event) => {
-          if (!event.dataTransfer.files.length) return;
-          event.preventDefault();
-          setOver(false);
-          startUpload(Array.from(event.dataTransfer.files), folderId);
-        }}
+      <FileDropZone
+        kbId={kbId}
+        parentId={folderId}
+        name={title}
+        className="mx-auto box-border min-h-[calc(100%-44px)] w-full max-w-[720px] px-8 pt-10 pb-30"
       >
-        {over && (
-          <p className="pointer-events-none absolute inset-x-0 top-3 m-0 flex items-center justify-center gap-2 text-13 text-text-2">
-            <UploadGlyph />
-            {t("folder.drop", { name: title })}
-          </p>
-        )}
         <div className="group/header">
           {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
           {folder ? (
@@ -111,7 +72,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
         {children.isSuccess && all.length === 0 && <p className="m-0 mt-6 text-15 text-ghost">{t("folder.empty")}</p>}
 
         <div className="mt-3 -ml-1.5 flex flex-wrap gap-1">
-          <button type="button" disabled={create.isPending} onClick={newPage} className={quietClass}>
+          <button type="button" disabled={untitled.isPending} onClick={newPage} className={quietClass}>
             <Icon name="plus" size={14} />
             {t("folder.new.page")}
           </button>
@@ -131,7 +92,8 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
             }}
           />
         </div>
-      </div>
+        {untitled.error && <p className="m-0 mt-1 text-12 text-err">{errorText(untitled.error)}</p>}
+      </FileDropZone>
     </>
   );
 }
@@ -141,7 +103,6 @@ const quietClass =
 
 const titleClass = "m-0 text-32 leading-[40px] font-medium tracking-[-0.025em] break-words";
 
-/** The folder's name, renamed in place: Enter or leaving the field saves, Esc gives up. */
 /** The folder's description, edited in place; the person's text is locked against agents. */
 function Description({ node }: { node: NodeDetail }) {
   const { t } = useI18n();

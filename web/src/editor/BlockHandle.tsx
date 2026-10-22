@@ -15,8 +15,14 @@ export function blockAt(editor: Editor, wrapper: HTMLElement, target: EventTarge
   if (!el || !root.contains(el) || el === root) return null;
   while (el.parentElement && el.parentElement !== root) el = el.parentElement;
   const $pos = editor.state.doc.resolve(editor.view.posAtDOM(el, 0));
-  const pos = $pos.depth > 0 ? $pos.before(1) : $pos.pos;
-  return { pos, top: el.getBoundingClientRect().top - wrapper.getBoundingClientRect().top };
+  return measureBlock(editor, wrapper, $pos.depth > 0 ? $pos.before(1) : $pos.pos);
+}
+
+/** The top-level block starting at `pos`, where it sits now in the wrapper; null when none starts there. */
+export function measureBlock(editor: Editor, wrapper: HTMLElement, pos: number): HoveredBlock | null {
+  const dom = editor.view.nodeDOM(pos);
+  if (!(dom instanceof HTMLElement)) return null;
+  return { pos, top: dom.getBoundingClientRect().top - wrapper.getBoundingClientRect().top };
 }
 
 const itemClass =

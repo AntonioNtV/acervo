@@ -66,7 +66,8 @@ describe("FileView", () => {
 
     expect(await screen.findByRole("img", { name: "Página 16 do PDF" })).toBeInTheDocument();
     expect(openPdf).toHaveBeenCalledWith({ url: RAW, httpHeaders: { "X-API-Key": "test-key" } }, expect.any(Function));
-    expect(getPage).toHaveBeenCalledWith(16);
+    // The page is asked for in an effect, which may run after the canvas is on screen.
+    await waitFor(() => expect(getPage).toHaveBeenCalledWith(16));
     expect(screen.getByText("arquivo original · 180 páginas · 2,3 MB")).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Página" })).toHaveValue("16");
   });

@@ -42,7 +42,7 @@ beforeEach(() => {
   respond("GET", "/v1/kbs/kb-1/children", {
     body: [
       node("emissao", "page", "Emissão de apólice", "residencial"),
-      { ...node("renovacao", "page", "Renovação", "residencial"), has_children: true, child_count: 2 },
+      { ...node("renovacao", "page", "Renovação", "residencial"), child_count: 2 },
       node("auto", "folder", "Auto", "residencial"),
       { ...node("cg", "file", "Condições Gerais 2026.pdf", "residencial"), pages: 182, size: 2_200_000 },
     ],

@@ -27,10 +27,23 @@ describe("routes", () => {
   it("/ goes to the last page seen", async () => {
     fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
     localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    respond("GET", "/v1/nodes/renovacao", { body: node("renovacao", "page", "Renovação") });
 
     const router = renderHome();
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/renovacao"));
+  });
+
+  it("a last page that is gone is forgotten, and / goes to the first base's first node", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/apagada");
+    respond("GET", "/v1/kbs/kb-1/children", { body: [node("bradesco", "folder", "Bradesco")] });
+
+    const router = renderHome();
+
+    // The app retries a failed read once, a second later.
+    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/bradesco"), { timeout: 3000 });
+    expect(localStorage.getItem("acervo.lastPage")).not.toBe("/kbs/kb-1/n/apagada");
   });
 
   it("with no page seen, / goes to the first base's first node", async () => {

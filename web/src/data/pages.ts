@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { api } from "../api/client";
 import { call, invalidate, refreshContent } from "./request";
 
@@ -12,15 +13,21 @@ export type StaleText = { markdown: string; revision: number };
 
 /**
  * The autosave of the working text. A `stale_page` rejects with an `ApiError` whose `details` is a `StaleText`.
- * It refreshes the node so new `[[…]]` links resolve; the editor only reads the text it opened with.
+ * The request goes out as soon as the function is called, so one sent right after it goes out after it. It refreshes
+ * the node so new `[[…]]` links resolve, without waiting for that; the editor only reads the text it opened with.
+ * `keepalive` lets the request outlive a closing tab; the browser refuses it for a body over 64 KB.
  */
 export function useSavePageText(nodeId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ keepalive = false, ...body }: { markdown: string; revision: number; keepalive?: boolean }) =>
-      call(api.PUT("/v1/pages/{node_id}/text", { params: { path: { node_id: nodeId } }, body, keepalive })),
-    onSuccess: () => invalidate(queryClient, ["node", nodeId]),
-  });
+  return useCallback(
+    async (body: { markdown: string; revision: number }, keepalive = false) => {
+      const path = { node_id: nodeId };
+      const saved = await call(api.PUT("/v1/pages/{node_id}/text", { params: { path }, body, keepalive }));
+      void invalidate(queryClient, ["node", nodeId]);
+      return saved;
+    },
+    [queryClient, nodeId],
+  );
 }
 
 /** The person left the page: its working text becomes a version. Sent so it outlives a closing tab. */

@@ -1,46 +1,57 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
-import { useChildren, useCreateNode, useRenameNode } from "../../data/tree";
+import { useChildren, useRenameNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
+import { Menu, MenuItem } from "../../ui/Menu";
 import { splitExt } from "../../ui/names";
+import { useCreateUntitledPage, useTreeErrorText } from "../base/names";
+import { FileDropZone, useStartUpload } from "../base/Upload";
 import { TopBar } from "../shell/TopBar";
 import { dateOf, dayLabel, timeOf, versionsText } from "./format";
 import { History, VersionText } from "./History";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
+const SEARCH_DELAY_MS = 200;
 
 type Page = NonNullable<NodeDetail["page"]>;
 
-/** The title as the page's first line: it renames the node a second after typing stops. */
+/**
+ * The title as the page's first line: it renames the node a second after the person stops typing in it. Until they
+ * type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
+ */
 function Title({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
-  const [title, setTitle] = useState(node.title);
+  const [draft, setDraft] = useState<string | null>(null);
   const { mutate: rename, error } = useRenameNode();
 
   useEffect(() => {
-    const next = title.trim();
+    const next = draft?.trim();
     if (!next || next === node.title) return;
-    const timer = setTimeout(() => rename({ nodeId: node.id, title: next }), RENAME_DELAY_MS);
+    const timer = setTimeout(
+      () => rename({ nodeId: node.id, title: next }, { onSuccess: () => setDraft((typed) => (typed === next ? null : typed)) }),
+      RENAME_DELAY_MS,
+    );
     return () => clearTimeout(timer);
-  }, [title, node.id, node.title, rename]);
+  }, [draft, node.id, node.title, rename]);
 
   return (
     <>
       <h1 className="m-0">
         <input
           aria-label={t("page.title")}
-          value={title}
+          value={draft ?? node.title}
           placeholder={t("page.untitled")}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={() => setDraft((typed) => (typed?.trim() === node.title ? null : typed))}
           className="w-full border-0 bg-transparent p-0 text-32 font-medium tracking-[-0.025em] text-text outline-none placeholder:text-ghost"
         />
       </h1>
@@ -62,7 +73,18 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const [editingNow, setEditingNow] = useState(false);
   const restore = useRestorePageVersion(node.id);
   const children = useChildren(kbId, node.id).data ?? [];
-  const { mutateAsync: createNode } = useCreateNode(kbId);
+  const untitled = useCreateUntitledPage(kbId, node.id);
+  const errorText = useTreeErrorText();
+  const startUpload = useStartUpload(kbId);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const [pageQuery, setPageQuery] = useState<string | null>(null);
+  const [searched, setSearched] = useState("");
+  const found = useSearch(kbId, searched).data;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearched(pageQuery?.trim() ?? ""), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [pageQuery]);
 
   const childPages = children.filter((child) => child.kind === "page");
   const href = (id: string) => `/kbs/${kbId}/n/${id}`;
@@ -78,19 +100,13 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
     return { href: href(resolved) };
   };
 
-  /** A page under this one, named "Sem título", "Sem título 2", … so it never clashes with a sibling. */
-  const createSubPage = async (title: string): Promise<string> => {
-    const taken = new Set(childPages.map((child) => normalizeLinkTarget(child.title)));
-    for (let n = 1; ; n++) {
-      const candidate = n === 1 ? title : `${title} ${n}`;
-      if (taken.has(normalizeLinkTarget(candidate))) continue;
-      try {
-        return (await createNode({ kind: "page", parent_id: node.id, title: candidate })).title;
-      } catch (error) {
-        if (!(error instanceof ApiError && error.code === "title_taken")) throw error;
-      }
-    }
-  };
+  // The picker offers every page of the base whose title holds what is typed; with nothing typed, the sub-pages.
+  const pageTitles =
+    searched && found
+      ? [...new Set(found.filter((hit) => hit.kind === "page" && hit.id !== node.id).map((hit) => hit.title))]
+      : childPages.map((child) => child.title);
+
+  const createSubPage = async () => (await untitled.create()).title;
 
   const change = (markdown: string) => {
     autosave.change(markdown);
@@ -162,10 +178,39 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
             </IconButton>
           )
         }
+        menu={
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              multiple
+              hidden
+              aria-label={t("page.upload")}
+              onChange={(event) => {
+                startUpload(Array.from(event.target.files ?? []), node.id);
+                event.target.value = "";
+              }}
+            />
+            <Menu
+              trigger={
+                <IconButton aria-label={t("page.more")}>
+                  <Icon name="more" />
+                </IconButton>
+              }
+            >
+              <MenuItem onSelect={() => fileInput.current?.click()}>{t("page.upload")}</MenuItem>
+            </Menu>
+          </>
+        }
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
-          <div className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30">
+          <FileDropZone
+            kbId={kbId}
+            parentId={node.id}
+            name={node.title}
+            className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30"
+          >
             <div className="mb-1 text-13 text-ghost">
               {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
             </div>
@@ -191,8 +236,14 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                 onChange={change}
                 resolveLink={resolveLink}
                 onCreateSubPage={createSubPage}
-                pageTitles={childPages.map((child) => child.title)}
+                pageTitles={pageTitles}
+                onPageQuery={setPageQuery}
               />
+              {untitled.error && (
+                <p role="alert" className="m-0 mt-2 text-12 text-err">
+                  {errorText(untitled.error)}
+                </p>
+              )}
               {children.length > 0 && (
                 <nav aria-label={t("page.children")} className="mt-10 border-t border-line pt-3">
                   <span className="block pb-1 text-12 text-text-3">{t("page.children")}</span>
@@ -217,7 +268,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                 </nav>
               )}
             </div>
-          </div>
+          </FileDropZone>
         </div>
         {historyOpen && (
           <History

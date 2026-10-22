@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useKbs } from "../data/kbs";
-import { useChildren } from "../data/tree";
+import { ApiError } from "../data/request";
+import { useChildren, useNode } from "../data/tree";
 import { useI18n } from "../i18n";
 import { BaseDialog } from "../screens/bases/BaseDialog";
 import { TopBar } from "../screens/shell/TopBar";
 import { Button } from "../ui/Button";
 import { useErrorText } from "./errors";
-import { readLastPage } from "./lastPage";
+import { forgetLastPage, readLastPage } from "./lastPage";
 
 function FirstNode({ kbId }: { kbId: string }) {
   const children = useChildren(kbId);
@@ -16,14 +17,23 @@ function FirstNode({ kbId }: { kbId: string }) {
   return <Navigate replace to={first ? `/kbs/${kbId}/n/${first.id}` : `/kbs/${kbId}`} />;
 }
 
-/** `/`: the last page seen in this browser, else the first base's first node, else the offer of a first base. */
+/**
+ * `/`: the last page seen in this browser while it is still there, else the first base's first node, else the offer
+ * of a first base.
+ */
 export function Home() {
   const { t } = useI18n();
   const kbs = useKbs();
   const errorText = useErrorText();
   const [creating, setCreating] = useState(false);
   const last = readLastPage();
-  if (last) return <Navigate replace to={last} />;
+  const lastNode = useNode(last?.split("/n/")[1] ?? "", last !== null);
+  const gone =
+    (lastNode.error instanceof ApiError && lastNode.error.code === "not_found") || Boolean(lastNode.data?.deleted_at);
+  useEffect(() => {
+    if (gone) forgetLastPage();
+  }, [gone]);
+  if (last && !gone) return lastNode.isPending ? null : <Navigate replace to={last} />;
   if (kbs.isError) return <p className="m-0 p-10 text-err">{errorText(kbs.error)}</p>;
   if (!kbs.data) return null;
   const first = kbs.data[0];

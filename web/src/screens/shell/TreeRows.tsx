@@ -262,7 +262,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const [drop, setDrop] = useState<Zone | null>(null);
   const folder = node.kind === "folder";
   const page = node.kind === "page";
-  const hasCaret = folder || (page && (node.has_children || draft?.parentId === node.id));
+  const hasCaret = folder || (page && (node.child_count > 0 || draft?.parentId === node.id));
   const open = hasCaret && expanded.has(node.id);
   const selected = node.id === selectedId;
   const name = node.title;

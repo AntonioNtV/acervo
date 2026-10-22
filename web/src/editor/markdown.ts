@@ -68,12 +68,31 @@ export function bindSource(source: Source, doc: PmNode): Source {
 
 const isEmptyParagraph = (node: PmNode) => node.type.name === "paragraph" && node.childCount === 0;
 
-/** The chunk whose nodes start `doc` at `index`, the same objects first (untouched blocks keep their identity). */
-function chunkAt(source: Source, kids: readonly PmNode[], index: number): number {
-  const matches = (nodes: PmNode[], same: (a: PmNode, b: PmNode) => boolean) =>
-    nodes.length > 0 && nodes.every((node, k) => kids[index + k] !== undefined && same(kids[index + k]!, node));
-  const byIdentity = source.nodes.findIndex((nodes) => matches(nodes, (a, b) => a === b));
-  return byIdentity >= 0 ? byIdentity : source.nodes.findIndex((nodes) => matches(nodes, (a, b) => a.eq(b)));
+/**
+ * Finds the chunk whose nodes start `kids` at an index: the same objects first (untouched blocks keep their identity),
+ * then equal ones. Built once per serialization, so each lookup is a map read and long pages stay linear.
+ */
+function chunkFinder(source: Source, kids: readonly PmNode[]) {
+  const byNode = new Map<PmNode, number>();
+  const byText = new Map<string, number[]>();
+  const keyOf = (node: PmNode) => `${node.type.name}:${node.textContent}`;
+  source.nodes.forEach((nodes, chunk) => {
+    const first = nodes[0];
+    if (!first) return;
+    if (!byNode.has(first)) byNode.set(first, chunk);
+    const key = keyOf(first);
+    const list = byText.get(key);
+    if (list) list.push(chunk);
+    else byText.set(key, [chunk]);
+  });
+  const matches = (chunk: number, index: number, same: (a: PmNode, b: PmNode) => boolean) =>
+    source.nodes[chunk]!.every((node, k) => kids[index + k] !== undefined && same(kids[index + k]!, node));
+  return (index: number): number => {
+    const kid = kids[index]!;
+    const byIdentity = byNode.get(kid);
+    if (byIdentity !== undefined && matches(byIdentity, index, (a, b) => a === b)) return byIdentity;
+    return byText.get(keyOf(kid))?.find((chunk) => matches(chunk, index, (a, b) => a.eq(b))) ?? -1;
+  };
 }
 
 /**
@@ -84,9 +103,10 @@ function chunkAt(source: Source, kids: readonly PmNode[], index: number): number
 export function serializeMarkdown(doc: PmNode, source: Source): string {
   const kids: PmNode[] = [];
   doc.forEach((node) => kids.push(node));
+  const chunkAt = chunkFinder(source, kids);
   const pieces: Array<{ body: string; chunk: number }> = [];
   for (let i = 0; i < kids.length; ) {
-    const chunk = chunkAt(source, kids, i);
+    const chunk = chunkAt(i);
     if (chunk >= 0) {
       pieces.push({ body: source.chunks[chunk]!.body, chunk });
       i += source.nodes[chunk]!.length;
