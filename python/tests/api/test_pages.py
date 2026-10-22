@@ -1,21 +1,3 @@
-import pytest
-from httpx import ASGITransport, AsyncClient
-
-from acervo.api.app import app
-from acervo.store.db import get_session
-
-
-@pytest.fixture
-async def client(session):
-    async def same_session():
-        yield session
-
-    app.dependency_overrides[get_session] = same_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
-    app.dependency_overrides.clear()
-
-
 async def _page(client, title: str = "Emissão de apólice") -> tuple[str, str]:
     kb_id = (await client.post("/kbs", json={"name": "Seguros · Operação"})).json()["id"]
     response = await client.post(f"/kbs/{kb_id}/nodes", json={"kind": "page", "title": title})

@@ -1,23 +1,8 @@
 import hashlib
+import uuid
 from pathlib import Path
 
-import pytest
-from httpx import ASGITransport, AsyncClient
-
-from acervo.api.app import app
-from acervo.store.db import get_session
-
-
-@pytest.fixture
-async def client(session):
-    async def same_session():
-        yield session
-
-    app.dependency_overrides[get_session] = same_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
-    app.dependency_overrides.clear()
-
+from acervo.config import Settings
 
 PDFS = Path(__file__).parent.parent / "fixtures" / "pdfs"
 SIMPLE = PDFS / "simple.pdf"
@@ -100,3 +85,23 @@ async def test_replace_and_restore(client) -> None:
 
     assert (restored["file"]["protected"], restored["versions"]) == (False, 3)
     assert (await client.get(f"/files/{node_id}/raw")).content == SIMPLE.read_bytes()
+
+
+async def test_upload_to_unknown_base_is_404(client) -> None:
+    trashed = (await client.post("/kbs", json={"name": "Antiga"})).json()["id"]
+    await client.delete(f"/kbs/{trashed}")
+
+    for kb_id in (str(uuid.uuid4()), trashed):
+        response = await _upload(client, kb_id, None, SIMPLE)
+        assert (response.status_code, response.json()["error"]) == (404, "NotFoundError")
+
+
+async def test_raw_exposes_range_headers_to_the_web_origin(client) -> None:
+    kb_id, folder = await _folder(client)
+    node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
+
+    origin = Settings().cors_origins[0]
+    raw = await client.get(f"/files/{node_id}/raw", headers={"Origin": origin, "Range": "bytes=0-9"})
+
+    exposed = {name.strip().lower() for name in raw.headers["access-control-expose-headers"].split(",")}
+    assert {"content-range", "accept-ranges", "content-disposition"} <= exposed

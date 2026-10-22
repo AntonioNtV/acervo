@@ -153,10 +153,10 @@ async def create_node(session: Session, kb_id: uuid.UUID, body: CreateNodeReques
 @router.patch("/nodes/{node_id}")
 async def rename_node(session: Session, node_id: uuid.UUID, body: RenameNodeRequest) -> NodeResponse:
     node = await nodes.live_node(session, node_id)
-    old_title = node.title
+    title = body.title.strip()
+    if node.kind == "page" and title and title != node.title:
+        await links.fix_links(session, node, title)
     await nodes.rename(session, node_id, body.title)
-    if node.kind == "page" and node.title != old_title:
-        await links.fix_links(session, node.kb_id, old_title, node.title)
     await session.commit()
     return NodeResponse.model_validate(node)
 

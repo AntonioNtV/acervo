@@ -12,10 +12,10 @@ from typing import Any, BinaryIO
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from acervo.errors import ConflictError, ValidationError
+from acervo.errors import ConflictError, NotFoundError, ValidationError
 from acervo.pdfs import reader
 from acervo.pdfs.storage import Storage, key_for
-from acervo.store.models import File, Node
+from acervo.store.models import File, Kb, Node
 from acervo.store.repositories import get, key_between, last_sort, sibling_title_taken
 
 CHUNK_SIZE = 1024 * 1024
@@ -96,6 +96,9 @@ async def save(
     source: BinaryIO,
 ) -> File:
     """Stores a file byte for byte into a folder of the base, as the last of its siblings."""
+    kb = await session.get(Kb, kb_id, populate_existing=True)
+    if kb is None or kb.deleted_at is not None:
+        raise NotFoundError(f"kb {kb_id} not found")
     if parent_id is not None:
         parent = await get(session, Node, parent_id)
         if parent.kb_id != kb_id or parent.kind != "folder" or parent.deleted_at is not None:
