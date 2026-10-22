@@ -11,6 +11,8 @@ file. A base exports as a plain folder: pages as `.md`, PDFs as the original fil
 | Piece | File |
 |---|---|
 | versions | `pages/versions.py` (`page_version`: whole Markdown, author `user` or `agent`, `proposal_id`) |
+| drafts | `pages/drafts.py` (`page_draft`: one per page, with the version it started from) |
+| links | `pages/links.py` (`page_link`: the `[[…]]` targets of each page's current version) |
 | sections | `pages/sections.py` (parse `##` headings into anchors) |
 | patch | `pages/patch.py` (`Patch`, `apply`, `rebase`) |
 | descriptions | `tree/descriptions.py` |
@@ -45,7 +47,19 @@ so placement is only as good as they are.
 
 A description the person edits is locked (`description_locked`) and never rewritten by the job.
 
+## The person's edits
+
+The person writes directly: their own action is their approval (skill `proposals`), and the version records author
+`user`. While editing, a draft is saved every few seconds in `page_draft`; it is not a version, never shows in the
+history and is never read by agents. "Concluir" writes a new version only if the text differs from the current one,
+and only if the current version is still the draft's base version: otherwise it is a `ConflictError` with the
+difference, and the person keeps theirs (a new version on top) or discards it. Restoring an old version writes it as
+a new version; no version is ever changed or deleted.
+
 ## Rules
 
 - No page is created from a PDF's content. A page may link to a PDF and cite its pages.
-- Wiki links `[[Page name]]` resolve inside the base; a rename updates them through a proposal.
+- Wiki links `[[Page name]]` resolve inside the base: with more than one page of that title, the one in the same
+  folder, else the link is ambiguous. Every new version rewrites its rows in `page_link`, so a rename finds the
+  linking pages by index and fixes each with a new version (author `user` when the person renamed; through a
+  proposal when an agent did).
