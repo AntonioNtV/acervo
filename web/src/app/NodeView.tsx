@@ -1,8 +1,8 @@
 import { useParams } from "react-router-dom";
 import { ApiError, useNode } from "../api/queries";
-import { FileView } from "../features/pdf/FileView";
-import { PageView } from "../features/page/PageView";
-import { FolderView } from "../features/tree/FolderView";
+import { FileView } from "../screens/file/FileView";
+import { PageView } from "../screens/page/PageView";
+import { FolderView } from "../screens/base/FolderView";
 import { useErrorText } from "./errors";
 
 export function NodeView() {

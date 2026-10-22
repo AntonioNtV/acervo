@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { useI18n } from "../../i18n";
-import { Button } from "../../ui/Button";
-import { Dialog } from "../../ui/Dialog";
-import { Input } from "../../ui/Input";
+import { useI18n } from "../i18n";
+import { Button } from "../ui/Button";
+import { Dialog } from "../ui/Dialog";
+import { Input } from "../ui/Input";
 
 type Props = {
   open: boolean;

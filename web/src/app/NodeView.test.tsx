@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { act, screen } from "@testing-library/react";
-import { pageNode, versions } from "../features/page/testing";
+import { pageNode, versions } from "../screens/page/testing";
 import { renderInBase, resetApi, respond } from "../testing";
 import { NodeView } from "./NodeView";
 

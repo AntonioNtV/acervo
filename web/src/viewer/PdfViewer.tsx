@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { rawFileUrl, type NodeDetail } from "../../api/queries";
-import { useI18n } from "../../i18n";
-import { Button } from "../../ui/Button";
-import { FileHeader } from "./FileHeader";
+import { rawFileUrl, type NodeDetail } from "../api/queries";
+import { useI18n } from "../i18n";
+import { Button } from "../ui/Button";
+import { FileHeader } from "../screens/file/FileHeader";
 import { PasswordDialog } from "./Password";
 import { openPdf, type PDFDocumentProxy } from "./pdfjs";
 

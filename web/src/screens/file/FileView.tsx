@@ -2,7 +2,7 @@ import { rawFileUrl, type NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { FileHeader } from "./FileHeader";
 import { formatSize } from "./format";
-import { PdfViewer } from "./PdfViewer";
+import { PdfViewer } from "../../viewer/PdfViewer";
 
 type Viewer = "pdf" | "image" | "other";
 

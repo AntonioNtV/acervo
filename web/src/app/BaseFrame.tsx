@@ -1,5 +1,5 @@
 import { Outlet } from "react-router-dom";
-import { BaseLayout } from "../features/tree/BaseLayout";
+import { BaseLayout } from "../screens/base/BaseLayout";
 import { useI18n } from "../i18n";
 import { Brand } from "./Brand";
 import { ChatColumn } from "./ChatColumn";

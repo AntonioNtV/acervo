@@ -1,12 +1,12 @@
 import "@testing-library/jest-dom/vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { NodeDetail } from "../../api/queries";
-import { NodeView } from "../../app/NodeView";
-import { calls, renderInBase, resetApi, respond } from "../../testing";
+import type { NodeDetail } from "../api/queries";
+import { NodeView } from "../app/NodeView";
+import { calls, renderInBase, resetApi, respond } from "../testing";
 import { openPdf, type OnPassword } from "./pdfjs";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../api/client", () => import("../testing").then((m) => m.mockClient()));
 vi.mock("./pdfjs", () => ({ openPdf: vi.fn() }));
 
 const NODE_ID = "22222222-2222-2222-2222-222222222222";

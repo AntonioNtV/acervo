@@ -3,10 +3,10 @@ import { screen } from "@testing-library/react";
 import { rawFileUrl, type NodeDetail } from "../../api/queries";
 import { NodeView } from "../../app/NodeView";
 import { renderInBase, resetApi, respond } from "../../testing";
-import { openPdf } from "./pdfjs";
+import { openPdf } from "../../viewer/pdfjs";
 
 vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
-vi.mock("./pdfjs", () => ({ openPdf: vi.fn() }));
+vi.mock("../../viewer/pdfjs", () => ({ openPdf: vi.fn() }));
 
 const NODE_ID = "11111111-1111-1111-1111-111111111111";
 
