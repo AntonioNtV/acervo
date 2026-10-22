@@ -54,6 +54,18 @@ async def test_range_request(client) -> None:
     assert (outside.status_code, outside.headers["content-range"]) == (416, f"bytes */{len(content)}")
 
 
+async def test_open_ended_range_streams(client) -> None:
+    kb_id, folder = await _folder(client)
+    node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
+    content = SIMPLE.read_bytes()
+
+    rest = await client.get(f"/files/{node_id}/raw", headers={"Range": "bytes=100-"})
+
+    assert (rest.status_code, rest.content) == (206, content[100:])
+    assert rest.headers["content-range"] == f"bytes 100-{len(content) - 1}/{len(content)}"
+    assert rest.headers["content-length"] == str(len(content) - 100)
+
+
 async def test_duplicate_is_409_with_path(client) -> None:
     kb_id, folder = await _folder(client)
     first = (await _upload(client, kb_id, folder, SIMPLE)).json()

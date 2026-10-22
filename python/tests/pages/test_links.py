@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from acervo.pages import links, versions
 from acervo.store.models import PageLink
+from acervo.tree import nodes
 
 TREE = {
     "Bradesco": {"Residencial": ["Emissão de apólice.md", "Renovação.md", "Sinistro.md"], "Auto": ["Sinistro.md"]},
@@ -36,6 +37,17 @@ async def test_ambiguous_prefers_same_folder(session, make_tree) -> None:
     await _write(session, page, "Veja [[Sinistro]].\n")
 
     assert await links.resolve(session, page) == {"sinistro": tree["Bradesco/Residencial/Sinistro.md"].id}
+
+
+async def test_titles_with_repeated_spaces_resolve(session, make_tree) -> None:
+    tree = await make_tree(TREE)
+    page = tree["Porto/Vistoria.md"]
+    created = await nodes.create(session, tree.kb.id, tree["Porto"].id, "page", "Tabela  de   prazos")
+    renamed = await nodes.rename(session, tree["Porto/Sinistro.md"].id, "Aviso  de sinistro")
+    await _write(session, page, "Ver [[Tabela  de   prazos]] e [[Aviso de  sinistro]].\n")
+
+    assert (created.title, renamed.title) == ("Tabela de prazos", "Aviso de sinistro")
+    assert await links.resolve(session, page) == {"tabela de prazos": created.id, "aviso de sinistro": renamed.id}
 
 
 async def test_rename_fixes_linking_pages_as_new_versions(session, make_tree) -> None:

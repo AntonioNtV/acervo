@@ -6,6 +6,7 @@ import pytest
 from acervo.errors import ConflictError
 from acervo.pdfs import files, versions
 from acervo.pdfs.storage import Storage
+from acervo.store.models import Node
 
 PDFS = Path(__file__).parent.parent / "fixtures" / "pdfs"
 SIMPLE = PDFS / "simple.pdf"
@@ -44,6 +45,18 @@ async def test_replace_with_same_content_is_refused(session, storage, make_tree)
         await _replace(session, storage, file.node_id, SIMPLE)
 
     assert await versions.list_versions(session, file.node_id) == []
+
+
+async def test_replace_with_another_files_content_is_refused(session, storage, make_tree) -> None:
+    file = await _saved(session, storage, make_tree)
+    node = await session.get(Node, file.node_id)
+    with PROTECTED.open("rb") as source:
+        await files.save(session, Storage(storage), node.kb_id, node.parent_id, "Apólice.pdf", source)
+
+    with pytest.raises(ConflictError, match="^já está em Bradesco/Apólice.pdf$"):
+        await _replace(session, storage, file.node_id, PROTECTED)
+
+    assert (file.sha256, await versions.list_versions(session, file.node_id)) == (_sha256(SIMPLE), [])
 
 
 async def test_restore_old_version_keeps_every_file(session, storage, make_tree) -> None:
