@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 
@@ -16,19 +16,21 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("renders the base frame with the chat disabled", () => {
-    renderAt("/kbs/kb-1/n/node-1");
+  it("opens the chat from the top bar, everything disabled", async () => {
+    renderAt("/lixeira");
+
+    await userEvent.click(screen.getByRole("button", { name: "Chat" }));
 
     const chat = screen.getByRole("complementary", { name: "Chat" });
-    expect(chat).toHaveTextContent("disponível em breve");
+    expect(chat).toHaveTextContent("Disponível em breve");
     expect(screen.getByRole("textbox", { name: "Mensagem" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Capturar" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Perguntar" })).toBeDisabled();
+    expect(within(chat).getByRole("button", { name: "Capturar" })).toBeDisabled();
+    expect(within(chat).getByRole("button", { name: "Perguntar" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
   });
 
   it("switching theme changes the root class", async () => {
-    renderAt("/");
+    renderAt("/lixeira");
 
     await userEvent.click(screen.getByRole("button", { name: "Escuro" }));
     expect(document.documentElement).toHaveClass("dark");
@@ -38,8 +40,8 @@ describe("App", () => {
   });
 
   it("switching language changes the nav labels", async () => {
-    renderAt("/");
-    const nav = screen.getByRole("complementary", { name: "Navegação" });
+    renderAt("/lixeira");
+    const nav = screen.getByRole("navigation", { name: "Navegação" });
     expect(nav).toHaveTextContent("Lixeira");
 
     await userEvent.click(screen.getByRole("button", { name: "EN" }));

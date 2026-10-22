@@ -1,26 +1,20 @@
 import { createContext, useContext, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { TreeNode } from "../../api/client";
-import {
-  useChildren,
-  useCreateNode,
-  useMoveNode,
-  useNode,
-  useRenameNode,
-  useTrashNode,
-} from "../../data/tree";
+import { useChildren, useCreateNode, useMoveNode, useNode, useRenameNode, useTrashNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
-import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
+import { Icon } from "../../ui/Icon";
+import { IconButton } from "../../ui/IconButton";
 import { Input } from "../../ui/Input";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
-import { NodeName, useTreeErrorText } from "./names";
-import { useStartUpload } from "./Upload";
+import { NodeName, useTreeErrorText } from "../base/names";
+import { useStartUpload } from "../base/Upload";
 
 const NODE_TYPE = "application/x-acervo-node";
 
-type Draft = { parentId: string | null; kind: "folder" | "page" };
-type Drop = { id: string; zone: "before" | "into" };
+export type Draft = { parentId: string | null; kind: "folder" | "page" };
+type Zone = "before" | "into";
 
 type TreeState = {
   kbId: string;
@@ -43,11 +37,21 @@ const TreeContext = createContext<TreeState | null>(null);
 
 function useTree(): TreeState {
   const ctx = useContext(TreeContext);
-  if (!ctx) throw new Error("useTree outside Tree");
+  if (!ctx) throw new Error("useTree outside TreeRows");
   return ctx;
 }
 
-/** Opens each folder above `nodeId`, so a node opened from the search or a link shows in the tree. */
+/** The node dragged, when it comes from this base: the API moves a node only inside its own base. */
+function draggedNode(event: DragEvent, kbId: string): string | null {
+  try {
+    const dragged = JSON.parse(event.dataTransfer.getData(NODE_TYPE)) as { kbId: string; id: string };
+    return dragged.kbId === kbId ? dragged.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Opens each node above `nodeId`, so a node opened from a link shows in the tree. */
 function Reveal({ nodeId }: { nodeId: string }) {
   const { setOpen } = useTree();
   const parentId = useNode(nodeId).data?.parent_id;
@@ -57,10 +61,25 @@ function Reveal({ nodeId }: { nodeId: string }) {
   return parentId ? <Reveal nodeId={parentId} /> : null;
 }
 
-export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }) {
+const rowClass =
+  "flex h-7 w-full min-w-0 cursor-pointer items-center gap-1.5 rounded-[6px] border-0 bg-transparent pr-1 text-left text-13 no-underline hover:bg-muted";
+
+const indent = (depth: number) => ({ paddingLeft: 8 + depth * 14 });
+
+/** A base's tree in the sidebar: folders and pages open lazily, drag to move, rename inline, drop files to upload. */
+export function TreeRows({
+  kbId,
+  selectedId,
+  draft,
+  onDraft,
+}: {
+  kbId: string;
+  selectedId?: string;
+  draft: Draft | null;
+  onDraft: (draft: Draft | null) => void;
+}) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const [draft, setDraftState] = useState<Draft | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [rootDrop, setRootDrop] = useState(false);
@@ -81,10 +100,9 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
     }),
   );
 
-  const setDraft = (next: Draft | null) => {
-    if (next?.parentId) setOpen(next.parentId, true);
-    setDraftState(next);
-  };
+  useEffect(() => {
+    if (draft?.parentId) setOpen(draft.parentId, true);
+  }, [draft, setOpen]);
 
   const state: TreeState = {
     kbId,
@@ -92,7 +110,7 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
     expanded,
     setOpen,
     draft,
-    setDraft,
+    setDraft: onDraft,
     editingId,
     setEditingId,
     setNotice,
@@ -108,32 +126,20 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
     setRootDrop(false);
     setNotice(null);
     if (event.dataTransfer.files.length) return startUpload(Array.from(event.dataTransfer.files), null);
-    const nodeId = event.dataTransfer.getData(NODE_TYPE);
+    const nodeId = draggedNode(event, kbId);
     if (nodeId) move.mutate({ nodeId, parent_id: null, before_id: null }, { onError: (e) => setNotice(errorText(e)) });
   };
 
   return (
     <TreeContext.Provider value={state}>
       {selectedId && <Reveal key={selectedId} nodeId={selectedId} />}
-      <div className="flex items-center justify-end px-1">
-        <Menu
-          trigger={
-            <Button variant="quiet" size="sm">
-              {t("base.new")}
-            </Button>
-          }
-        >
-          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
-          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "page" })}>{t("base.new.page")}</MenuItem>
-        </Menu>
-      </div>
       {notice && (
-        <p role="alert" className="m-0 px-2.5 py-1 text-12 text-err">
+        <p role="alert" className="m-0 px-2 py-1 text-12 text-err">
           {notice}
         </p>
       )}
       <div
-        className={cx("flex min-h-12 flex-1 flex-col rounded-[6px]", rootDrop && "bg-muted")}
+        className={cx("flex flex-col gap-px rounded-[6px]", rootDrop && "bg-muted")}
         onDragOver={(event) => {
           event.preventDefault();
           setRootDrop(true);
@@ -141,9 +147,19 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
         onDragLeave={() => setRootDrop(false)}
         onDrop={dropOnRoot}
       >
-        <ul role="tree" aria-label={t("app.base.tree")} className="m-0 flex list-none flex-col gap-px p-0">
+        <ul role="tree" aria-label={t("shell.tree")} className="m-0 flex list-none flex-col gap-px p-0">
           <Level parentId={null} depth={0} />
         </ul>
+        <button
+          type="button"
+          onClick={() => onDraft({ parentId: null, kind: "page" })}
+          className={cx(rowClass, "text-text-3")}
+          style={indent(0)}
+        >
+          <span className="size-4 shrink-0" />
+          <Icon name="plus" size={14} />
+          <span className="truncate">{t("base.new.page")}</span>
+        </button>
       </div>
     </TreeContext.Provider>
   );
@@ -161,8 +177,6 @@ function Level({ parentId, depth }: { parentId: string | null; depth: number }) 
     </>
   );
 }
-
-const indent = (depth: number, leaf: boolean) => ({ paddingLeft: 10 + depth * 16 + (leaf ? 18 : 0) });
 
 function NameInput({
   initial,
@@ -185,7 +199,7 @@ function NameInput({
     return () => clearTimeout(id);
   }, []);
   return (
-    <div className="flex flex-col gap-0.5 py-0.5 pr-1">
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-0.5 pr-1">
       <Input
         ref={input}
         aria-label={label}
@@ -215,7 +229,8 @@ function DraftRow({ draft, depth }: { draft: Draft; depth: number }) {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   return (
-    <li role="none" style={indent(depth, draft.kind === "page")}>
+    <li role="none" className="flex items-start gap-1.5" style={indent(depth)}>
+      <span className="size-4 shrink-0" />
       <NameInput
         initial=""
         label={t(draft.kind === "folder" ? "base.new.folder" : "base.new.page")}
@@ -241,18 +256,22 @@ function DraftRow({ draft, depth }: { draft: Draft; depth: number }) {
 function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useI18n();
   const tree = useTree();
-  const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, setDraft, setNotice } = tree;
+  const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, draft, setDraft, setNotice } = tree;
   const { errorText, rename, trash, move, startUpload } = tree;
   const [renameError, setRenameError] = useState<string | null>(null);
-  const [drop, setDrop] = useState<Drop["zone"] | null>(null);
+  const [drop, setDrop] = useState<Zone | null>(null);
   const folder = node.kind === "folder";
-  const open = folder && expanded.has(node.id);
+  const page = node.kind === "page";
+  // A page shows a caret only when something is under it, so its children are asked for with the row.
+  const pageChildren = useChildren(kbId, node.id, page).data;
+  const hasCaret = folder || (page && ((pageChildren?.length ?? 0) > 0 || draft?.parentId === node.id));
+  const open = hasCaret && expanded.has(node.id);
   const selected = node.id === selectedId;
   const name = node.title;
-  const parentForNew = folder ? node.id : node.parent_id;
+  const parentForNew = folder || page ? node.id : node.parent_id;
 
-  const zoneOf = (event: DragEvent<HTMLElement>): Drop["zone"] => {
-    if (!folder) return "before";
+  const zoneOf = (event: DragEvent<HTMLElement>): Zone => {
+    if (!folder && !page) return "before";
     const box = event.currentTarget.getBoundingClientRect();
     return event.clientY - box.top < box.height / 3 ? "before" : "into";
   };
@@ -265,7 +284,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
     setNotice(null);
     const target = zone === "into" ? { parent_id: node.id, before_id: null } : { parent_id: node.parent_id, before_id: node.id };
     if (event.dataTransfer.files.length) return startUpload(Array.from(event.dataTransfer.files), target.parent_id);
-    const nodeId = event.dataTransfer.getData(NODE_TYPE);
+    const nodeId = draggedNode(event, kbId);
     if (!nodeId || nodeId === node.id) return;
     move.mutate({ nodeId, ...target }, { onError: (e) => setNotice(errorText(e)) });
   };
@@ -273,47 +292,43 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   let label: ReactNode;
   if (editingId === node.id) {
     label = (
-      <div className="flex-1">
-        <NameInput
-          initial={name}
-          label={t("base.rename")}
-          error={renameError}
-          onCancel={() => {
-            setRenameError(null);
-            setEditingId(null);
-          }}
-          onSubmit={(title) =>
-            title === name
-              ? setEditingId(null)
-              : rename.mutate(
-                  { nodeId: node.id, title },
-                  { onSuccess: () => setEditingId(null), onError: (e) => setRenameError(errorText(e)) },
-                )
-          }
-        />
-      </div>
+      <NameInput
+        initial={name}
+        label={t("base.rename")}
+        error={renameError}
+        onCancel={() => {
+          setRenameError(null);
+          setEditingId(null);
+        }}
+        onSubmit={(title) =>
+          title === name
+            ? setEditingId(null)
+            : rename.mutate(
+                { nodeId: node.id, title },
+                { onSuccess: () => setEditingId(null), onError: (e) => setRenameError(errorText(e)) },
+              )
+        }
+      />
     );
   } else {
     label = (
       <Link
         to={`/kbs/${kbId}/n/${node.id}`}
-        onClick={() => folder && setOpen(node.id, true)}
-        className={cx(
-          "flex h-7 min-w-0 flex-1 items-center no-underline",
-          selected ? "text-text" : folder ? "text-text-2 hover:text-text" : "text-text-3 hover:text-text",
-        )}
+        onClick={() => hasCaret && setOpen(node.id, true)}
+        className={cx("flex h-7 min-w-0 flex-1 items-center gap-1.5 no-underline", selected ? "text-text" : "text-text-2")}
       >
-        <NodeName node={node} className="truncate" />
+        <Icon name={node.kind} size={14} />
+        <NodeName node={node} pageExt={false} className="truncate" />
       </Link>
     );
   }
 
   return (
-    <li role="treeitem" aria-expanded={folder ? open : undefined} aria-selected={selected} aria-label={name}>
+    <li role="treeitem" aria-expanded={hasCaret ? open : undefined} aria-selected={selected} aria-label={name}>
       <div
         draggable={editingId !== node.id}
         onDragStart={(event) => {
-          event.dataTransfer.setData(NODE_TYPE, node.id);
+          event.dataTransfer.setData(NODE_TYPE, JSON.stringify({ kbId, id: node.id }));
           event.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(event) => {
@@ -323,46 +338,42 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
         }}
         onDragLeave={() => setDrop(null)}
         onDrop={onDrop}
-        style={indent(depth, !folder)}
+        style={indent(depth)}
         className={cx(
-          "group flex items-center gap-1.5 rounded-[6px] pr-1",
-          selected && "bg-muted",
-          drop === "into" && "bg-muted",
+          "group flex min-h-7 items-center gap-1.5 rounded-[6px] pr-1 hover:bg-muted",
+          (selected || drop === "into") && "bg-muted",
+          selected && "font-medium",
           drop === "before" && "shadow-[inset_0_1px_0_var(--text-3)]",
         )}
       >
-        {folder && (
+        {hasCaret ? (
           <button
             type="button"
             aria-label={t(open ? "base.collapse" : "base.expand", { name })}
             onClick={() => setOpen(node.id, !open)}
-            className="flex size-3 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-text-3"
+            className="flex size-4 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-ghost hover:text-text"
           >
-            <svg viewBox="0 0 24 24" width={12} height={12} aria-hidden="true" className="fill-none stroke-current stroke-[1.5]">
-              <path d={open ? "m6 9 6 6 6-6" : "m9 6 6 6-6 6"} />
-            </svg>
+            <Icon name={open ? "caretDown" : "caretRight"} size={14} />
           </button>
+        ) : (
+          <span className="size-4 shrink-0" />
         )}
         {label}
         <Menu
           trigger={
-            <Button
-              variant="quiet"
+            <IconButton
               size="sm"
-              icon
               aria-label={t("base.actions", { name })}
               className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
             >
-              <svg viewBox="0 0 24 24" width={15} height={15} aria-hidden="true" className="fill-current">
-                <circle cx="5" cy="12" r="1.3" />
-                <circle cx="12" cy="12" r="1.3" />
-                <circle cx="19" cy="12" r="1.3" />
-              </svg>
-            </Button>
+              <Icon name="more" size={14} />
+            </IconButton>
           }
         >
-          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
           <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("base.new.page")}</MenuItem>
+          {folder && (
+            <MenuItem onSelect={() => setDraft({ parentId: node.id, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+          )}
           <MenuSeparator />
           <MenuItem onSelect={() => setEditingId(node.id)}>{t("base.rename")}</MenuItem>
           <MenuItem onSelect={() => trash.mutate(node.id, { onError: (e) => setNotice(errorText(e)) })}>
