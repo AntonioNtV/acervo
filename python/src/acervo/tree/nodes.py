@@ -1,47 +1,15 @@
 import uuid
 
-from sqlalchemy import CTE, ColumnElement, func, literal, select
+from sqlalchemy import CTE, func, literal, select
 from sqlalchemy.dialects.postgresql import aggregate_order_by
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.errors import ConflictError, NotFoundError, ValidationError
 from acervo.store.models import Kb, Node
-from acervo.store.repositories import sibling_title_taken
+from acervo.store.repositories import key_between, last_sort, sibling_title_taken, siblings, sort_key
 
-DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz"
 # Files come from an upload, not from here.
 CREATABLE = ("folder", "page")
-
-
-def key_between(before: str | None, after: str | None) -> str:
-    """A sort key strictly between two neighbours' keys (None is an open end), so placing an item writes one row."""
-    return _midpoint(before or "", after)
-
-
-def _midpoint(low: str, high: str | None) -> str:
-    if high is not None:
-        shared = 0
-        while (low[shared] if shared < len(low) else "0") == high[shared]:
-            shared += 1
-        if shared:
-            return high[:shared] + _midpoint(low[shared:], high[shared:])
-    low_digit = DIGITS.index(low[0]) if low else 0
-    high_digit = DIGITS.index(high[0]) if high is not None else len(DIGITS)
-    if high_digit - low_digit > 1:
-        return DIGITS[(low_digit + high_digit) // 2]
-    if high is not None and len(high) > 1:
-        return high[0]
-    return DIGITS[low_digit] + _midpoint(low[1:], None)
-
-
-def sort_key() -> ColumnElement[str]:
-    # Keys compare byte by byte, as `key_between` builds them, whatever the database's collation.
-    return Node.sort.collate("C")
-
-
-def siblings(kb_id: uuid.UUID, parent_id: uuid.UUID | None) -> list[ColumnElement[bool]]:
-    parent = Node.parent_id.is_(None) if parent_id is None else Node.parent_id == parent_id
-    return [Node.kb_id == kb_id, parent, Node.deleted_at.is_(None)]
 
 
 async def live_node(session: AsyncSession, node_id: uuid.UUID) -> Node:
@@ -75,10 +43,6 @@ async def ensure_title_free(
 ) -> None:
     if await sibling_title_taken(session, kb_id, parent_id, kind, title):
         raise ConflictError("já existe", {"title": title})
-
-
-async def last_sort(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID | None) -> str | None:
-    return await session.scalar(select(func.max(sort_key())).where(*siblings(kb_id, parent_id)))
 
 
 async def create(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID | None, kind: str, title: str) -> Node:

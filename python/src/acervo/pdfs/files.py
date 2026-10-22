@@ -9,19 +9,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.errors import ConflictError, ValidationError
 from acervo.pdfs import reader
 from acervo.pdfs.storage import Storage, key_for
 from acervo.store.models import File, Node
-from acervo.store.repositories import get, sibling_title_taken
+from acervo.store.repositories import get, key_between, last_sort, sibling_title_taken
 
 CHUNK_SIZE = 1024 * 1024
 PDF = "application/pdf"
-# The ASCII order of these is the order of `collate "C"`, so the next one always sorts after.
-_SORT_DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
 
 @dataclass(frozen=True)
@@ -89,17 +87,6 @@ async def node_path(session: AsyncSession, node: Node) -> str:
     return "/".join(reversed(titles))
 
 
-async def _sort_after_last(session: AsyncSession, kb_id: uuid.UUID, parent_id: uuid.UUID | None) -> str:
-    parent = Node.parent_id.is_(None) if parent_id is None else Node.parent_id == parent_id
-    last = await session.scalar(select(func.max(Node.sort.collate("C"))).where(Node.kb_id == kb_id, parent))
-    if last is None:
-        return "a0"
-    position = _SORT_DIGITS.find(last[-1])
-    if 0 <= position < len(_SORT_DIGITS) - 1:
-        return last[:-1] + _SORT_DIGITS[position + 1]
-    return last + "V"
-
-
 async def save(
     session: AsyncSession,
     storage: Storage,
@@ -131,7 +118,7 @@ async def save(
             parent_id=parent_id,
             kind="file",
             title=filename,
-            sort=await _sort_after_last(session, kb_id, parent_id),
+            sort=key_between(await last_sort(session, kb_id, parent_id), None),
         )
         session.add(node)
         await session.flush()
