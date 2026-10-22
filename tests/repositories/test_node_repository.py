@@ -58,7 +58,7 @@ async def test_children_say_whether_something_live_is_under_them(nodes: NodeRepo
     tree = await make_tree({"Bradesco": ["Renovação.md"], "Vazia": None})
 
     def has(rows: list[Any]) -> dict[str, bool]:
-        return {row.title: row.has_children for row in rows}
+        return {row.title: row.child_count > 0 for row in rows}
 
     assert has(await nodes.children(tree.kb.id, None)) == {"Bradesco": True, "Vazia": False}
     assert has(await nodes.children(tree.kb.id, tree["Bradesco"].id)) == {"Renovação": False}

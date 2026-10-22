@@ -48,7 +48,6 @@ class PageDraftCreate(BaseModel):
 
     node_id: UUID = Field(description="Page the working text belongs to.")
     markdown: str = Field(description="The page's whole text.")
-    base_version_id: UUID = Field(description="The newest version when it was saved.")
     revision: int = Field(description="Bumped on every save; a save from an older revision is refused.")
     started_at: datetime = Field(description="First change of the editing session not yet cut as a version.")
 

@@ -304,6 +304,23 @@ async def test_rename_fixes_only_links_to_that_page(services: Services, make_tre
     assert (await services.pages.read(ambiguous)).version_id == ambiguous_version.id
 
 
+async def test_rename_fixes_links_in_an_open_working_text(
+    services: Services, make_tree: MakeTree, session: AsyncSession
+) -> None:
+    tree = await make_tree(TREE)
+    page = tree["Porto/Vistoria.md"]
+    opened = await services.pages.read(page.id)
+    typing = await _type(services.pages, page.id, "Digitando [[Renovação]]\n")
+
+    await services.tree.rename(tree["Bradesco/Residencial/Renovação.md"].id, "Renovação anual")
+
+    current = await services.pages.read(page.id)
+    assert (current.markdown, current.revision) == ("Digitando [[Renovação anual]]\n", typing.revision + 1)
+    assert await _stored(session, page.id) == [(opened.markdown, False), ("Digitando [[Renovação anual]]\n", False)]
+    with pytest.raises(StalePage):
+        await services.pages.put_text(page.id, PageTextPut(markdown="Digitando mais\n", revision=typing.revision), IDLE)
+
+
 async def test_link_table_follows_the_latest_version(
     services: Services, make_tree: MakeTree, session: AsyncSession
 ) -> None:
