@@ -7,18 +7,18 @@ description: Everything Acervo does with a PDF - storage, the allowed operations
 
 A PDF, like any other uploaded file, is a node of kind `file` (title with its extension) with a row in `file`;
 older files of the node live in `file_version`. Generic files follow every rule here; only the map and reading
-pages are PDF-specific. All of it lives in `pdfs/`.
+pages are PDF-specific. `FileService` owns what happens to a file; the pipeline only reads it.
 
 **A PDF stays a PDF.** It is stored byte for byte as uploaded and shown as the original file. It is never converted
 to Markdown, never becomes a page, and its text is never stored as content of the base.
 
 | Piece | File | What it is |
 |---|---|---|
-| storage | `pdfs/storage.py` | S3/MinIO; key `kb/<kb_id>/<sha256>`, by content and immutable: move and rename touch only the database |
-| reader | `pdfs/reader.py` | PyMuPDF: metadata, bookmarks, page text, page image |
-| map | `pdfs/map.py` | builds and stores the section map |
-| versions | `pdfs/versions.py` | replace with a newer file, keep the old one in the file's history |
-| intake job | `jobs/pdf_intake.py` | upload → card → Curator → proposal |
+| storage | `services/storage.py` | S3/MinIO; key `kb/<kb_id>/<sha256>`, by content and immutable: move and rename touch only the database |
+| file use cases | `services/file_service.py` | save, replace with history, restore, duplicates, open the raw bytes |
+| reader | `pipeline/pdf/reader.py` | PyMuPDF: page count and password flag today; bookmarks, page text and page image from F3 |
+| map | `pipeline/pdf/map.py`, `domain/pdf_map.py` | builds the section map; `FileService` stores it |
+| intake job | `worker/pdf_intake.py` | upload → card → Curator → proposal (F2) |
 
 ## Allowed operations
 
@@ -33,7 +33,7 @@ password-protected PDF) are metadata, not content. The person does these directl
 | replace | `replace_pdf` | the old file stays in the history and can be restored |
 | trash, restore | none from agents | only the person, from the UI |
 
-Any other operation on a PDF is a bug. `proposals/apply.py` refuses a proposal that would write a PDF's content
+Any other operation on a PDF is a bug. `services/proposal_service.py` refuses a proposal that would write a PDF's content
 anywhere else.
 
 ## The section map

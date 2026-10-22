@@ -6,33 +6,34 @@ on:
   pull_request:
   workflow_call:
 
+env:
+  API_KEY: ci-api-key
+
 jobs:
   python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.5"
       # Not minio-bucket: --wait fails on a container that exits, and the tests create their own bucket.
       - run: docker compose up -d --wait postgres minio
       - run: uv sync --locked
-      - run: uv run ruff check
-      - run: uv run ruff format --check
-      - run: uv run lint-imports
-      - run: uv run pytest
+      - run: make lint
+      # The layering test and the migration roundtrip are part of the suite; the floor is in pyproject.toml.
+      - run: make test
 
   web:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.5"
       - uses: ./.github/actions/setup-pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
-      - run: pnpm gen:api
-      - name: Generated contract types are up to date
-        run: git diff --exit-code -- src/api/schema.gen.ts
+      - run: uv sync --locked
+      - run: make web-check
+      - run: make openapi
+      - name: The OpenAPI document and the web client are up to date
+        run: git diff --exit-code -- docs/openapi.json web/src/api/schema.gen.ts

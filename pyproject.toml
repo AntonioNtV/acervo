@@ -42,8 +42,6 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
 [tool.mypy]
 strict = true
 plugins = ["pydantic.mypy"]
-# The concept packages of the old layout leave as cards 03-05 move them into the layers.
-exclude = ["^src/acervo/(tree|pages|pdfs|store)/"]
 
 [[tool.mypy.overrides]]
 module = ["aioboto3", "botocore.*"]
@@ -58,3 +56,6 @@ warn_required_dynamic_aliases = true
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 testpaths = ["tests"]
+
+[tool.coverage.report]
+fail_under = 85

@@ -11,12 +11,16 @@ LLM is only for text a person reads (skill `llm-calls`).
 
 | Piece | File | What it is |
 |---|---|---|
-| protocol | `decide/decider.py` | `Decider.ask(state, questions) -> Answers`; agents only see this |
-| Jev client | `decide/jev.py` | the only file that knows Jev's wire format, endpoint and auth |
-| LLM fallback | `decide/llm_decider.py` | same protocol over an LLM with structured output; chosen by config |
-| questions | `decide/questions.py` | `Noul`, `Choice`, `Score` and `Answers` (typed, with probabilities) |
-| log | `decide/log.py` | writes one `decision_log` row per question |
-| cache | `decide/cache.py` | response cache keyed by the hash of state + questions |
+| protocol | `model_clients/decider.py` | `Decider.ask(state, questions) -> Answers`; the pipeline only sees this |
+| Jev client | `model_clients/jev.py` | the only file that knows Jev's wire format, endpoint and auth |
+| LLM fallback | `model_clients/llm_decider.py` | same protocol over an LLM with structured output; chosen by config |
+| fake | `model_clients/fakes.py` | `FakeDecider`: answers from a table, records every call (skill `testing`) |
+| questions | `domain/decisions.py` | `Noul`, `Choice`, `Score` and `Answers` (typed, with probabilities) |
+| log | `repositories/decision_log.py` | one `decision_log` row per question, written by the service that ran the agent |
+| cache | `model_clients/cache.py` | response cache keyed by the hash of state + questions |
+
+`model_clients/` never touches the database: the pipeline returns what was asked and answered, and the service
+writes the log on its `UnitOfWork` with the proposal it produced.
 
 ## The three question types
 
@@ -34,7 +38,7 @@ emissão, renovação, coberturas"`. A choice is only as good as its options (sk
 - **One call per state.** Every independent question about the same state goes in one `ask` (about 300 tokens of
   fixed overhead per call, about 20 per extra question).
 - **Ask about the evidence, decide in code.** Ask "is the context enough to answer?", not "answer or search more?".
-  The action is an `if` against `config.Thresholds`.
+  The action is an `if` against `Thresholds`.
 - **No threshold in a prompt or a question.** Every cut-off is a field of `Thresholds` with a comment saying what
   crossing it does.
 - **Every call is logged**: `run_id`, `step`, question type, options, probabilities, the threshold used and the
@@ -45,7 +49,7 @@ emissão, renovação, coberturas"`. A choice is only as good as its options (sk
   current location first when it is an option).
 - Retry with back-off on 429 and 529; a cached state is never re-sent.
 
-## Default thresholds (`config.Thresholds`)
+## Default thresholds (`Thresholds` in `core/settings.py`)
 
 | Field | Default | When crossed |
 |---|---|---|
@@ -62,7 +66,8 @@ These are starting points. They are recalibrated from the decision log and the p
 
 ## Adding a decision
 
-1. Write the question builder next to the agent that asks it and add it to that agent's single `ask` for the state.
+1. Write the question builder next to the agent that asks it (`pipeline/curator/questions.py`,
+   `pipeline/navigator/questions.py`) and add it to that agent's single `ask` for the state.
 2. Add the threshold to `Thresholds` with its default and comment.
 3. Test the policy with a `FakeDecider` that returns fixed probabilities (skill `testing`): each side of the
    threshold is one test.
