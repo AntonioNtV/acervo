@@ -97,6 +97,50 @@ async def test_move_into_own_descendant_is_422(client: httpx.AsyncClient, make_t
     assert await _titles(client, tree.kb.id) == ["Bradesco", "Porto"]
 
 
+async def test_sub_page_create_move_trash_restore(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md"], "Porto": ["Vistoria.md"], "CG 2026.pdf": None})
+    page = tree["Bradesco/Renovação.md"].id
+    sub_page = await _node(client, tree.kb.id, "Checklist", parent_id=page)
+    await _node(client, tree.kb.id, "Itens", parent_id=sub_page)
+    folder = await _move(client, tree["Porto"].id, page)
+    file = await _move(client, tree["CG 2026.pdf"].id, page)
+
+    assert (folder.status_code, file.status_code) == (200, 200)
+    assert await _titles(client, tree.kb.id, page) == ["Checklist", "Porto", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, sub_page) == ["Itens"]
+    opened = (await client.get(f"/v1/nodes/{tree['Porto/Vistoria.md'].id}")).json()
+    assert opened["path"] == "Bradesco/Renovação/Porto/Vistoria"
+
+    await client.delete(f"/v1/nodes/{sub_page}")
+    restored = (await client.post(f"/v1/nodes/{sub_page}/restore")).json()
+    assert (restored["parent_id"], restored["to_root"]) == (str(page), False)
+
+    await client.delete(f"/v1/nodes/{page}")
+    gone = await client.get(f"/v1/kbs/{tree.kb.id}/children", params={"parent_id": str(page)})
+    assert (gone.status_code, gone.json()["error"]) == (404, "not_found")
+    assert await _titles(client, tree.kb.id) == ["Bradesco"]
+    assert [item["title"] for item in (await client.get(f"/v1/kbs/{tree.kb.id}/trash")).json()] == ["Renovação"]
+
+    restored = (await client.post(f"/v1/nodes/{page}/restore")).json()
+    assert (restored["parent_id"], restored["to_root"]) == (str(tree["Bradesco"].id), False)
+    assert await _titles(client, tree.kb.id, page) == ["Checklist", "Porto", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, sub_page) == ["Itens"]
+    assert await _titles(client, tree.kb.id, tree["Porto"].id) == ["Vistoria"]
+
+
+async def test_move_page_into_its_own_sub_page_is_422(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Renovação.md": None, "CG 2026.pdf": None})
+    page = tree["Renovação.md"].id
+    sub_page = await _node(client, tree.kb.id, "Checklist", parent_id=page)
+    deeper = await _node(client, tree.kb.id, "Itens", parent_id=sub_page)
+
+    for target in [page, sub_page, deeper, tree["CG 2026.pdf"].id]:
+        response = await _move(client, page, target)
+        assert (response.status_code, response.json()["error"]) == (422, "validation")
+    assert await _titles(client, tree.kb.id) == ["Renovação", "CG 2026.pdf"]
+    assert await _titles(client, tree.kb.id, page) == ["Checklist"]
+
+
 async def test_title_clash_is_409_title_taken(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
     tree = await make_tree({"Bradesco": ["Renovação.md", "Sinistro.md"], "Renovação.md": None})
     bradesco = tree["Bradesco"].id

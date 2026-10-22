@@ -64,19 +64,19 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             raise NotFoundError(f"node {node_id} not found", {"id": str(node_id)})
         return found[node_id]
 
-    async def live_folder(self, kb_id: UUID, folder_id: UUID | None) -> None:
-        """The live base, and the live folder of it when `folder_id` is given (None is the base's root)."""
+    async def live_parent(self, kb_id: UUID, parent_id: UUID | None) -> None:
+        """The live base, and the live folder or page of it when `parent_id` is given (None is the base's root)."""
         # populate_existing: trash and restore update rows in bulk, behind the identity map.
         kb = await self._session.get(Kb, kb_id, populate_existing=True)
         if kb is None or kb.deleted_at is not None:
             raise NotFoundError(f"kb {kb_id} not found", {"id": str(kb_id)})
-        if folder_id is None:
+        if parent_id is None:
             return
-        folder = await self._session.get(Node, folder_id, populate_existing=True)
-        if folder is None or folder.deleted_at is not None:
-            raise NotFoundError(f"node {folder_id} not found", {"id": str(folder_id)})
-        if folder.kb_id != kb_id or folder.kind != "folder":
-            raise ValidationError("a pasta não está nesta base", {"folder_id": str(folder_id)})
+        parent = await self._session.get(Node, parent_id, populate_existing=True)
+        if parent is None or parent.deleted_at is not None:
+            raise NotFoundError(f"node {parent_id} not found", {"id": str(parent_id)})
+        if parent.kb_id != kb_id or parent.kind == "file":
+            raise ValidationError("o destino não está nesta base", {"parent_id": str(parent_id)})
 
     async def title_taken(self, kb_id: UUID, parent_id: UUID | None, kind: NodeKind, title: str) -> bool:
         """The check behind the live-sibling unique index, to refuse with "já existe" before the insert fails."""
@@ -119,7 +119,7 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         return [TreeNode(**self._to_read(node).model_dump(), protected=protected) for node, protected in rows]
 
     async def ancestors(self, node_id: UUID) -> set[UUID]:
-        """The node itself and every folder above it."""
+        """The node itself and every node above it."""
         return set(await self._session.scalars(select(upwards([node_id]).c.id)))
 
     async def last_sort(

@@ -50,13 +50,13 @@ class TreeService:
         return NodeDetail(**node.model_dump(), path=path, page=page, file=file, versions=versions)
 
     async def children(self, kb_id: UUID, parent_id: UUID | None) -> list[TreeNode]:
-        await self._uow.nodes.live_folder(kb_id, parent_id)
+        await self._uow.nodes.live_parent(kb_id, parent_id)
         return await self._uow.nodes.children(kb_id, parent_id)
 
     async def create(self, kb_id: UUID, data: NodeAdd) -> NodeRead:
         title = _title(data.title)
         await self._uow.kbs.lock(kb_id)
-        await self._uow.nodes.live_folder(kb_id, data.parent_id)
+        await self._uow.nodes.live_parent(kb_id, data.parent_id)
         await self._ensure_title_free(kb_id, data.parent_id, data.kind, title)
         sort = key_between(await self._uow.nodes.last_sort(kb_id, data.parent_id), None)
         node = await self._uow.nodes.create(
@@ -85,10 +85,10 @@ class TreeService:
         nodes = self._uow.nodes
         node = await nodes.live(node_id)
         await self._uow.kbs.lock(node.kb_id)
-        await nodes.live_folder(node.kb_id, data.parent_id)
+        await nodes.live_parent(node.kb_id, data.parent_id)
         if data.parent_id is not None and node.id in await nodes.ancestors(data.parent_id):
             raise ValidationError(
-                "a folder cannot move into itself or into a folder inside it", {"parent_id": str(data.parent_id)}
+                "a node cannot move into itself or into a node inside it", {"parent_id": str(data.parent_id)}
             )
         if data.parent_id != node.parent_id:
             await self._ensure_title_free(node.kb_id, data.parent_id, node.kind, node.title)
