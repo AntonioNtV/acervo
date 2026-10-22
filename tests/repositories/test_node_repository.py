@@ -33,22 +33,25 @@ async def test_path_joins_titles_from_the_root(nodes: NodeRepository, make_tree:
         await nodes.path(uuid.uuid4())
 
 
-async def test_live_folder(nodes: NodeRepository, session: AsyncSession, make_tree: MakeTree) -> None:
-    tree = await make_tree({"Bradesco": ["Renovação.md"], "Itaú": None})
-    other = await make_tree({"Porto": None}, name="Jurídico")
+async def test_a_page_is_a_valid_parent(nodes: NodeRepository, session: AsyncSession, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md", "CG 2026.pdf"], "Itaú": ["Sinistro.md"]})
+    other = await make_tree({"Porto": ["Vistoria.md"]}, name="Jurídico")
 
-    await nodes.live_folder(tree.kb.id, None)
-    await nodes.live_folder(tree.kb.id, tree["Bradesco"].id)
+    await nodes.live_parent(tree.kb.id, None)
+    await nodes.live_parent(tree.kb.id, tree["Bradesco"].id)
+    await nodes.live_parent(tree.kb.id, tree["Bradesco/Renovação.md"].id)
     with pytest.raises(ValidationError):
-        await nodes.live_folder(tree.kb.id, tree["Bradesco/Renovação.md"].id)
-    with pytest.raises(ValidationError):
-        await nodes.live_folder(tree.kb.id, other["Porto"].id)
+        await nodes.live_parent(tree.kb.id, tree["Bradesco/CG 2026.pdf"].id)
+    for foreign in (other["Porto"], other["Porto/Vistoria.md"]):
+        with pytest.raises(ValidationError):
+            await nodes.live_parent(tree.kb.id, foreign.id)
     await nodes.trash_subtree(tree["Itaú"].id)
-    with pytest.raises(NotFoundError):
-        await nodes.live_folder(tree.kb.id, tree["Itaú"].id)
+    for trashed in (tree["Itaú"], tree["Itaú/Sinistro.md"]):
+        with pytest.raises(NotFoundError):
+            await nodes.live_parent(tree.kb.id, trashed.id)
     await KbRepository(session).update(other.kb.id, KbUpdate(deleted_at=tree.kb.created_at))
     with pytest.raises(NotFoundError):
-        await nodes.live_folder(other.kb.id, None)
+        await nodes.live_parent(other.kb.id, None)
 
 
 async def test_last_sort_ignores_trashed_and_other_folders(nodes: NodeRepository, make_tree: MakeTree) -> None:

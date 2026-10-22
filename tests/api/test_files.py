@@ -58,6 +58,23 @@ async def test_upload_then_raw_returns_same_bytes(client: httpx.AsyncClient, mak
     assert raw.headers["content-disposition"] == "attachment; filename*=UTF-8''Condi%C3%A7%C3%B5es%20Gerais%202026.pdf"
 
 
+async def test_upload_into_a_page(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Residencial": ["Renovação.md"]})
+    page = str(tree["Residencial/Renovação.md"].id)
+
+    uploaded = await _upload(client, str(tree.kb.id), page, SIMPLE)
+
+    assert uploaded.status_code == 201
+    assert (uploaded.json()["parent_id"], uploaded.json()["path"]) == (
+        page,
+        "Residencial/Renovação/Condições Gerais 2026.pdf",
+    )
+    children = (await client.get(f"/v1/kbs/{tree.kb.id}/children", params={"parent_id": page})).json()
+    assert [(child["kind"], child["title"]) for child in children] == [("file", "Condições Gerais 2026.pdf")]
+    into_a_file = await _upload(client, str(tree.kb.id), uploaded.json()["id"], PROTECTED, "Outro.pdf")
+    assert (into_a_file.status_code, into_a_file.json()["error"]) == (422, "validation")
+
+
 async def test_range_request(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
     kb_id, folder = await _folder(make_tree)
     node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
