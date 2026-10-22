@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { rawFileUrl, type NodeDetail } from "../api/queries";
+import type { NodeDetail } from "../api/client";
+import { rawFileSource } from "../data/files";
 import { useI18n } from "../i18n";
 import { Button } from "../ui/Button";
 import { FileHeader } from "../screens/file/FileHeader";
@@ -33,7 +34,6 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
   const [zoom, setZoom] = useState(2);
   const canvas = useRef<HTMLCanvasElement>(null);
 
-  const url = rawFileUrl(node.id);
   const sha = node.file?.sha256;
   const total = doc?.numPages ?? node.file?.pages ?? 1;
   const page = Math.min(Math.max(Math.trunc(Number(params.get("p"))) || 1, 1), total);
@@ -45,7 +45,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
     setFailed(false);
     setAsk(null);
     setAsking(false);
-    const load = openPdf(url, (submit, incorrect) => {
+    const load = openPdf(rawFileSource(node.id), (submit, incorrect) => {
       if (!live) return;
       setAsk({ submit, incorrect });
       setAsking(true);
@@ -58,7 +58,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
       live = false;
       load.destroy();
     };
-  }, [url, sha]);
+  }, [node.id, sha]);
 
   useEffect(() => {
     if (!doc) return;
@@ -99,7 +99,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
     setAsking(false);
   }
 
-  const pages = t(total === 1 ? "pdf.pages.one" : "pdf.pages.other", { n: total });
+  const pages = t(total === 1 ? "file.pages.one" : "file.pages.other", { n: total });
   return (
     <>
       <FileHeader node={node} detail={doc || node.file?.pages ? pages : undefined}>
@@ -107,7 +107,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
           variant="quiet"
           size="sm"
           icon
-          aria-label={t("pdf.prev")}
+          aria-label={t("file.prev")}
           disabled={!doc || page <= 1}
           onClick={() => goTo(page - 1)}
         >
@@ -118,7 +118,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
           variant="quiet"
           size="sm"
           icon
-          aria-label={t("pdf.next")}
+          aria-label={t("file.next")}
           disabled={!doc || page >= total}
           onClick={() => goTo(page + 1)}
         >
@@ -129,7 +129,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
           variant="quiet"
           size="sm"
           icon
-          aria-label={t("pdf.zoom.out")}
+          aria-label={t("file.zoom.out")}
           disabled={zoom === 0}
           onClick={() => setZoom(zoom - 1)}
         >
@@ -140,7 +140,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
           variant="quiet"
           size="sm"
           icon
-          aria-label={t("pdf.zoom.in")}
+          aria-label={t("file.zoom.in")}
           disabled={zoom === ZOOMS.length - 1}
           onClick={() => setZoom(zoom + 1)}
         >
@@ -152,18 +152,18 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
           <canvas
             ref={canvas}
             role="img"
-            aria-label={t("pdf.page.label", { page })}
+            aria-label={t("file.page.label", { page })}
             className="block max-w-none bg-bg shadow-[0_0_0_1px_var(--line-2)]"
           />
         ) : failed ? (
-          <p className="m-0 text-err">{t("pdf.error.pdf")}</p>
+          <p className="m-0 text-err">{t("file.error.pdf")}</p>
         ) : ask && !asking ? (
           <div className="flex flex-col items-center gap-3">
-            <p className="m-0 text-text-2">{t("pdf.password.locked")}</p>
-            <Button onClick={() => setAsking(true)}>{t("pdf.password.enter")}</Button>
+            <p className="m-0 text-text-2">{t("file.password.locked")}</p>
+            <Button onClick={() => setAsking(true)}>{t("file.password.enter")}</Button>
           </div>
         ) : (
-          <p className="m-0 text-text-3">{t("pdf.loading")}</p>
+          <p className="m-0 text-text-3">{t("file.loading")}</p>
         )}
       </div>
       <PasswordDialog
@@ -200,7 +200,7 @@ function PageInput({
   return (
     <span className="flex items-center gap-1 px-1 text-12 text-text-2 tabular-nums">
       <input
-        aria-label={t("pdf.page")}
+        aria-label={t("file.page")}
         inputMode="numeric"
         disabled={disabled}
         value={draft}
@@ -209,7 +209,7 @@ function PageInput({
         onKeyDown={(event) => event.key === "Enter" && commit()}
         className="h-[26px] w-9 rounded-[6px] border border-line-2 bg-bg text-center text-12 text-text focus:border-ink focus:outline-none"
       />
-      <span>{t("pdf.page.of", { total })}</span>
+      <span>{t("file.page.of", { total })}</span>
     </span>
   );
 }

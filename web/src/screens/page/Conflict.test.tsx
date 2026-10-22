@@ -1,10 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { calls, resetApi, respond } from "../../testing";
+import { calls, resetApi, respond } from "../../api/testing";
 import { pageNode, renderPage, versions } from "./testing";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();
@@ -12,21 +12,21 @@ beforeEach(() => {
 });
 
 describe("Conflict", () => {
-  it("a 409 opens the dialog with the diff and Manter a minha sends force", async () => {
+  it("a stale_page opens the dialog with the diff and Manter a minha sends force", async () => {
     const mine = "## Documentos\n- Segunda via\n";
-    respond("GET", "/nodes/page-1", {
+    respond("GET", "/v1/nodes/page-1", {
       body: pageNode({ draft: { markdown: mine, base_version_id: "v2", updated_at: "2026-10-22T09:52:00Z" } }),
     });
-    respond("GET", "/nodes/page-1/versions", { body: versions });
-    respond("PUT", "/nodes/page-1", (_url, body) =>
+    respond("GET", "/v1/pages/page-1/versions", { body: versions });
+    respond("PUT", "/v1/pages/page-1", (_url, body) =>
       (body as { force: boolean }).force
         ? { body: versions[0] }
         : {
             status: 409,
             body: {
-              error: "ConflictError",
+              error: "stale_page",
               message: "page page-1 changed",
-              detail: {
+              details: {
                 current_version_id: "v3",
                 markdown: "## Documentos\n- Boleto no portal\n",
                 diff: [
@@ -37,7 +37,7 @@ describe("Conflict", () => {
             },
           },
     );
-    const saves = () => calls.filter((call) => call.method === "PUT" && call.path === "/nodes/page-1");
+    const saves = () => calls.filter((call) => call.method === "PUT" && call.path === "/v1/pages/page-1");
     renderPage();
 
     await userEvent.click(await screen.findByRole("button", { name: "Continuar rascunho" }));

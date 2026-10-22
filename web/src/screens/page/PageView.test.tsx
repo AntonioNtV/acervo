@@ -1,10 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { calls, resetApi, respond } from "../../testing";
+import { calls, resetApi, respond } from "../../api/testing";
 import { pageNode, renderPage, typeInSource, versions } from "./testing";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 const draft = { markdown: "## Documentos\n- Segunda via\n", base_version_id: "v2", updated_at: "2026-10-22T09:52:00Z" };
 const puts = (path: string) => calls.filter((call) => call.method === "PUT" && call.path === path);
@@ -12,9 +12,9 @@ const puts = (path: string) => calls.filter((call) => call.method === "PUT" && c
 beforeEach(() => {
   localStorage.clear();
   resetApi();
-  respond("GET", "/nodes/page-1/versions", { body: versions });
-  respond("PUT", "/nodes/page-1/draft", { body: draft });
-  respond("PUT", "/nodes/page-1", { body: versions[0] });
+  respond("GET", "/v1/pages/page-1/versions", { body: versions });
+  respond("PUT", "/v1/pages/page-1/draft", { body: draft });
+  respond("PUT", "/v1/pages/page-1", { body: versions[0] });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -28,7 +28,7 @@ async function startEditing() {
 
 describe("PageView", () => {
   it("Ler renders a resolved and a missing wiki link", async () => {
-    respond("GET", "/nodes/page-1", {
+    respond("GET", "/v1/nodes/page-1", {
       body: pageNode({
         markdown: "Ver [[Renovação]] e [[Sinistros]].",
         links: { "renovação": "page-2", sinistros: "missing" },
@@ -45,7 +45,7 @@ describe("PageView", () => {
   });
 
   it("Concluir calls save", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode({ draft }) });
+    respond("GET", "/v1/nodes/page-1", { body: pageNode({ draft }) });
     renderPage();
 
     await userEvent.click(await screen.findByRole("button", { name: "Continuar rascunho" }));
@@ -53,22 +53,22 @@ describe("PageView", () => {
     await userEvent.click(screen.getByRole("button", { name: "Concluir" }));
 
     await waitFor(() =>
-      expect(puts("/nodes/page-1").at(-1)?.body).toEqual({ markdown: draft.markdown, base_version_id: "v2", force: false }),
+      expect(puts("/v1/pages/page-1").at(-1)?.body).toEqual({ markdown: draft.markdown, base_version_id: "v2", force: false }),
     );
     expect(await screen.findByRole("button", { name: "Ler" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("autosave sends the draft after the pause", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode() });
+    respond("GET", "/v1/nodes/page-1", { body: pageNode() });
     renderPage();
     await startEditing();
 
     await act(() => vi.advanceTimersByTimeAsync(1000));
-    expect(puts("/nodes/page-1/draft")).toHaveLength(0);
+    expect(puts("/v1/pages/page-1/draft")).toHaveLength(0);
     await act(() => vi.advanceTimersByTimeAsync(1100));
 
     await waitFor(() =>
-      expect(puts("/nodes/page-1/draft").at(-1)?.body).toEqual({
+      expect(puts("/v1/pages/page-1/draft").at(-1)?.body).toEqual({
         markdown: "## Documentos\n- Boleto no portal\n",
         base_version_id: "v2",
       }),
@@ -76,18 +76,18 @@ describe("PageView", () => {
   });
 
   it("the person's own autosaved draft is not offered back after a refetch", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode() });
+    respond("GET", "/v1/nodes/page-1", { body: pageNode() });
     const { queryClient } = renderPage();
     await startEditing();
     await act(() => vi.advanceTimersByTimeAsync(2100));
-    await waitFor(() => expect(puts("/nodes/page-1/draft")).toHaveLength(1));
+    await waitFor(() => expect(puts("/v1/pages/page-1/draft")).toHaveLength(1));
 
-    respond("GET", "/nodes/page-1", {
+    respond("GET", "/v1/nodes/page-1", {
       body: pageNode({
         draft: { markdown: "## Documentos\n- Boleto no portal\n", base_version_id: "v2", updated_at: "2026-10-22T12:00:00Z" },
       }),
     });
-    const gets = () => calls.filter((call) => call.method === "GET" && call.path === "/nodes/page-1").length;
+    const gets = () => calls.filter((call) => call.method === "GET" && call.path === "/v1/nodes/page-1").length;
     const before = gets();
     await act(() => queryClient.invalidateQueries());
     await waitFor(() => expect(gets()).toBe(before + 1));
@@ -96,31 +96,31 @@ describe("PageView", () => {
     expect(screen.queryByText("Continuar rascunho")).not.toBeInTheDocument();
     typeInSource("- Segunda via\n");
     await act(() => vi.advanceTimersByTimeAsync(2100));
-    await waitFor(() => expect(puts("/nodes/page-1/draft")).toHaveLength(2));
+    await waitFor(() => expect(puts("/v1/pages/page-1/draft")).toHaveLength(2));
   });
 
   it("leaving with changes saves a version", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode() });
+    respond("GET", "/v1/nodes/page-1", { body: pageNode() });
     const { unmount } = renderPage();
     await startEditing();
 
     unmount();
 
     await waitFor(() =>
-      expect(puts("/nodes/page-1").at(-1)?.body).toEqual({
+      expect(puts("/v1/pages/page-1").at(-1)?.body).toEqual({
         markdown: "## Documentos\n- Boleto no portal\n",
         base_version_id: "v2",
         force: false,
       }),
     );
-    expect(puts("/nodes/page-1/draft")).toHaveLength(0);
+    expect(puts("/v1/pages/page-1/draft")).toHaveLength(0);
   });
 
-  it("a 409 on the leave-save falls back to the draft", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode() });
-    respond("PUT", "/nodes/page-1", {
+  it("a stale_page on the leave-save falls back to the draft", async () => {
+    respond("GET", "/v1/nodes/page-1", { body: pageNode() });
+    respond("PUT", "/v1/pages/page-1", {
       status: 409,
-      body: { error: "ConflictError", message: "page page-1 changed", detail: { current_version_id: "v3", markdown: "", diff: [] } },
+      body: { error: "stale_page", message: "page page-1 changed", details: { current_version_id: "v3", markdown: "", diff: [] } },
     });
     const { unmount } = renderPage();
     await startEditing();
@@ -128,7 +128,7 @@ describe("PageView", () => {
     unmount();
 
     await waitFor(() =>
-      expect(puts("/nodes/page-1/draft").at(-1)?.body).toEqual({
+      expect(puts("/v1/pages/page-1/draft").at(-1)?.body).toEqual({
         markdown: "## Documentos\n- Boleto no portal\n",
         base_version_id: "v2",
       }),
@@ -136,7 +136,7 @@ describe("PageView", () => {
   });
 
   it("typing while a draft offer is unanswered does not overwrite it", async () => {
-    respond("GET", "/nodes/page-1", { body: pageNode({ draft }) });
+    respond("GET", "/v1/nodes/page-1", { body: pageNode({ draft }) });
     const { unmount } = renderPage();
     await screen.findByRole("button", { name: "Continuar rascunho" });
     await startEditing();
@@ -146,7 +146,7 @@ describe("PageView", () => {
     unmount();
     await act(() => vi.advanceTimersByTimeAsync(5000));
 
-    expect(puts("/nodes/page-1/draft")).toHaveLength(0);
-    expect(puts("/nodes/page-1")).toHaveLength(0);
+    expect(puts("/v1/pages/page-1/draft")).toHaveLength(0);
+    expect(puts("/v1/pages/page-1")).toHaveLength(0);
   });
 });

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useKbs } from "../../api/queries";
+import { useKbs } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Input } from "../../ui/Input";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
@@ -19,7 +19,7 @@ function Switcher({ kbId }: { kbId: string }) {
       trigger={
         <button
           type="button"
-          aria-label={t("tree.switcher")}
+          aria-label={t("base.switcher")}
           className="mb-2.5 flex h-8 cursor-pointer items-center justify-between border-0 bg-transparent px-2.5 text-13 font-medium text-text"
         >
           <span className="truncate">{current?.name}</span>
@@ -37,7 +37,7 @@ function Switcher({ kbId }: { kbId: string }) {
           </MenuItem>
         ))}
       {kbs.length > 1 && <MenuSeparator />}
-      <MenuItem onSelect={() => navigate("/")}>{t("tree.switcher.all")}</MenuItem>
+      <MenuItem onSelect={() => navigate("/")}>{t("base.switcher.all")}</MenuItem>
     </Menu>
   );
 }
@@ -50,7 +50,7 @@ export function BaseLayout() {
     <>
       <Switcher kbId={kbId} />
       <div className="mb-2 px-1">
-        <Input type="search" aria-label={t("tree.search")} placeholder={t("tree.search")} value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input type="search" aria-label={t("base.search")} placeholder={t("base.search")} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
       {q.trim() && <SearchResults kbId={kbId} q={q.trim()} onOpen={() => setQ("")} />}
       {/* Hidden, not unmounted, so the folders the person opened stay open after a search. */}

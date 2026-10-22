@@ -1,4 +1,4 @@
-import type { TreeNode } from "../../api/queries";
+import type { TreeNode } from "../../api/client";
 import { useErrorText } from "../../app/errors";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
@@ -15,7 +15,7 @@ export function NodeName({ node, className }: { node: Named; className?: string 
   return (
     <>
       {name}
-      <span className="ml-1.5 shrink-0 text-11 text-text-3">{t("tree.protected")}</span>
+      <span className="ml-1.5 shrink-0 text-11 text-text-3">{t("base.protected")}</span>
     </>
   );
 }
@@ -24,5 +24,5 @@ export function NodeName({ node, className }: { node: Named; className?: string 
 export function useTreeErrorText() {
   const { t } = useI18n();
   const errorText = useErrorText();
-  return (error: unknown) => errorText(error, { 409: t("tree.exists") });
+  return (error: unknown) => errorText(error, { title_taken: t("base.exists") });
 }

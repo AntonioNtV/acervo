@@ -15,7 +15,7 @@ export type Catalog = { ptBR: Messages; en: Messages };
 
 const STORAGE_KEY = "acervo.lang";
 
-// Each feature card adds `<feature>.ts` here; its keys are reached as `t("<feature>.<key>")`.
+// One `<screen>.ts` per screen, plus `app` and `errors`; its keys are reached as `t("<screen>.<key>")`.
 const modules = import.meta.glob<Catalog>(["./*.ts", "!./index.ts", "!./*.test.ts"], { eager: true });
 
 export const catalogs: Record<string, Catalog> = Object.fromEntries(

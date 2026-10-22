@@ -2,10 +2,10 @@ import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NodeView } from "../../app/NodeView";
-import { node, renderInBase, resetApi, respond } from "../../testing";
+import { node, renderInBase, resetApi, respond } from "../../api/testing";
 import { clearUploads, UploadList } from "./Upload";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 class FakeXhr {
   static sent: FakeXhr[] = [];
@@ -18,6 +18,7 @@ class FakeXhr {
   responseType = "";
   form?: FormData;
   open() {}
+  setRequestHeader() {}
   send(form: FormData) {
     this.form = form;
     FakeXhr.sent.push(this);
@@ -35,10 +36,10 @@ beforeEach(() => {
   clearUploads("kb-1");
   FakeXhr.sent = [];
   vi.stubGlobal("XMLHttpRequest", FakeXhr);
-  respond("GET", "/nodes/residencial", {
+  respond("GET", "/v1/nodes/residencial", {
     body: { ...node("residencial", "folder", "Residencial", "bradesco"), path: "Bradesco/Residencial", page: null, file: null, versions: 0 },
   });
-  respond("GET", "/kbs/kb-1/children", { body: [] });
+  respond("GET", "/v1/kbs/kb-1/children", { body: [] });
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -71,9 +72,9 @@ describe("Upload", () => {
     expect(within(dupRow).getByText("90%")).toBeInTheDocument();
 
     second.reply(409, {
-      error: "ConflictError",
+      error: "duplicate",
       message: "já está em Bradesco/Auto/Condições Gerais 2026.pdf",
-      detail: { node_id: "cg", path: "Bradesco/Auto/Condições Gerais 2026.pdf", trashed: false },
+      details: { node_id: "cg", path: "Bradesco/Auto/Condições Gerais 2026.pdf", trashed: false },
     });
 
     expect(await within(dupRow).findByText(/já está em/)).toBeInTheDocument();
@@ -84,7 +85,7 @@ describe("Upload", () => {
     expect(within(newRow).getByText("40%")).toBeInTheDocument();
   });
 
-  it("says when a duplicate is an earlier version of another file", async () => {
+  it("maps a duplicate with history to \"no histórico de\"", async () => {
     renderInBase(
       <>
         <NodeView />
@@ -97,9 +98,9 @@ describe("Upload", () => {
     await userEvent.upload(screen.getByLabelText("Enviar arquivos"), files("Antiga.pdf"));
     const [sent] = FakeXhr.sent as [FakeXhr];
     sent.reply(409, {
-      error: "ConflictError",
+      error: "duplicate",
       message: "já está no histórico de Bradesco/CG 2026.pdf",
-      detail: { node_id: "cg", path: "Bradesco/CG 2026.pdf", trashed: false, history: true },
+      details: { node_id: "cg", path: "Bradesco/CG 2026.pdf", trashed: false, history: true },
     });
 
     const row = within(screen.getByRole("region", { name: "Envios" })).getAllByRole("listitem").at(-1) as HTMLElement;

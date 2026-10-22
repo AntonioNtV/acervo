@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import type { TreeNode } from "../../api/client";
 import {
   useChildren,
   useCreateNode,
@@ -7,8 +8,7 @@ import {
   useNode,
   useRenameNode,
   useTrashNode,
-  type TreeNode,
-} from "../../api/queries";
+} from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -119,12 +119,12 @@ export function Tree({ kbId, selectedId }: { kbId: string; selectedId?: string }
         <Menu
           trigger={
             <Button variant="quiet" size="sm">
-              {t("tree.new")}
+              {t("base.new")}
             </Button>
           }
         >
-          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "folder" })}>{t("tree.new.folder")}</MenuItem>
-          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "page" })}>{t("tree.new.page")}</MenuItem>
+          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+          <MenuItem onSelect={() => setDraft({ parentId: null, kind: "page" })}>{t("base.new.page")}</MenuItem>
         </Menu>
       </div>
       {notice && (
@@ -218,7 +218,7 @@ function DraftRow({ draft, depth }: { draft: Draft; depth: number }) {
     <li role="none" style={indent(depth, draft.kind === "page")}>
       <NameInput
         initial=""
-        label={t(draft.kind === "folder" ? "tree.new.folder" : "tree.new.page")}
+        label={t(draft.kind === "folder" ? "base.new.folder" : "base.new.page")}
         error={error}
         onCancel={() => setDraft(null)}
         onSubmit={(title) =>
@@ -276,7 +276,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
       <div className="flex-1">
         <NameInput
           initial={name}
-          label={t("tree.rename")}
+          label={t("base.rename")}
           error={renameError}
           onCancel={() => {
             setRenameError(null);
@@ -334,7 +334,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
         {folder && (
           <button
             type="button"
-            aria-label={t(open ? "tree.collapse" : "tree.expand", { name })}
+            aria-label={t(open ? "base.collapse" : "base.expand", { name })}
             onClick={() => setOpen(node.id, !open)}
             className="flex size-3 shrink-0 cursor-pointer items-center justify-center border-0 bg-transparent p-0 text-text-3"
           >
@@ -350,7 +350,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
               variant="quiet"
               size="sm"
               icon
-              aria-label={t("tree.actions", { name })}
+              aria-label={t("base.actions", { name })}
               className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
             >
               <svg viewBox="0 0 24 24" width={15} height={15} aria-hidden="true" className="fill-current">
@@ -361,12 +361,12 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
             </Button>
           }
         >
-          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "folder" })}>{t("tree.new.folder")}</MenuItem>
-          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("tree.new.page")}</MenuItem>
+          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("base.new.page")}</MenuItem>
           <MenuSeparator />
-          <MenuItem onSelect={() => setEditingId(node.id)}>{t("tree.rename")}</MenuItem>
+          <MenuItem onSelect={() => setEditingId(node.id)}>{t("base.rename")}</MenuItem>
           <MenuItem onSelect={() => trash.mutate(node.id, { onError: (e) => setNotice(errorText(e)) })}>
-            {t("tree.trash")}
+            {t("base.trash")}
           </MenuItem>
         </Menu>
       </div>

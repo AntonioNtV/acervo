@@ -2,15 +2,15 @@ import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BaseLayout } from "./BaseLayout";
-import { calls, node, renderInBase, resetApi, respond } from "../../testing";
+import { calls, node, renderInBase, resetApi, respond } from "../../api/testing";
 
-vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
+vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();
   resetApi();
-  respond("GET", "/kbs", { body: [] });
-  respond("GET", "/kbs/kb-1/children", (url) => {
+  respond("GET", "/v1/kbs", { body: [] });
+  respond("GET", "/v1/kbs/kb-1/children", (url) => {
     const parent = url.searchParams.get("parent_id");
     if (parent === "bradesco") {
       return {
@@ -51,7 +51,7 @@ describe("Tree", () => {
   });
 
   it("renames an item inline", async () => {
-    respond("PATCH", "/nodes/glossario", { body: node("glossario", "page", "Termos") });
+    respond("PATCH", "/v1/nodes/glossario", { body: node("glossario", "page", "Termos") });
     renderInBase(<BaseLayout />);
 
     const input = await openRename("Glossário");
@@ -61,7 +61,7 @@ describe("Tree", () => {
 
     await waitFor(() =>
       expect(calls.find((call) => call.method === "PATCH")).toMatchObject({
-        path: "/nodes/glossario",
+        path: "/v1/nodes/glossario",
         body: { title: "Termos" },
       }),
     );
@@ -69,9 +69,9 @@ describe("Tree", () => {
   });
 
   it("says a taken name already exists and keeps the input", async () => {
-    respond("PATCH", "/nodes/glossario", {
+    respond("PATCH", "/v1/nodes/glossario", {
       status: 409,
-      body: { error: "ConflictError", message: "já existe", detail: { title: "Bradesco" } },
+      body: { error: "title_taken", message: "já existe", details: { title: "Bradesco" } },
     });
     renderInBase(<BaseLayout />);
 

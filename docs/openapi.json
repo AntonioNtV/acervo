@@ -1,6 +1,508 @@
 {
   "components": {
     "schemas": {
+      "Body_replace_file_v1_nodes__node_id__file_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_replace_file_v1_nodes__node_id__file_post",
+        "type": "object"
+      },
+      "Body_upload_file_v1_kbs__kb_id__files_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder to save into; omitted for the base's root.",
+            "title": "Parent Id"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_file_v1_kbs__kb_id__files_post",
+        "type": "object"
+      },
+      "DiffLine": {
+        "description": "One line of a difference between two texts, in reading order.",
+        "properties": {
+          "op": {
+            "description": "In both texts, only in the new one or only in the old.",
+            "enum": [
+              "same",
+              "add",
+              "del"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "text": {
+            "description": "The line, without its line break.",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op",
+          "text"
+        ],
+        "title": "DiffLine",
+        "type": "object"
+      },
+      "DraftPut": {
+        "description": "The draft of a page, replacing the previous one.",
+        "properties": {
+          "base_version_id": {
+            "description": "The version the person is editing.",
+            "format": "uuid",
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "markdown": {
+            "description": "The draft's whole text.",
+            "title": "Markdown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "markdown",
+          "base_version_id"
+        ],
+        "title": "DraftPut",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "description": "Body of every error response.",
+        "properties": {
+          "details": {
+            "additionalProperties": true,
+            "description": "Extra context about the error.",
+            "title": "Details",
+            "type": "object"
+          },
+          "error": {
+            "description": "Error code: not_found, conflict, validation, unauthorized, decision_unavailable, or one the screens tell apart: title_taken, duplicate, stale_page, same_file.",
+            "title": "Error",
+            "type": "string"
+          },
+          "message": {
+            "description": "Human-readable explanation; the app shows the code's own text instead.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "message"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FileNodeRead": {
+        "description": "A file node with its path and current content.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "file": {
+            "$ref": "#/components/schemas/FileRead",
+            "description": "The current content."
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "path": {
+            "description": "Titles from the base's root down to the node, joined by /.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "description": "How many contents it has had, the current one included.",
+            "title": "Versions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at",
+          "path",
+          "file",
+          "versions"
+        ],
+        "title": "FileNodeRead",
+        "type": "object"
+      },
+      "FileRead": {
+        "description": "The current content of a file node.",
+        "properties": {
+          "created_at": {
+            "description": "When the file was first stored.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What kind of document it is, once known.",
+            "title": "Doc Type"
+          },
+          "id": {
+            "description": "File ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's section map, once built.",
+            "title": "Map"
+          },
+          "map_origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bookmarks",
+                  "toc",
+                  "generated"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the map came from.",
+            "title": "Map Origin"
+          },
+          "mime": {
+            "description": "The media type; application/octet-stream when unknown.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "node_id": {
+            "description": "File node the content belongs to.",
+            "format": "uuid",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's page count; null for other files or a broken PDF.",
+            "title": "Pages"
+          },
+          "protected": {
+            "description": "A PDF that needs a password to open.",
+            "title": "Protected",
+            "type": "boolean"
+          },
+          "sensitive": {
+            "description": "Whether the content is sensitive.",
+            "title": "Sensitive",
+            "type": "boolean"
+          },
+          "sha256": {
+            "description": "The content's hash.",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "description": "In bytes.",
+            "title": "Size",
+            "type": "integer"
+          },
+          "storage_key": {
+            "description": "Key of the bytes in the bucket.",
+            "title": "Storage Key",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "When the current content was set.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storage_key",
+          "sha256",
+          "size",
+          "mime",
+          "pages",
+          "protected",
+          "doc_type",
+          "sensitive",
+          "map",
+          "map_origin",
+          "id",
+          "node_id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "FileRead",
+        "type": "object"
+      },
+      "FileVersionRead": {
+        "description": "A content a file node had before its current one.",
+        "properties": {
+          "doc_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What kind of document it is, once known.",
+            "title": "Doc Type"
+          },
+          "id": {
+            "description": "Version ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "map": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's section map, once built.",
+            "title": "Map"
+          },
+          "map_origin": {
+            "anyOf": [
+              {
+                "enum": [
+                  "bookmarks",
+                  "toc",
+                  "generated"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where the map came from.",
+            "title": "Map Origin"
+          },
+          "mime": {
+            "description": "The media type; application/octet-stream when unknown.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "node_id": {
+            "description": "File node the content belonged to.",
+            "format": "uuid",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's page count; null for other files or a broken PDF.",
+            "title": "Pages"
+          },
+          "protected": {
+            "description": "A PDF that needs a password to open.",
+            "title": "Protected",
+            "type": "boolean"
+          },
+          "replaced_at": {
+            "description": "When a newer content took its place.",
+            "format": "date-time",
+            "title": "Replaced At",
+            "type": "string"
+          },
+          "sensitive": {
+            "description": "Whether the content is sensitive.",
+            "title": "Sensitive",
+            "type": "boolean"
+          },
+          "sha256": {
+            "description": "The content's hash.",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "description": "In bytes.",
+            "title": "Size",
+            "type": "integer"
+          },
+          "storage_key": {
+            "description": "Key of the bytes in the bucket.",
+            "title": "Storage Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "storage_key",
+          "sha256",
+          "size",
+          "mime",
+          "pages",
+          "protected",
+          "doc_type",
+          "sensitive",
+          "map",
+          "map_origin",
+          "id",
+          "node_id",
+          "replaced_at"
+        ],
+        "title": "FileVersionRead",
+        "type": "object"
+      },
       "HealthResponse": {
         "description": "Liveness of the API itself.",
         "properties": {
@@ -14,6 +516,1094 @@
         },
         "title": "HealthResponse",
         "type": "object"
+      },
+      "KbCreate": {
+        "description": "A knowledge base to create.",
+        "properties": {
+          "description": {
+            "default": "",
+            "description": "What the base holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the base.",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "KbCreate",
+        "type": "object"
+      },
+      "KbEdit": {
+        "description": "A change to a base; omitted fields keep their value.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description.",
+            "title": "Description"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New name; cannot be blank.",
+            "title": "Name"
+          }
+        },
+        "title": "KbEdit",
+        "type": "object"
+      },
+      "KbRead": {
+        "description": "A saved knowledge base.",
+        "properties": {
+          "created_at": {
+            "description": "When the base was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the base went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the base holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "description": "Base ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the base.",
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "When the base last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "deleted_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "KbRead",
+        "type": "object"
+      },
+      "KbSummary": {
+        "description": "A base as the Bases screen lists it.",
+        "properties": {
+          "created_at": {
+            "description": "When the base was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the base went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the base holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "files": {
+            "description": "Live files in the base.",
+            "title": "Files",
+            "type": "integer"
+          },
+          "id": {
+            "description": "Base ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_edit": {
+            "description": "The newest change to the base, its nodes, pages or files.",
+            "format": "date-time",
+            "title": "Last Edit",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the base.",
+            "title": "Name",
+            "type": "string"
+          },
+          "pages": {
+            "description": "Live pages in the base.",
+            "title": "Pages",
+            "type": "integer"
+          },
+          "updated_at": {
+            "description": "When the base last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "deleted_at",
+          "created_at",
+          "updated_at",
+          "pages",
+          "files",
+          "last_edit"
+        ],
+        "title": "KbSummary",
+        "type": "object"
+      },
+      "NodeAdd": {
+        "description": "A new folder or page; files come from an upload.",
+        "properties": {
+          "kind": {
+            "description": "What to create.",
+            "enum": [
+              "folder",
+              "page"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder to create it in; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "title": {
+            "description": "Title; no live sibling of the same kind may have it already.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ],
+        "title": "NodeAdd",
+        "type": "object"
+      },
+      "NodeDetail": {
+        "description": "A node opened: a page's text or a file's current content.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for a file."
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set for a page."
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "path": {
+            "description": "Titles from the base's root down to the node, joined by /.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "versions": {
+            "description": "How many versions it has, the current one included; 0 for a folder.",
+            "title": "Versions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at",
+          "path",
+          "page",
+          "file",
+          "versions"
+        ],
+        "title": "NodeDetail",
+        "type": "object"
+      },
+      "NodeMove": {
+        "description": "Where to put a node.",
+        "properties": {
+          "before_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sibling it goes just before; null to put it last.",
+            "title": "Before Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Destination folder; null for the base's root.",
+            "title": "Parent Id"
+          }
+        },
+        "title": "NodeMove",
+        "type": "object"
+      },
+      "NodeRead": {
+        "description": "A saved node of a base's tree.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "NodeRead",
+        "type": "object"
+      },
+      "NodeRename": {
+        "description": "A new title for a node.",
+        "properties": {
+          "title": {
+            "description": "New title; no live sibling of the same kind may have it already.",
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "NodeRename",
+        "type": "object"
+      },
+      "NodeWithPath": {
+        "description": "A node found by the name search, or trashed on its own.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "path": {
+            "description": "Titles from the base's root down to the node, joined by /.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at",
+          "path"
+        ],
+        "title": "NodeWithPath",
+        "type": "object"
+      },
+      "PageDiff": {
+        "description": "A page version against the one before it.",
+        "properties": {
+          "lines": {
+            "description": "Every line of both versions, in reading order.",
+            "items": {
+              "$ref": "#/components/schemas/DiffLine"
+            },
+            "title": "Lines",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lines"
+        ],
+        "title": "PageDiff",
+        "type": "object"
+      },
+      "PageDraftRead": {
+        "description": "The page's single autosaved draft. Never a version.",
+        "properties": {
+          "base_version_id": {
+            "description": "The version the person was editing.",
+            "format": "uuid",
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "markdown": {
+            "description": "The draft's whole text.",
+            "title": "Markdown",
+            "type": "string"
+          },
+          "updated_at": {
+            "description": "When it was last autosaved.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "markdown",
+          "base_version_id",
+          "updated_at"
+        ],
+        "title": "PageDraftRead",
+        "type": "object"
+      },
+      "PageRead": {
+        "description": "What a page holds now.",
+        "properties": {
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageDraftRead"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An unsaved draft to offer to continue; null if there is none."
+          },
+          "links": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "enum": [
+                    "missing",
+                    "ambiguous"
+                  ],
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Each `[[\u2026]]` target, keyed with its whitespace collapsed to single spaces and lowercased: the page it opens, or why it shows in gray.",
+            "title": "Links",
+            "type": "object"
+          },
+          "markdown": {
+            "description": "The current version's whole text.",
+            "title": "Markdown",
+            "type": "string"
+          },
+          "sections": {
+            "description": "The page's `##` headings, in order.",
+            "items": {
+              "$ref": "#/components/schemas/Section"
+            },
+            "title": "Sections",
+            "type": "array"
+          },
+          "version_id": {
+            "description": "The current version, the base of the next save.",
+            "format": "uuid",
+            "title": "Version Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version_id",
+          "markdown",
+          "draft",
+          "links",
+          "sections"
+        ],
+        "title": "PageRead",
+        "type": "object"
+      },
+      "PageSave": {
+        "description": "A new whole-file version of a page.",
+        "properties": {
+          "base_version_id": {
+            "description": "The version the person opened.",
+            "format": "uuid",
+            "title": "Base Version Id",
+            "type": "string"
+          },
+          "force": {
+            "default": false,
+            "description": "Save on top even if the page changed since `base_version_id`.",
+            "title": "Force",
+            "type": "boolean"
+          },
+          "markdown": {
+            "description": "The page's whole text.",
+            "title": "Markdown",
+            "type": "string"
+          }
+        },
+        "required": [
+          "markdown",
+          "base_version_id"
+        ],
+        "title": "PageSave",
+        "type": "object"
+      },
+      "PageVersionSummary": {
+        "description": "One version of a page in its history, without its text.",
+        "properties": {
+          "author": {
+            "description": "Who wrote it.",
+            "enum": [
+              "user",
+              "agent"
+            ],
+            "title": "Author",
+            "type": "string"
+          },
+          "created_at": {
+            "description": "When it was written.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Version ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "created_at"
+        ],
+        "title": "PageVersionSummary",
+        "type": "object"
+      },
+      "RestoredNode": {
+        "description": "A node back from the trash.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "to_root": {
+            "description": "Its old folder was gone, so it came back at the base's root.",
+            "title": "To Root",
+            "type": "boolean"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at",
+          "to_root"
+        ],
+        "title": "RestoredNode",
+        "type": "object"
+      },
+      "Section": {
+        "description": "A `##` heading of a page.",
+        "properties": {
+          "anchor": {
+            "description": "Unique in the page, for `#anchor` links.",
+            "title": "Anchor",
+            "type": "string"
+          },
+          "heading": {
+            "description": "The heading's text.",
+            "title": "Heading",
+            "type": "string"
+          }
+        },
+        "required": [
+          "anchor",
+          "heading"
+        ],
+        "title": "Section",
+        "type": "object"
+      },
+      "TreeNode": {
+        "description": "A node as the tree shows it.",
+        "properties": {
+          "created_at": {
+            "description": "When the node was created.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the node went to the trash; null while it is live.",
+            "title": "Deleted At"
+          },
+          "description": {
+            "description": "What the node holds.",
+            "title": "Description",
+            "type": "string"
+          },
+          "description_locked": {
+            "description": "Whether agents may rewrite the description.",
+            "title": "Description Locked",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Node ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base the node belongs to.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "folder, page or file.",
+            "enum": [
+              "folder",
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Folder that holds the node; null for the base's root.",
+            "title": "Parent Id"
+          },
+          "protected": {
+            "description": "A password-protected PDF; false for anything else.",
+            "title": "Protected",
+            "type": "boolean"
+          },
+          "sort": {
+            "description": "Fractional sort key among its siblings.",
+            "title": "Sort",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title; a file's keeps its extension, a page's does not.",
+            "title": "Title",
+            "type": "string"
+          },
+          "trashed_with": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Node whose trashing hid this one.",
+            "title": "Trashed With"
+          },
+          "updated_at": {
+            "description": "When the node last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kb_id",
+          "parent_id",
+          "kind",
+          "title",
+          "description",
+          "description_locked",
+          "sort",
+          "deleted_at",
+          "trashed_with",
+          "created_at",
+          "updated_at",
+          "protected"
+        ],
+        "title": "TreeNode",
+        "type": "object"
       }
     }
   },
@@ -23,6 +1613,306 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/files/{node_id}/raw": {
+      "get": {
+        "description": "The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.",
+        "operationId": "raw_file_v1_files__node_id__raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Range"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "The original bytes."
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "A range of them."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "416": {
+            "description": "The range is outside the file."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Raw File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/v1/files/{node_id}/versions": {
+      "get": {
+        "operationId": "list_file_versions_v1_files__node_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FileVersionRead"
+                  },
+                  "title": "Response List File Versions V1 Files  Node Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List File Versions",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/v1/files/{node_id}/versions/{version_id}/restore": {
+      "post": {
+        "operationId": "restore_file_version_v1_files__node_id__versions__version_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileNodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Restore File Version",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health_v1_health_get",
@@ -41,6 +1931,2055 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/v1/kbs": {
+      "get": {
+        "description": "Live bases, most recently edited first; `q` filters by name, ignoring case and accents.",
+        "operationId": "list_kbs_v1_kbs_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KbSummary"
+                  },
+                  "title": "Response List Kbs V1 Kbs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Kbs",
+        "tags": [
+          "kbs"
+        ]
+      },
+      "post": {
+        "operationId": "create_kb_v1_kbs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Kb",
+        "tags": [
+          "kbs"
+        ]
+      }
+    },
+    "/v1/kbs/trash": {
+      "get": {
+        "description": "Bases in the trash, most recently trashed first.",
+        "operationId": "list_trashed_kbs_v1_kbs_trash_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/KbRead"
+                  },
+                  "title": "Response List Trashed Kbs V1 Kbs Trash Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Trashed Kbs",
+        "tags": [
+          "trash"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}": {
+      "delete": {
+        "description": "Moves the base to the trash; it comes back intact with restore.",
+        "operationId": "trash_kb_v1_kbs__kb_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Trash Kb",
+        "tags": [
+          "kbs"
+        ]
+      },
+      "patch": {
+        "operationId": "update_kb_v1_kbs__kb_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KbEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Update Kb",
+        "tags": [
+          "kbs"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/children": {
+      "get": {
+        "description": "Live children of a folder, or of the base's root when `parent_id` is left out, in the person's order.",
+        "operationId": "list_children_v1_kbs__kb_id__children_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TreeNode"
+                  },
+                  "title": "Response List Children V1 Kbs  Kb Id  Children Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Children",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/files": {
+      "post": {
+        "operationId": "upload_file_v1_kbs__kb_id__files_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_file_v1_kbs__kb_id__files_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileNodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Upload File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/nodes": {
+      "post": {
+        "description": "A new folder, or a page with an empty first version.",
+        "operationId": "create_node_v1_kbs__kb_id__nodes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeAdd"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/restore": {
+      "post": {
+        "operationId": "restore_kb_v1_kbs__kb_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KbRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Restore Kb",
+        "tags": [
+          "kbs"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/search": {
+      "get": {
+        "description": "Live nodes whose title contains `q`, ignoring case and accents, closest first.",
+        "operationId": "search_nodes_v1_kbs__kb_id__search_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeWithPath"
+                  },
+                  "title": "Response Search Nodes V1 Kbs  Kb Id  Search Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Search Nodes",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/trash": {
+      "get": {
+        "description": "One item per trashing, most recent first, with where it was; what was under it went with it.",
+        "operationId": "list_trash_v1_kbs__kb_id__trash_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeWithPath"
+                  },
+                  "title": "Response List Trash V1 Kbs  Kb Id  Trash Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Trash",
+        "tags": [
+          "trash"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}": {
+      "delete": {
+        "description": "Moves the node and everything under it to its base's trash.",
+        "operationId": "trash_node_v1_nodes__node_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Trash Node",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "get": {
+        "description": "The live node with its path, and a page's text or a file's current content.",
+        "operationId": "get_node_v1_nodes__node_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Node",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "patch": {
+        "description": "Renaming a page also fixes the `[[\u2026]]` links that resolved to it, each as a new version of its page.",
+        "operationId": "rename_node_v1_nodes__node_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Rename Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/file": {
+      "post": {
+        "operationId": "replace_file_v1_nodes__node_id__file_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_replace_file_v1_nodes__node_id__file_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileNodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Replace File",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/move": {
+      "post": {
+        "operationId": "move_node_v1_nodes__node_id__move_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeMove"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Move Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/restore": {
+      "post": {
+        "operationId": "restore_node_v1_nodes__node_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestoredNode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Restore Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}": {
+      "get": {
+        "operationId": "get_page_v1_pages__node_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Page",
+        "tags": [
+          "pages"
+        ]
+      },
+      "put": {
+        "description": "A new whole-file version. A 409 `stale_page` carries the current version, its text and the diff from the base\nin `details`.",
+        "operationId": "save_page_v1_pages__node_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageSave"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageVersionSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Save Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/draft": {
+      "delete": {
+        "operationId": "discard_draft_v1_pages__node_id__draft_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Discard Draft",
+        "tags": [
+          "pages"
+        ]
+      },
+      "put": {
+        "operationId": "put_draft_v1_pages__node_id__draft_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDraftRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Put Draft",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/versions": {
+      "get": {
+        "description": "The page's versions, newest first, without their text.",
+        "operationId": "list_page_versions_v1_pages__node_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PageVersionSummary"
+                  },
+                  "title": "Response List Page Versions V1 Pages  Node Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Page Versions",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/versions/{version_id}/diff": {
+      "get": {
+        "operationId": "page_version_diff_v1_pages__node_id__versions__version_id__diff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageDiff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Page Version Diff",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/versions/{version_id}/restore": {
+      "post": {
+        "operationId": "restore_page_version_v1_pages__node_id__versions__version_id__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Version Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Restore Page Version",
+        "tags": [
+          "pages"
         ]
       }
     }

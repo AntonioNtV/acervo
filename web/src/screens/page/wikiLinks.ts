@@ -1,4 +1,5 @@
-import { normalizeLinkTarget, type NodeDetail } from "../../api/queries";
+import type { NodeDetail } from "../../api/client";
+import { normalizeLinkTarget } from "../../data/pages";
 
 export type Links = NonNullable<NodeDetail["page"]>["links"];
 

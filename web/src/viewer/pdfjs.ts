@@ -14,13 +14,16 @@ async function pdfjs() {
   return lib;
 }
 
+/** Where the file is and the headers each request carries (the API key goes there, never in the URL). */
+export type PdfSource = { url: string; httpHeaders: Record<string, string> };
+
 /** Opens the original file by range requests; without visible range headers pdf.js reads it whole. */
-export function openPdf(url: string, onPassword: OnPassword): PdfLoad {
+export function openPdf(source: PdfSource, onPassword: OnPassword): PdfLoad {
   let task: PDFDocumentLoadingTask | null = null;
   let destroyed = false;
   const promise = pdfjs().then((lib) => {
     if (destroyed) throw new lib.AbortException("destroyed");
-    task = lib.getDocument({ url, disableAutoFetch: true, disableStream: true });
+    task = lib.getDocument({ ...source, disableAutoFetch: true, disableStream: true });
     task.onPassword = (submit: (password: string) => void, reason: number) =>
       onPassword(submit, reason === lib.PasswordResponses.INCORRECT_PASSWORD);
     return task.promise;

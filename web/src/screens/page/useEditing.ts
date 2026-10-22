@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  ApiError,
-  useDiscardDraft,
-  usePutDraft,
-  useSavePage,
-  type NodeDetail,
-  type StalePage,
-} from "../../api/queries";
+import type { NodeDetail, StalePage } from "../../api/client";
+import { useDiscardDraft, usePutDraft, useSavePage } from "../../data/pages";
+import { ApiError } from "../../data/request";
 
 type Page = NonNullable<NodeDetail["page"]>;
 type Edit = { text: string; base: string };
@@ -67,7 +62,7 @@ export function useEditing(nodeId: string, page: Page, paused: boolean) {
           onDone();
         },
         onError: (error) => {
-          if (error instanceof ApiError && error.status === 409) setConflict(error.body.detail as StalePage);
+          if (error instanceof ApiError && error.code === "stale_page") setConflict(error.details as StalePage);
         },
       },
     );

@@ -1,4 +1,5 @@
-import { rawFileUrl, type NodeDetail } from "../../api/queries";
+import type { NodeDetail } from "../../api/client";
+import { useRawFileUrl } from "../../data/files";
 import { useI18n } from "../../i18n";
 import { FileHeader } from "./FileHeader";
 import { formatSize } from "./format";
@@ -29,15 +30,12 @@ export function FileView({ node }: { node: NodeDetail }) {
 }
 
 function ImageView({ node }: { node: NodeDetail }) {
+  const src = useRawFileUrl(node.id, node.file?.sha256);
   return (
     <>
       <FileHeader node={node} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <img
-          src={`${rawFileUrl(node.id)}?v=${node.file?.sha256 ?? ""}`}
-          alt={node.title}
-          className="block max-h-full max-w-full object-contain"
-        />
+        {src && <img src={src} alt={node.title} className="block max-h-full max-w-full object-contain" />}
       </div>
     </>
   );
@@ -48,9 +46,9 @@ function OtherFile({ node }: { node: NodeDetail }) {
   const file = node.file;
   if (!file) return null;
   const rows: Array<[string, string]> = [
-    [t("pdf.type"), file.mime],
-    [t("pdf.size"), formatSize(file.size, lang)],
-    [t("pdf.versions"), t(node.versions === 1 ? "pdf.versions.one" : "pdf.versions.other", { n: node.versions })],
+    [t("file.type"), file.mime],
+    [t("file.size"), formatSize(file.size, lang)],
+    [t("file.versions"), t(node.versions === 1 ? "file.versions.one" : "file.versions.other", { n: node.versions })],
   ];
   return (
     <>

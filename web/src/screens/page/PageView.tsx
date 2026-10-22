@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useVersions, type NodeDetail } from "../../api/queries";
+import type { NodeDetail } from "../../api/client";
+import { usePageVersions } from "../../data/pages";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -35,7 +36,7 @@ function Page({ kbId, node, page }: { kbId: string; node: NodeDetail; page: NonN
   const [openingDraft] = useState(page.draft);
   const draft = draftSettled ? null : openingDraft;
   const editing = useEditing(node.id, page, draft !== null);
-  const versions = useVersions(node.id);
+  const versions = usePageVersions(node.id);
   const now = useNow(editing.savedAt !== null);
   const toRead = () => setMode("read");
 

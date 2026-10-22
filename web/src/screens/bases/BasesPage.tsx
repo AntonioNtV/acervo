@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useKbs, useTrashKb, type KbSummary } from "../../api/queries";
+import type { KbSummary } from "../../api/client";
+import { useKbs, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
