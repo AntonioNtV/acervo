@@ -17,7 +17,7 @@ export function BaseFrame() {
         </div>
         <BaseLayout />
       </aside>
-      <main className="min-w-0 flex-1 overflow-y-auto">
+      <main className="min-w-[480px] flex-1 overflow-y-auto">
         <Outlet />
       </main>
       <ChatColumn />

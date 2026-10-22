@@ -3,13 +3,16 @@ import { Button } from "../ui/Button";
 import { TextTabs } from "../ui/TextTabs";
 import { AiMark } from "./AiMark";
 
-/** The chat arrives in F2; until then the column only holds its place, everything disabled. */
+/**
+ * The chat arrives in F2; until then the column only holds its place, everything disabled. It is the first thing a
+ * narrow window gives up: below 1088 px (tree 248 + content 480 + chat 360) the content keeps the room.
+ */
 export function ChatColumn() {
   const { t } = useI18n();
   return (
     <aside
       aria-label={t("app.chat.label")}
-      className="flex w-[360px] max-w-[400px] min-w-0 shrink-0 flex-col border-l border-line bg-bg xl:w-[400px]"
+      className="flex w-[360px] max-w-[400px] min-w-0 shrink-0 flex-col border-l border-line bg-bg max-[1088px]:hidden xl:w-[400px]"
     >
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-line pr-3 pl-[18px]">
         <span className="flex items-center gap-2 font-medium">

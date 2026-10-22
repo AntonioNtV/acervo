@@ -1,4 +1,4 @@
-import type { Lang } from "../../i18n";
+import { locale, type Lang } from "../../i18n";
 
 const steps: [Intl.RelativeTimeFormatUnit, number][] = [
   ["year", 365 * 24 * 3600],
@@ -11,7 +11,7 @@ const steps: [Intl.RelativeTimeFormatUnit, number][] = [
 
 /** "ontem", "há 2 semanas", "agora" — the coarsest unit that fits. */
 export function relativeTime(iso: string, lang: Lang, now = Date.now()): string {
-  const format = new Intl.RelativeTimeFormat(lang === "en" ? "en" : "pt-BR", { numeric: "auto" });
+  const format = new Intl.RelativeTimeFormat(locale(lang), { numeric: "auto" });
   const seconds = (new Date(iso).getTime() - now) / 1000;
   for (const [unit, size] of steps) {
     if (Math.abs(seconds) >= size) return format.format(Math.round(seconds / size), unit);
@@ -20,5 +20,5 @@ export function relativeTime(iso: string, lang: Lang, now = Date.now()): string 
 }
 
 export function fullDate(iso: string, lang: Lang): string {
-  return new Date(iso).toLocaleString(lang === "en" ? "en" : "pt-BR", { dateStyle: "long", timeStyle: "short" });
+  return new Date(iso).toLocaleString(locale(lang), { dateStyle: "long", timeStyle: "short" });
 }

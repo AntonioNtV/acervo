@@ -2,19 +2,19 @@ import "@testing-library/jest-dom/vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BasesPage } from "./BasesPage";
-import { fakeBasesApi, renderPage, summary } from "./fakeApi";
+import { resetApi } from "../../testing";
+import { fakeBases, renderPage, summary } from "./testing";
 
-let fake: ReturnType<typeof fakeBasesApi>;
+vi.mock("../../api/client", () => import("../../testing").then((m) => m.mockClient()));
 
 beforeEach(() => {
   localStorage.clear();
-  fake = fakeBasesApi([
+  resetApi();
+  fakeBases([
     summary({ id: "kb-1", name: "Seguros · Operação", description: "Regras de emissão.", pages: 142, files: 38 }),
     summary({ id: "kb-2", name: "Pessoal", pages: 1, files: 1 }),
   ]);
 });
-
-afterEach(() => fake.stop());
 
 describe("BasesPage", () => {
   it("lists bases with counts", async () => {

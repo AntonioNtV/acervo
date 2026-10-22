@@ -10,6 +10,8 @@ import { openPdf, type PDFDocumentProxy } from "./pdfjs";
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 // pdf.js scale 1 is 72 dpi; 100% means the page at its printed size on a 96 dpi screen.
 const CSS_UNITS = 96 / 72;
+// Browsers refuse bigger canvases (iOS Safari first); pdf.js's own viewer caps at the same `maxCanvasPixels`.
+const MAX_CANVAS_PIXELS = 2 ** 24;
 
 type Ask = { submit: (password: string) => void; incorrect: boolean };
 
@@ -65,7 +67,8 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
     void doc.getPage(page).then((pdfPage) => {
       const target = canvas.current;
       if (!live || !target) return;
-      const ratio = window.devicePixelRatio || 1;
+      const css = pdfPage.getViewport({ scale: scale * CSS_UNITS });
+      const ratio = Math.min(window.devicePixelRatio || 1, Math.sqrt(MAX_CANVAS_PIXELS / (css.width * css.height)));
       const viewport = pdfPage.getViewport({ scale: scale * CSS_UNITS * ratio });
       target.width = Math.floor(viewport.width);
       target.height = Math.floor(viewport.height);

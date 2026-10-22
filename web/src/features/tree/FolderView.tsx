@@ -3,12 +3,13 @@ import { Link, useParams } from "react-router-dom";
 import { useChildren, useKbs, type NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
-import { folderPath, NodeName } from "./names";
+import { folderPath } from "../../ui/names";
+import { NodeName } from "./names";
 import { UploadButton, useStartUpload } from "./Upload";
 
 /** A folder opened: its children as a plain list, and where files are sent into it. */
 export function FolderView({ node }: { node: NodeDetail }) {
-  return <Folder kbId={node.kb_id} folderId={node.id} title={node.title} path={folderPath(node.path)} />;
+  return <Folder kbId={node.kb_id} folderId={node.id} title={node.title} path={folderPath(node.path, node.title)} />;
 }
 
 /** The base opened with no node chosen: its root, as a folder. */

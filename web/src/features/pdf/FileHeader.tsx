@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import type { NodeDetail } from "../../api/queries";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
+import { folderPath, splitExt } from "../../ui/names";
 import { DownloadLink } from "./DownloadLink";
 import { FileActions } from "./FileActions";
-import { splitExt } from "./format";
 
 type Props = {
   node: NodeDetail;
@@ -17,7 +17,7 @@ type Props = {
 export function FileHeader({ node, detail, children }: Props) {
   const { t } = useI18n();
   const { name, ext } = splitExt(node.title);
-  const folder = node.path.split("/").slice(0, -1).join(" / ");
+  const folder = folderPath(node.path, node.title);
   const subtitle = [folder, detail, t("pdf.original")].filter(Boolean).join(" · ");
   return (
     <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line bg-bg py-2 pr-4 pl-5">

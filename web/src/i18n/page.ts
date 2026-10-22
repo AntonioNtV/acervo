@@ -1,5 +1,4 @@
 export const ptBR = {
-  error: "Não foi possível abrir a página.",
   mode: "Modo",
   read: "Ler",
   edit: "Editar",
@@ -40,7 +39,6 @@ export const ptBR = {
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
-  error: "The page could not be opened.",
   mode: "Mode",
   read: "Read",
   edit: "Edit",

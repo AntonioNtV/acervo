@@ -1,21 +1,16 @@
-import { ApiError, type TreeNode } from "../../api/queries";
+import type { TreeNode } from "../../api/queries";
+import { useErrorText } from "../../app/errors";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
+import { splitExt } from "../../ui/names";
 
 type Named = Pick<TreeNode, "kind" | "title"> & { protected?: boolean };
 
 /** A file's title already holds its extension; a page's never does. */
 export function NodeName({ node, className }: { node: Named; className?: string }) {
   const { t } = useI18n();
-  const dot = node.title.lastIndexOf(".");
-  const name =
-    node.kind === "page" ? (
-      <FileName title={node.title} ext="md" className={className} />
-    ) : node.kind === "file" && dot > 0 ? (
-      <FileName title={node.title.slice(0, dot)} ext={node.title.slice(dot + 1)} className={className} />
-    ) : (
-      <FileName title={node.title} className={className} />
-    );
+  const { name: title, ext } = node.kind === "file" ? splitExt(node.title) : { name: node.title };
+  const name = <FileName title={title} ext={node.kind === "page" ? "md" : ext} className={className} />;
   if (!node.protected) return name;
   return (
     <>
@@ -25,14 +20,9 @@ export function NodeName({ node, className }: { node: Named; className?: string 
   );
 }
 
-/** The folders above a node, from the `path` the API gives (which ends in the node itself). */
-export function folderPath(path: string): string {
-  return path.split("/").slice(0, -1).join(" / ");
-}
-
-/** A taken sibling name reads "já existe"; anything else says what the API said. */
-export function useErrorText() {
+/** A taken sibling name reads "já existe"; anything else, the generic text for its status. */
+export function useTreeErrorText() {
   const { t } = useI18n();
-  return (error: unknown) =>
-    error instanceof ApiError && error.status === 409 ? t("tree.exists") : (error as Error).message;
+  const errorText = useErrorText();
+  return (error: unknown) => errorText(error, { 409: t("tree.exists") });
 }

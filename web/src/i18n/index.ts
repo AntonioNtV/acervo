@@ -29,6 +29,11 @@ export function translate(lang: Lang, key: string, vars?: Record<string, string 
   return text.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));
 }
 
+/** The BCP 47 tag that `Intl` and `toLocale*String` take for `lang`. */
+export function locale(lang: Lang): string {
+  return lang === "en" ? "en" : "pt-BR";
+}
+
 function readLang(): Lang {
   try {
     return localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "ptBR";
@@ -58,7 +63,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useLayoutEffect(() => {
-    document.documentElement.lang = lang === "en" ? "en" : "pt-BR";
+    document.documentElement.lang = locale(lang);
   }, [lang]);
 
   const value = useMemo<I18n>(

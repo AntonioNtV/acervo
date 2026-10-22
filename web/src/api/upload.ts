@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ApiError, apiBaseUrl, refreshContent, refreshTree, type NodeDetail } from "./queries";
+import { apiBaseUrl } from "./client";
+import { ApiError, refreshContent, refreshTree, type NodeDetail } from "./queries";
 import type { components, paths } from "./schema.gen";
 
 type UploadField = keyof components["schemas"]["Body_upload_file_kbs__kb_id__files_post"];
@@ -21,10 +22,9 @@ function send(path: string, fields: Partial<Record<UploadField, string | Blob>>,
     request.upload.onprogress = (event) => onProgress?.(event.loaded, event.total);
     request.onload = () => {
       if (request.status >= 200 && request.status < 300) return resolve(request.response as NodeDetail);
-      const body = request.response ?? { error: "HttpError", message: request.statusText };
-      reject(new ApiError(request.status, body));
+      reject(new ApiError(request.status, request.response, request.statusText));
     };
-    request.onerror = () => reject(new ApiError(0, { error: "NetworkError", message: "network error" }));
+    request.onerror = () => reject(new ApiError(0, null, "network error"));
     request.send(form);
   });
 }

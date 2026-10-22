@@ -3,6 +3,8 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 
+vi.mock("../api/client", () => import("../testing").then((m) => m.mockClient()));
+
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
   return render(<App />);
