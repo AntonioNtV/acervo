@@ -47,3 +47,42 @@ class NodeRead(BaseModel):
     trashed_with: UUID | None = Field(description="Node whose trashing hid this one.")
     created_at: datetime = Field(description="When the node was created.")
     updated_at: datetime = Field(description="When the node last changed.")
+
+
+class NodeAdd(BaseModel):
+    """A new folder or page; files come from an upload."""
+
+    parent_id: UUID | None = Field(default=None, description="Folder to create it in; null for the base's root.")
+    kind: Literal["folder", "page"] = Field(description="What to create.")
+    title: str = Field(description="Title; no live sibling of the same kind may have it already.")
+
+
+class NodeRename(BaseModel):
+    """A new title for a node."""
+
+    title: str = Field(description="New title; no live sibling of the same kind may have it already.")
+
+
+class NodeMove(BaseModel):
+    """Where to put a node."""
+
+    parent_id: UUID | None = Field(default=None, description="Destination folder; null for the base's root.")
+    before_id: UUID | None = Field(default=None, description="Sibling it goes just before; null to put it last.")
+
+
+class TreeNode(NodeRead):
+    """A node as the tree shows it."""
+
+    protected: bool = Field(description="A password-protected PDF; false for anything else.")
+
+
+class NodeWithPath(NodeRead):
+    """A node found by the name search, or trashed on its own."""
+
+    path: str = Field(description="Titles from the base's root down to the node, joined by /.")
+
+
+class RestoredNode(NodeRead):
+    """A node back from the trash."""
+
+    to_root: bool = Field(description="Its old folder was gone, so it came back at the base's root.")

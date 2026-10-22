@@ -30,3 +30,18 @@ class KbRead(BaseModel):
     deleted_at: datetime | None = Field(description="When the base went to the trash; null while it is live.")
     created_at: datetime = Field(description="When the base was created.")
     updated_at: datetime = Field(description="When the base last changed.")
+
+
+class KbEdit(BaseModel):
+    """A change to a base; omitted fields keep their value."""
+
+    name: str | None = Field(default=None, min_length=1, description="New name; cannot be blank.")
+    description: str | None = Field(default=None, description="New description.")
+
+
+class KbSummary(KbRead):
+    """A base as the Bases screen lists it."""
+
+    pages: int = Field(description="Live pages in the base.")
+    files: int = Field(description="Live files in the base.")
+    last_edit: datetime = Field(description="The newest change to the base, its nodes, pages or files.")
