@@ -6,11 +6,14 @@ import { splitExt } from "../../ui/names";
 
 type Named = Pick<TreeNode, "kind" | "title"> & { protected?: boolean };
 
-/** A file's title already holds its extension; a page's never does. */
-export function NodeName({ node, className }: { node: Named; className?: string }) {
+/**
+ * A file's title already holds its extension; a page's never does. Where an icon already tells a page apart (the
+ * sidebar), `pageExt` drops its `.md`.
+ */
+export function NodeName({ node, className, pageExt = true }: { node: Named; className?: string; pageExt?: boolean }) {
   const { t } = useI18n();
   const { name: title, ext } = node.kind === "file" ? splitExt(node.title) : { name: node.title };
-  const name = <FileName title={title} ext={node.kind === "page" ? "md" : ext} className={className} />;
+  const name = <FileName title={title} ext={node.kind === "page" ? (pageExt ? "md" : undefined) : ext} className={className} />;
   if (!node.protected) return name;
   return (
     <>
