@@ -22,8 +22,8 @@ Jev and the LLM are never called from tests: they are replaced by fakes.
 | Fixture | File | Gives |
 |---|---|---|
 | `session` | `tests/conftest.py` | a migrated database, rolled back after the test |
-| `storage` | `tests/conftest.py` | a fresh MinIO bucket |
-| `make_tree` | `tests/tree/conftest.py` | builds a base from a dict: `{"Bradesco": {"Residencial": ["Emissão de apólice.md", "CG 2026.pdf"]}}` |
+| `make_tree` | `tests/conftest.py` | builds a base from a dict: `{"Bradesco": {"Residencial": ["Emissão de apólice.md", "CG 2026.pdf"]}}`; `.md` names are pages with one version, other names with an extension are files with fake metadata and no bytes; returns the nodes by path |
+| `storage` | `tests/conftest.py` | the S3 settings with this session's bucket |
 | `fake_decider` | `tests/decide/fakes.py` | `FakeDecider`, answers from a table `{question_id: probs}`; records what was asked |
 | `fake_writer` | `tests/llm/fakes.py` | `FakeWriter`, fixed outputs per role; records inputs |
 | PDFs | `tests/fixtures/pdfs/` | `with_bookmarks.pdf`, `with_toc_page.pdf`, `no_outline.pdf`, `scanned.pdf`, `two_versions/` |

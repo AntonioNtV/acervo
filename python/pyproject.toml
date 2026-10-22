@@ -1,0 +1,62 @@
+[project]
+name = "acervo"
+version = "0.1.0"
+description = "Knowledge bases with a side chat that files what you drop in it."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]>=2",
+    "asyncpg",
+    "alembic",
+    "pydantic-settings",
+    "aioboto3",
+    "pymupdf",
+    "python-multipart",
+    "typer",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+    "ruff",
+    "import-linter",
+]
+
+[project.scripts]
+acervo = "acervo.cli:app"
+
+[build-system]
+requires = ["uv_build>=0.8,<0.14"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
+testpaths = ["tests"]
+
+[tool.importlinter]
+root_package = "acervo"
+
+[[tool.importlinter.contracts]]
+name = "Imports go down the order of skill repo-structure"
+type = "layers"
+layers = [
+    "acervo.cli",
+    "acervo.api",
+    "acervo.jobs",
+    "acervo.curator | acervo.navigator",
+    "acervo.proposals",
+    "acervo.decide | acervo.llm | acervo.pages | acervo.pdfs | acervo.tree",
+    "acervo.store",
+    "acervo.config | acervo.errors",
+]

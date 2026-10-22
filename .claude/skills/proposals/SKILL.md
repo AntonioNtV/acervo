@@ -8,6 +8,10 @@ description: The proposal lifecycle in Acervo - kinds, states, accept with rebas
 Agents never write to a base. They create proposals; the person accepts, edits or rejects them in the chat or in
 "Propostas". `proposals/apply.py` is the only code path that changes pages, files or folders on an agent's behalf.
 
+The person's own actions (create, edit, rename, drag, upload, trash, restore) are not proposals: their action is
+their approval, and they write directly through `tree/`, `pages/` and `pdfs/` with author `user`. `apply.py` calls
+those same functions for an accepted proposal, with author `agent` and the proposal's id.
+
 | Piece | File |
 |---|---|
 | models and kinds | `proposals/models.py` |
