@@ -1,0 +1,75 @@
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+
+export type Lang = "ptBR" | "en";
+export type Messages = Record<string, string>;
+export type Catalog = { ptBR: Messages; en: Messages };
+
+const STORAGE_KEY = "acervo.lang";
+
+// Each feature card adds `<feature>.ts` here; its keys are reached as `t("<feature>.<key>")`.
+const modules = import.meta.glob<Catalog>(["./*.ts", "!./index.ts", "!./*.test.ts"], { eager: true });
+
+export const catalogs: Record<string, Catalog> = Object.fromEntries(
+  Object.entries(modules).map(([path, mod]) => [path.slice(2, -3), mod]),
+);
+
+export function translate(lang: Lang, key: string, vars?: Record<string, string | number>): string {
+  const dot = key.indexOf(".");
+  const text = catalogs[key.slice(0, dot)]?.[lang][key.slice(dot + 1)] ?? key;
+  if (!vars) return text;
+  return text.replace(/\{(\w+)\}/g, (match, name: string) => (name in vars ? String(vars[name]) : match));
+}
+
+function readLang(): Lang {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "ptBR";
+  } catch {
+    return "ptBR";
+  }
+}
+
+type I18n = {
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+};
+
+const I18nContext = createContext<I18n | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>(readLang);
+
+  const setLang = useCallback((next: Lang) => {
+    setLangState(next);
+    try {
+      localStorage.setItem(STORAGE_KEY, next);
+    } catch {
+      // The choice still holds for this session.
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    document.documentElement.lang = lang === "en" ? "en" : "pt-BR";
+  }, [lang]);
+
+  const value = useMemo<I18n>(
+    () => ({ lang, setLang, t: (key, vars) => translate(lang, key, vars) }),
+    [lang, setLang],
+  );
+  return createElement(I18nContext.Provider, { value }, children);
+}
+
+export function useI18n(): I18n {
+  const ctx = useContext(I18nContext);
+  if (!ctx) throw new Error("useI18n outside I18nProvider");
+  return ctx;
+}
