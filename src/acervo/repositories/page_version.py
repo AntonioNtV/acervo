@@ -28,7 +28,13 @@ class PageVersionRepository(BaseRepository[PageVersion, PageVersionRead, PageVer
     async def history(self, node_id: UUID) -> list[PageVersionSummary]:
         """Every version of the page, newest first, without its text."""
         rows = await self._session.execute(
-            select(PageVersion.id, PageVersion.author, PageVersion.created_at)
+            select(
+                PageVersion.id,
+                PageVersion.author,
+                PageVersion.created_at,
+                PageVersion.edit_started_at,
+                PageVersion.edit_ended_at,
+            )
             .where(PageVersion.node_id == node_id)
             .order_by(PageVersion.created_at.desc())
         )

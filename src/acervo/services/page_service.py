@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from acervo.core.errors import NotFoundError, StalePage, ValidationError
@@ -7,12 +8,12 @@ from acervo.domain.sections import sections
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.node import NodeRead
 from acervo.schemas.page import (
-    DraftPut,
     PageDiff,
     PageDraftCreate,
     PageDraftRead,
     PageRead,
-    PageSave,
+    PageTextPut,
+    PageTextSaved,
     PageVersionCreate,
     PageVersionRead,
     PageVersionSummary,
@@ -21,46 +22,64 @@ from acervo.schemas.page import (
 
 
 class PageService:
-    """Markdown pages: versions, drafts, diffs and links."""
+    """Markdown pages: the working text the person types, the versions cut from it, diffs and links."""
 
     def __init__(self, uow: UnitOfWork) -> None:
         self._uow = uow
 
     async def read(self, node_id: UUID) -> PageRead:
-        """The current text with its version, the draft, where each link goes and the sections."""
+        """The text now with its revision, the newest version, where each link goes and the sections."""
         node = await self._page(node_id)
         version = await self._uow.page_versions.current(node.id)
+        text = await self._uow.page_drafts.get_by(node_id=node.id)
+        markdown = version.markdown if text is None else text.markdown
         wanted = await self._uow.page_links.targets(node.id)
         return PageRead(
             version_id=version.id,
-            markdown=version.markdown,
-            draft=await self._uow.page_drafts.get_by(node_id=node.id),
+            markdown=markdown,
+            revision=0 if text is None else text.revision,
+            saved_at=version.created_at if text is None else text.updated_at,
             links=links.resolve(wanted, await self._uow.page_links.candidates(node.kb_id, wanted), node.parent_id),
-            sections=[Section(anchor=s.anchor, heading=s.heading) for s in sections(version.markdown)],
+            sections=[Section(anchor=s.anchor, heading=s.heading) for s in sections(markdown)],
         )
 
-    async def save(self, node_id: UUID, data: PageSave) -> PageVersionSummary:
-        """A new whole-file version, unless the text is the current one. A stale base refuses, unless `force`."""
+    async def put_text(self, node_id: UUID, data: PageTextPut, idle_seconds: int) -> PageTextSaved:
+        """The working text, saved as the person types; no version. After `idle_seconds` without a change, the
+        session before is cut as a version first. A save from an older revision is refused: its text is kept as a
+        version and the error carries the newest text and revision."""
         node = await self._page(node_id)
-        version = await self._save(node, data.markdown, data.base_version_id, force=data.force)
+        await self._uow.kbs.lock(node.kb_id)
+        latest = await self._uow.page_versions.current(node.id)
+        text = await self._uow.page_drafts.get_by(node_id=node.id)
+        revision = 0 if text is None else text.revision
+        if data.revision != revision:
+            if data.markdown != latest.markdown:
+                await self._add(node, data.markdown)
+            # Committed before raising: the refused text must outlive the rollback the error causes.
+            await self._uow.commit()
+            raise StalePage(
+                f"page {node.id} changed since revision {data.revision}",
+                {"markdown": latest.markdown if text is None else text.markdown, "revision": revision},
+            )
+        now = await self._uow.page_drafts.clock()
+        if text is not None and now - text.updated_at > timedelta(seconds=idle_seconds):
+            latest = await self._cut(node, text, latest)
+        started_at = now if text is None or text.markdown == latest.markdown else text.started_at
+        saved = await self._store(node, data.markdown, latest, revision + 1, started_at)
         await self._uow.commit()
-        return version
+        return PageTextSaved(revision=saved.revision, saved_at=saved.updated_at)
 
-    async def put_draft(self, node_id: UUID, data: DraftPut) -> PageDraftRead:
-        """The page's single draft, replaced on every autosave. Never a version."""
-        node = await self._page(node_id)
-        draft = await self._uow.page_drafts.put(PageDraftCreate(node_id=node.id, **data.model_dump()))
-        await self._uow.commit()
-        return draft
-
-    async def discard_draft(self, node_id: UUID) -> None:
-        node = await self._page(node_id)
-        await self._uow.page_drafts.discard(node.id)
+    async def cut(self, node_id: UUID) -> None:
+        """The working text as a version now, unless it is the newest version's text: when the person leaves."""
+        await self._cut_now(await self._page(node_id))
         await self._uow.commit()
 
     async def versions(self, node_id: UUID) -> list[PageVersionSummary]:
-        """Every version of the page, newest first, without its text. Versions are never updated or deleted."""
+        """Every version of the page, newest first, without its text, the working text cut first. Versions are never
+        updated or deleted."""
         node = await self._page(node_id)
+        await self._cut_now(node)
+        await self._uow.commit()
         return await self._uow.page_versions.history(node.id)
 
     async def diff(self, node_id: UUID, version_id: UUID) -> PageDiff:
@@ -70,11 +89,10 @@ class PageService:
         return PageDiff.model_validate({"lines": line_diff(previous, version.markdown)})
 
     async def restore(self, node_id: UUID, version_id: UUID) -> PageRead:
-        """The old text as a new version on top; the newer versions stay."""
+        """The old text as a new version on top, and as the working text; the newer versions stay."""
         node = await self._page(node_id)
         version = await self._version(node, version_id)
-        latest = await self._uow.page_versions.current(node.id)
-        await self._save(node, version.markdown, latest.id)
+        await self._settle(node, version.markdown, await self._cut_now(node))
         await self._uow.commit()
         return await self.read(node.id)
 
@@ -83,7 +101,8 @@ class PageService:
         await self._add(node, "")
 
     async def fix_links(self, node: NodeRead, new_title: str) -> list[PageVersionRead]:
-        """A new version by the person of every live page whose link resolves to `node`, in the caller's transaction.
+        """A new version by the person, also set as the working text, of every live page whose link resolves to
+        `node`, in the caller's transaction.
 
         Called before the rename, with the base locked: once the title changes, those links no longer resolve to it.
         """
@@ -95,38 +114,51 @@ class PageService:
             if links.resolve([target], candidates, page.parent_id)[target] != node.id:
                 continue
             latest = await self._uow.page_versions.current(page.id)
-            markdown = links.rewrite(latest.markdown, node.title, new_title)
-            if markdown != latest.markdown:
-                fixed.append(await self._add(page, markdown))
+            text = await self._uow.page_drafts.get_by(node_id=page.id)
+            current = latest.markdown if text is None else text.markdown
+            markdown = links.rewrite(current, node.title, new_title)
+            if markdown != current:
+                fixed.append(await self._settle(page, markdown, latest))
         return fixed
 
-    async def _save(
-        self, node: NodeRead, markdown: str, base_version_id: UUID, *, force: bool = False
-    ) -> PageVersionSummary:
+    async def _cut_now(self, node: NodeRead) -> PageVersionRead:
+        """The newest version once the working text is cut, under the base's lock."""
         await self._uow.kbs.lock(node.kb_id)
         latest = await self._uow.page_versions.current(node.id)
-        if markdown == latest.markdown:
-            await self._uow.page_drafts.discard(node.id)
-            return latest
-        if base_version_id != latest.id and not force:
-            base = await self._uow.page_versions.get(base_version_id)
-            raise StalePage(
-                f"page {node.id} changed since version {base_version_id}",
-                {
-                    "current_version_id": str(latest.id),
-                    "markdown": latest.markdown,
-                    "diff": line_diff(base.markdown, latest.markdown),
-                },
-            )
-        await self._uow.page_drafts.discard(node.id)
-        return await self._add(node, markdown)
+        text = await self._uow.page_drafts.get_by(node_id=node.id)
+        return latest if text is None else await self._cut(node, text, latest)
 
-    async def _add(self, node: NodeRead, markdown: str) -> PageVersionRead:
-        """A new version by the person and its links, nothing else: the draft stays, as on a rename's link fix."""
-        data = PageVersionCreate(node_id=node.id, markdown=markdown, author="user")
-        version = await self._uow.page_versions.add(data)
-        await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
+    async def _cut(self, node: NodeRead, text: PageDraftRead, latest: PageVersionRead) -> PageVersionRead:
+        if text.markdown == latest.markdown:
+            return latest
+        return await self._add(node, text.markdown, text.started_at, text.updated_at)
+
+    async def _settle(self, node: NodeRead, markdown: str, latest: PageVersionRead) -> PageVersionRead:
+        """`markdown` as a version, unless it is the newest one's text, and as the working text, bumping its
+        revision so an open editor reloads instead of overwriting it."""
+        version = latest if markdown == latest.markdown else await self._add(node, markdown)
+        text = await self._uow.page_drafts.get_by(node_id=node.id)
+        await self._store(node, markdown, version, (0 if text is None else text.revision) + 1, version.created_at)
         return version
+
+    async def _store(
+        self, node: NodeRead, markdown: str, latest: PageVersionRead, revision: int, started_at: datetime
+    ) -> PageDraftRead:
+        """The working text and its links; the links follow what the person sees, so a rename finds them."""
+        data = PageDraftCreate(
+            node_id=node.id, markdown=markdown, base_version_id=latest.id, revision=revision, started_at=started_at
+        )
+        text = await self._uow.page_drafts.put(data)
+        await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
+        return text
+
+    async def _add(
+        self, node: NodeRead, markdown: str, started_at: datetime | None = None, ended_at: datetime | None = None
+    ) -> PageVersionRead:
+        data = PageVersionCreate(
+            node_id=node.id, markdown=markdown, author="user", edit_started_at=started_at, edit_ended_at=ended_at
+        )
+        return await self._uow.page_versions.add(data)
 
     async def _page(self, node_id: UUID) -> NodeRead:
         node = await self._uow.nodes.live(node_id)
