@@ -3,8 +3,9 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 
 from acervo.pages import links, versions
+from acervo.schemas.node import NodeAdd
+from acervo.services.tree_service import TreeService
 from acervo.store.models import PageLink
-from acervo.tree import nodes
 
 TREE = {
     "Bradesco": {"Residencial": ["Emissão de apólice.md", "Renovação.md", "Sinistro.md"], "Auto": ["Sinistro.md"]},
@@ -39,11 +40,17 @@ async def test_ambiguous_prefers_same_folder(session, make_tree) -> None:
     assert await links.resolve(session, page) == {"sinistro": tree["Bradesco/Residencial/Sinistro.md"].id}
 
 
-async def test_titles_with_repeated_spaces_resolve(session, make_tree) -> None:
+async def test_titles_with_repeated_spaces_resolve(session, make_tree, uow) -> None:
     tree = await make_tree(TREE)
     page = tree["Porto/Vistoria.md"]
-    created = await nodes.create(session, tree.kb.id, tree["Porto"].id, "page", "Tabela  de   prazos")
-    renamed = await nodes.rename(session, tree["Porto/Sinistro.md"].id, "Aviso  de sinistro")
+    async with uow:
+        service = TreeService(uow)
+        created = await service.create(
+            tree.kb.id, NodeAdd(parent_id=tree["Porto"].id, kind="page", title="Tabela  de   prazos")
+        )
+        renamed = await service.rename(tree["Porto/Sinistro.md"].id, "Aviso  de sinistro")
+    # The rename went through the unit of work's session; the test's session still holds the old row.
+    await session.refresh(tree["Porto/Sinistro.md"])
     await _write(session, page, "Ver [[Tabela  de   prazos]] e [[Aviso de  sinistro]].\n")
 
     assert (created.title, renamed.title) == ("Tabela de prazos", "Aviso de sinistro")
