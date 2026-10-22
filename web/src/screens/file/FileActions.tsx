@@ -7,6 +7,9 @@ import { useErrorText } from "../../app/errors";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
+import { Icon } from "../../ui/Icon";
+import { IconButton } from "../../ui/IconButton";
+import { Menu, MenuItem } from "../../ui/Menu";
 import { DownloadLink } from "./DownloadLink";
 import { formatDate, formatSize } from "./format";
 
@@ -24,13 +27,14 @@ function useFileErrorText() {
   };
 }
 
-/** "Substituir arquivo" and "Versões": the file's current content goes to its history, and back. */
-export function FileActions({ node }: { node: NodeDetail }) {
+/** The file's ⋯: "Substituir" sends its current content to the history, "Versões" brings an older one back. */
+export function FileMenu({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
   const replace = useReplaceFile(node.id);
   const errorText = useFileErrorText();
   const [percent, setPercent] = useState(0);
+  const [versionsOpen, setVersionsOpen] = useState(false);
 
   function pick(file: File | undefined) {
     if (!file) return;
@@ -54,16 +58,20 @@ export function FileActions({ node }: { node: NodeDetail }) {
           event.target.value = "";
         }}
       />
-      <Button variant="quiet" size="sm" disabled={replace.isPending} onClick={() => input.current?.click()}>
-        {t("file.replace")}
-      </Button>
-      <Dialog
-        title={t("file.versions.title")}
+      <Menu
         trigger={
-          <Button variant="quiet" size="sm">
-            {t("file.versions")}
-          </Button>
+          <IconButton aria-label={t("file.more")}>
+            <Icon name="more" />
+          </IconButton>
         }
+      >
+        <MenuItem onSelect={() => input.current?.click()}>{t("file.replace.short")}</MenuItem>
+        <MenuItem onSelect={() => setVersionsOpen(true)}>{t("file.versions")}</MenuItem>
+      </Menu>
+      <Dialog
+        open={versionsOpen}
+        onOpenChange={setVersionsOpen}
+        title={t("file.versions.title")}
         footer={
           <DialogClose asChild>
             <Button>{t("file.versions.close")}</Button>
