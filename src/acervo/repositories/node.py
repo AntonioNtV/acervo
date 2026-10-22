@@ -107,16 +107,21 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         return bool(await self._session.scalar(select(Node.deleted_at.is_not(None)).where(Node.id == node_id)))
 
     async def children(self, kb_id: UUID, parent_id: UUID | None) -> list[TreeNode]:
-        """Live children in the person's order, each with whether it is a protected PDF."""
+        """Live children in the person's order, each with whether it is a protected PDF and has live children."""
+        child = Node.__table__.alias("child")
+        has_children = exists().where(child.c.parent_id == Node.id, child.c.deleted_at.is_(None))
         query = (
-            select(Node, func.coalesce(File.protected, False))
+            select(Node, func.coalesce(File.protected, False), has_children)
             .outerjoin(File, File.node_id == Node.id)
             .where(*siblings(kb_id, parent_id))
             .order_by(sort_key(), Node.id)
             .execution_options(populate_existing=True)
         )
         rows = await self._session.execute(query)
-        return [TreeNode(**self._to_read(node).model_dump(), protected=protected) for node, protected in rows]
+        return [
+            TreeNode(**self._to_read(node).model_dump(), protected=protected, has_children=children)
+            for node, protected, children in rows
+        ]
 
     async def ancestors(self, node_id: UUID) -> set[UUID]:
         """The node itself and every node above it."""

@@ -74,6 +74,7 @@ class TreeNode(NodeRead):
     """A node as the tree shows it."""
 
     protected: bool = Field(description="A password-protected PDF; false for anything else.")
+    has_children: bool = Field(description="Something live is under it; false for files.")
 
 
 class NodeWithPath(NodeRead):

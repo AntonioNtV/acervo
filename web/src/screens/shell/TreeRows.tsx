@@ -262,9 +262,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const [drop, setDrop] = useState<Zone | null>(null);
   const folder = node.kind === "folder";
   const page = node.kind === "page";
-  // A page shows a caret only when something is under it, so its children are asked for with the row.
-  const pageChildren = useChildren(kbId, node.id, page).data;
-  const hasCaret = folder || (page && ((pageChildren?.length ?? 0) > 0 || draft?.parentId === node.id));
+  const hasCaret = folder || (page && (node.has_children || draft?.parentId === node.id));
   const open = hasCaret && expanded.has(node.id);
   const selected = node.id === selectedId;
   const name = node.title;

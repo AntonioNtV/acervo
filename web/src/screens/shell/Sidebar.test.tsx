@@ -21,7 +21,7 @@ beforeEach(() => {
     return {
       body: [
         node("bradesco", "folder", "Bradesco"),
-        node("renovacao", "page", "Renovação"),
+        { ...node("renovacao", "page", "Renovação"), has_children: true },
         node("glossario", "page", "Glossário"),
       ],
     };

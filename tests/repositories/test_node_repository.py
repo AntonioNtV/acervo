@@ -54,6 +54,18 @@ async def test_a_page_is_a_valid_parent(nodes: NodeRepository, session: AsyncSes
         await nodes.live_parent(other.kb.id, None)
 
 
+async def test_children_say_whether_something_live_is_under_them(nodes: NodeRepository, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Renovação.md"], "Vazia": None})
+
+    def has(rows: list[Any]) -> dict[str, bool]:
+        return {row.title: row.has_children for row in rows}
+
+    assert has(await nodes.children(tree.kb.id, None)) == {"Bradesco": True, "Vazia": False}
+    assert has(await nodes.children(tree.kb.id, tree["Bradesco"].id)) == {"Renovação": False}
+    await nodes.trash_subtree(tree["Bradesco/Renovação.md"].id)
+    assert has(await nodes.children(tree.kb.id, None))["Bradesco"] is False
+
+
 async def test_last_sort_ignores_trashed_and_other_folders(nodes: NodeRepository, make_tree: MakeTree) -> None:
     tree = await make_tree({"Bradesco": ["A.md", "B.md", "C.md"], "Itaú": None})
     bradesco = tree["Bradesco"].id
