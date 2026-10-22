@@ -276,3 +276,29 @@ async def test_open_a_file_and_a_folder_node(client: httpx.AsyncClient, make_tre
     )
     assert (opened["file"]["mime"], opened["file"]["size"], opened["file"]["pages"]) == ("application/pdf", 11, None)
     assert set(opened["file"]) == {"size", "mime", "pages", "protected", "sha256"}
+
+
+async def test_edit_description_locks_it_and_children_carry_counts(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": {"Residencial": ["A.md", "B.md"]}, "Vazia": None})
+    residencial = tree["Bradesco/Residencial"].id
+
+    edited = await client.patch(f"/v1/nodes/{residencial}", json={"description": "  Produto residencial.  "})
+
+    assert edited.status_code == 200
+    row = await session.get(Node, residencial, populate_existing=True)
+    assert row is not None and (row.description, row.description_locked, row.title) == (
+        "Produto residencial.",
+        True,
+        "Residencial",
+    )
+    top = {node["title"]: node for node in await _children(client, tree.kb.id, None)}
+    assert (top["Bradesco"]["child_count"], top["Vazia"]["child_count"]) == (1, 0)
+    inside = await _children(client, tree.kb.id, tree["Bradesco"].id)
+    assert (inside[0]["child_count"], inside[0]["has_children"], inside[0]["pages"], inside[0]["size"]) == (
+        2,
+        True,
+        None,
+        None,
+    )

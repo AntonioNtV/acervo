@@ -82,5 +82,5 @@ export const nodeFields = {
 };
 
 export function node(id: string, kind: "folder" | "page" | "file", title: string, parent_id: string | null = null) {
-  return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false, has_children: false };
+  return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false, has_children: false, child_count: 0, pages: null, size: null };
 }

@@ -107,11 +107,13 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         return bool(await self._session.scalar(select(Node.deleted_at.is_not(None)).where(Node.id == node_id)))
 
     async def children(self, kb_id: UUID, parent_id: UUID | None) -> list[TreeNode]:
-        """Live children in the person's order, each with whether it is a protected PDF and has live children."""
+        """Live children in the person's order, each with how many live children it has and its file's facts."""
         child = Node.__table__.alias("child")
-        has_children = exists().where(child.c.parent_id == Node.id, child.c.deleted_at.is_(None))
+        child_count = (
+            select(func.count()).where(child.c.parent_id == Node.id, child.c.deleted_at.is_(None)).scalar_subquery()
+        )
         query = (
-            select(Node, func.coalesce(File.protected, False), has_children)
+            select(Node, func.coalesce(File.protected, False), child_count, File.pages, File.size)
             .outerjoin(File, File.node_id == Node.id)
             .where(*siblings(kb_id, parent_id))
             .order_by(sort_key(), Node.id)
@@ -119,8 +121,15 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         )
         rows = await self._session.execute(query)
         return [
-            TreeNode(**self._to_read(node).model_dump(), protected=protected, has_children=children)
-            for node, protected, children in rows
+            TreeNode(
+                **self._to_read(node).model_dump(),
+                protected=protected,
+                has_children=count > 0,
+                child_count=count,
+                pages=pages,
+                size=size,
+            )
+            for node, protected, count, pages, size in rows
         ]
 
     async def ancestors(self, node_id: UUID) -> set[UUID]:

@@ -741,6 +741,38 @@
         "title": "NodeDetail",
         "type": "object"
       },
+      "NodeEdit": {
+        "description": "What the person changes on a node; omitted fields keep their value.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New description; once the person edits it, agents keep it.",
+            "title": "Description"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New title; no live sibling of the same kind may have it.",
+            "title": "Title"
+          }
+        },
+        "title": "NodeEdit",
+        "type": "object"
+      },
       "NodeMove": {
         "description": "Where to put a node.",
         "properties": {
@@ -886,21 +918,6 @@
           "updated_at"
         ],
         "title": "NodeRead",
-        "type": "object"
-      },
-      "NodeRename": {
-        "description": "A new title for a node.",
-        "properties": {
-          "title": {
-            "description": "New title; no live sibling of the same kind may have it already.",
-            "title": "Title",
-            "type": "string"
-          }
-        },
-        "required": [
-          "title"
-        ],
-        "title": "NodeRename",
         "type": "object"
       },
       "NodeWithPath": {
@@ -1354,6 +1371,11 @@
       "TreeNode": {
         "description": "A node as the tree shows it.",
         "properties": {
+          "child_count": {
+            "description": "How many live nodes are right under it.",
+            "title": "Child Count",
+            "type": "integer"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1410,6 +1432,18 @@
             "title": "Kind",
             "type": "string"
           },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A PDF's page count; null for anything else.",
+            "title": "Pages"
+          },
           "parent_id": {
             "anyOf": [
               {
@@ -1427,6 +1461,18 @@
             "description": "A password-protected PDF; false for anything else.",
             "title": "Protected",
             "type": "boolean"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A file's size in bytes; null for folders and pages.",
+            "title": "Size"
           },
           "sort": {
             "description": "Fractional sort key among its siblings.",
@@ -1472,7 +1518,10 @@
           "created_at",
           "updated_at",
           "protected",
-          "has_children"
+          "has_children",
+          "child_count",
+          "pages",
+          "size"
         ],
         "title": "TreeNode",
         "type": "object"
@@ -3001,8 +3050,8 @@
         ]
       },
       "patch": {
-        "description": "Renaming a page also fixes the `[[\u2026]]` links that resolved to it, each as a new version of its page.",
-        "operationId": "rename_node_v1_nodes__node_id__patch",
+        "description": "Renaming a page also fixes the `[[\u2026]]` links that resolved to it; a description the person edits is locked.",
+        "operationId": "edit_node_v1_nodes__node_id__patch",
         "parameters": [
           {
             "in": "path",
@@ -3035,7 +3084,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NodeRename"
+                "$ref": "#/components/schemas/NodeEdit"
               }
             }
           },
@@ -3093,7 +3142,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Rename Node",
+        "summary": "Edit Node",
         "tags": [
           "nodes"
         ]

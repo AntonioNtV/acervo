@@ -7,6 +7,7 @@ from acervo.schemas.file import FileResponse
 from acervo.schemas.node import (
     NodeAdd,
     NodeCreate,
+    NodeEdit,
     NodeKind,
     NodeMove,
     NodeRead,
@@ -65,6 +66,18 @@ class TreeService:
         if node.kind == "page":
             await self._pages.create(node)
         await self._uow.commit()
+        return node
+
+    async def edit(self, node_id: UUID, data: NodeEdit) -> NodeRead:
+        """The person's change of title and/or description; their description is locked against agents."""
+        node = await self._uow.nodes.live(node_id)
+        if data.title is not None:
+            node = await self.rename(node_id, data.title)
+        if data.description is not None:
+            node = await self._uow.nodes.update(
+                node_id, NodeUpdate(description=data.description.strip(), description_locked=True)
+            )
+            await self._uow.commit()
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:

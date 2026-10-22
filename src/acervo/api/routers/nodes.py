@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 
 from acervo.api.deps import get_tree_service, require_api_key
 from acervo.schemas.common import ErrorResponse
-from acervo.schemas.node import NodeAdd, NodeMove, NodeRead, NodeRename, NodeWithPath, RestoredNode, TreeNode
+from acervo.schemas.node import NodeAdd, NodeEdit, NodeMove, NodeRead, NodeWithPath, RestoredNode, TreeNode
 from acervo.schemas.page import NodeDetail
 from acervo.services.tree_service import TreeService
 
@@ -46,9 +46,9 @@ async def get_node(node_id: UUID, service: Service) -> NodeDetail:
 
 
 @router.patch("/nodes/{node_id}", response_model=NodeRead, responses={404: ERROR, 409: ERROR})
-async def rename_node(node_id: UUID, body: NodeRename, service: Service) -> NodeRead:
-    """Renaming a page also fixes the `[[…]]` links that resolved to it, each as a new version of its page."""
-    return await service.rename(node_id, body.title)
+async def edit_node(node_id: UUID, body: NodeEdit, service: Service) -> NodeRead:
+    """Renaming a page also fixes the `[[…]]` links that resolved to it; a description the person edits is locked."""
+    return await service.edit(node_id, body)
 
 
 @router.post("/nodes/{node_id}/move", response_model=NodeRead, responses={404: ERROR, 409: ERROR})

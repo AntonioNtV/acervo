@@ -60,6 +60,15 @@ export function useRenameNode() {
   });
 }
 
+export function useDescribeNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, description }: { nodeId: string; description: string }) =>
+      call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body: { description } })),
+    onSuccess: () => refreshTree(queryClient),
+  });
+}
+
 export function useMoveNode() {
   const queryClient = useQueryClient();
   return useMutation({

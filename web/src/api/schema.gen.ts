@@ -295,10 +295,10 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename Node
-         * @description Renaming a page also fixes the `[[…]]` links that resolved to it, each as a new version of its page.
+         * Edit Node
+         * @description Renaming a page also fixes the `[[…]]` links that resolved to it; a description the person edits is locked.
          */
-        patch: operations["rename_node_v1_nodes__node_id__patch"];
+        patch: operations["edit_node_v1_nodes__node_id__patch"];
         trace?: never;
     };
     "/v1/nodes/{node_id}/file": {
@@ -945,6 +945,22 @@ export interface components {
             versions: number;
         };
         /**
+         * NodeEdit
+         * @description What the person changes on a node; omitted fields keep their value.
+         */
+        NodeEdit: {
+            /**
+             * Description
+             * @description New description; once the person edits it, agents keep it.
+             */
+            description?: string | null;
+            /**
+             * Title
+             * @description New title; no live sibling of the same kind may have it.
+             */
+            title?: string | null;
+        };
+        /**
          * NodeMove
          * @description Where to put a node.
          */
@@ -1030,17 +1046,6 @@ export interface components {
              * @description When the node last changed.
              */
             updated_at: string;
-        };
-        /**
-         * NodeRename
-         * @description A new title for a node.
-         */
-        NodeRename: {
-            /**
-             * Title
-             * @description New title; no live sibling of the same kind may have it already.
-             */
-            title: string;
         };
         /**
          * NodeWithPath
@@ -1334,6 +1339,11 @@ export interface components {
          */
         TreeNode: {
             /**
+             * Child Count
+             * @description How many live nodes are right under it.
+             */
+            child_count: number;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1378,6 +1388,11 @@ export interface components {
              */
             kind: "folder" | "page" | "file";
             /**
+             * Pages
+             * @description A PDF's page count; null for anything else.
+             */
+            pages: number | null;
+            /**
              * Parent Id
              * @description Folder that holds the node; null for the base's root.
              */
@@ -1387,6 +1402,11 @@ export interface components {
              * @description A password-protected PDF; false for anything else.
              */
             protected: boolean;
+            /**
+             * Size
+             * @description A file's size in bytes; null for folders and pages.
+             */
+            size: number | null;
             /**
              * Sort
              * @description Fractional sort key among its siblings.
@@ -2327,7 +2347,7 @@ export interface operations {
             };
         };
     };
-    rename_node_v1_nodes__node_id__patch: {
+    edit_node_v1_nodes__node_id__patch: {
         parameters: {
             query?: never;
             header?: {
@@ -2340,7 +2360,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["NodeRename"];
+                "application/json": components["schemas"]["NodeEdit"];
             };
         };
         responses: {

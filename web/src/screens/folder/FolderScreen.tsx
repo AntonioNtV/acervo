@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { NodeDetail, TreeNode } from "../../api/client";
 import { useKbs } from "../../data/kbs";
-import { useChildren, useCreateNode, useNode, useRenameNode } from "../../data/tree";
+import { useChildren, useCreateNode, useDescribeNode, useRenameNode } from "../../data/tree";
 import { locale, useI18n, type Lang } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -109,7 +109,11 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
           <Icon name="folder" size={34} className="stroke-[1.3]" />
         </div>
         {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
-        {description && <p className="m-0 mt-1.5 text-15 leading-6 text-text-2">{description}</p>}
+        {folder ? (
+          <Description node={folder} />
+        ) : (
+          description && <p className="m-0 mt-1.5 text-15 leading-6 text-text-2">{description}</p>
+        )}
 
         <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
           <TextTabs
@@ -180,6 +184,57 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
 const titleClass = "m-0 mt-4 text-[40px] leading-[48px] font-medium tracking-[-0.025em] break-words";
 
 /** The folder's name, renamed in place: Enter or leaving the field saves, Esc gives up. */
+/** The folder's description, edited in place; the person's text is locked against agents. */
+function Description({ node }: { node: NodeDetail }) {
+  const { t } = useI18n();
+  const describe = useDescribeNode();
+  const errorText = useTreeErrorText();
+  const [draft, setDraft] = useState<string | null>(null);
+
+  function commit() {
+    const description = draft?.trim() ?? "";
+    if (draft === null || description === (node.description ?? "")) return setDraft(null);
+    describe.mutate({ nodeId: node.id, description }, { onSuccess: () => setDraft(null) });
+  }
+
+  if (draft === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          describe.reset();
+          setDraft(node.description ?? "");
+        }}
+        className={cx(
+          "mt-1.5 block cursor-text border-0 bg-transparent p-0 text-left font-[inherit] text-15 leading-6",
+          node.description ? "text-text-2" : "text-ghost",
+        )}
+      >
+        {node.description || t("folder.describe")}
+      </button>
+    );
+  }
+  return (
+    <>
+      <input
+        autoFocus
+        aria-label={t("folder.describe")}
+        value={draft}
+        maxLength={200}
+        disabled={describe.isPending}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") commit();
+          if (event.key === "Escape") setDraft(null);
+        }}
+        className="mt-1.5 block w-full border-0 bg-transparent p-0 font-[inherit] text-15 leading-6 text-text-2 outline-none"
+      />
+      {describe.isError && <p className="m-0 mt-1 text-12 text-err">{errorText(describe.error)}</p>}
+    </>
+  );
+}
+
 function Title({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
   const rename = useRenameNode();
@@ -243,7 +298,7 @@ function Row({ kbId, node }: { kbId: string; node: TreeNode }) {
       </span>
       <span className="text-13 whitespace-nowrap text-text-3 max-sm:hidden">{edited(node.updated_at, lang)}</span>
       <span className="text-13 whitespace-nowrap text-text-3 max-sm:hidden">
-        {node.kind === "file" ? <FileHolds nodeId={node.id} /> : <Holds kbId={kbId} node={node} />}
+        {node.kind === "file" ? <FileHolds node={node} /> : <Holds node={node} />}
       </span>
       <span aria-hidden="true" className="text-13 text-text-3">
         ›
@@ -253,19 +308,17 @@ function Row({ kbId, node }: { kbId: string; node: TreeNode }) {
 }
 
 /** How many live things a folder or page holds, or a dash. */
-function Holds({ kbId, node }: { kbId: string; node: TreeNode }) {
+function Holds({ node }: { node: TreeNode }) {
   const { t } = useI18n();
-  const children = useChildren(kbId, node.id, node.has_children);
-  const n = node.has_children ? children.data?.length : 0;
+  const n = node.child_count;
   if (!n) return <>—</>;
   return <>{t(n === 1 ? "folder.items.one" : "folder.items.other", { n })}</>;
 }
 
 /** A PDF's page count; any other file's size. */
-function FileHolds({ nodeId }: { nodeId: string }) {
+function FileHolds({ node }: { node: TreeNode }) {
   const { t, lang } = useI18n();
-  const file = useNode(nodeId).data?.file;
-  if (!file) return <>—</>;
-  if (file.pages) return <>{t(file.pages === 1 ? "folder.pages.one" : "folder.pages.other", { n: file.pages })}</>;
-  return <>{formatSize(file.size, lang)}</>;
+  if (node.pages) return <>{t(node.pages === 1 ? "folder.pages.one" : "folder.pages.other", { n: node.pages })}</>;
+  if (node.size === null) return <>—</>;
+  return <>{formatSize(node.size, lang)}</>;
 }

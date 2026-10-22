@@ -39,27 +39,13 @@ beforeEach(() => {
   FakeXhr.sent = [];
   vi.stubGlobal("XMLHttpRequest", FakeXhr);
   respond("GET", "/v1/nodes/residencial", { body: folder });
-  respond("GET", "/v1/kbs/kb-1/children", (url) => {
-    const parent = url.searchParams.get("parent_id");
-    if (parent === "renovacao")
-      return { body: [node("docs", "page", "Documentos", "renovacao"), node("t", "file", "Tabela.pdf", "renovacao")] };
-    return {
-      body: [
-        node("emissao", "page", "Emissão de apólice", "residencial"),
-        { ...node("renovacao", "page", "Renovação", "residencial"), has_children: true },
-        node("auto", "folder", "Auto", "residencial"),
-        node("cg", "file", "Condições Gerais 2026.pdf", "residencial"),
-      ],
-    };
-  });
-  respond("GET", "/v1/nodes/cg", {
-    body: {
-      ...node("cg", "file", "Condições Gerais 2026.pdf", "residencial"),
-      path: "Residencial/Condições Gerais 2026.pdf",
-      page: null,
-      file: { size: 2_200_000, mime: "application/pdf", pages: 182, protected: false, sha256: "abc" },
-      versions: 1,
-    },
+  respond("GET", "/v1/kbs/kb-1/children", {
+    body: [
+      node("emissao", "page", "Emissão de apólice", "residencial"),
+      { ...node("renovacao", "page", "Renovação", "residencial"), has_children: true, child_count: 2 },
+      node("auto", "folder", "Auto", "residencial"),
+      { ...node("cg", "file", "Condições Gerais 2026.pdf", "residencial"), pages: 182, size: 2_200_000 },
+    ],
   });
 });
 
@@ -119,6 +105,20 @@ describe("FolderScreen", () => {
 
     await waitFor(() =>
       expect(calls.find((call) => call.method === "PATCH")?.body).toEqual({ title: "Residencial Plus" }),
+    );
+  });
+
+  it("edits the description in place", async () => {
+    respond("PATCH", "/v1/nodes/residencial", { body: { ...folder, description: "Emissão e renovação." } });
+    renderFolder();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Produto residencial do Bradesco." }));
+    const input = screen.getByRole("textbox", { name: "Adicionar uma descrição" });
+    await userEvent.clear(input);
+    await userEvent.type(input, "Emissão e renovação.{Enter}");
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === "PATCH")?.body).toEqual({ description: "Emissão e renovação." }),
     );
   });
 });
