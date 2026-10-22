@@ -1,0 +1,13 @@
+name: setup-pnpm
+description: pnpm and Node 24 with the pnpm store cached on web/pnpm-lock.yaml.
+runs:
+  using: composite
+  steps:
+    - uses: pnpm/action-setup@v4
+      with:
+        package_json_file: web/package.json
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: pnpm
+        cache-dependency-path: web/pnpm-lock.yaml
