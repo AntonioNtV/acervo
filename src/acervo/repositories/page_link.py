@@ -15,7 +15,7 @@ class PageLinkRepository(BaseRepository[PageLink, PageLinkRead, PageLinkCreate, 
     read_schema = PageLinkRead
 
     async def replace(self, kb_id: UUID, node_id: UUID, targets: set[str]) -> None:
-        """The page's rows, rewritten from the targets of its newest version."""
+        """The page's rows, rewritten from the targets of its current text (working text, else newest version)."""
         await self._session.execute(delete(PageLink).where(PageLink.from_node_id == node_id))
         await self.create_many([PageLinkCreate(kb_id=kb_id, from_node_id=node_id, target=t) for t in targets])
 
