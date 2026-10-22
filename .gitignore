@@ -1,0 +1,22 @@
+# feature-flow working files
+.work/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+python/evals/results/
+
+# web
+node_modules/
+web/dist/
+
+# env
+.env
+.env.*
+!.env.example
+
+# os
+.DS_Store
