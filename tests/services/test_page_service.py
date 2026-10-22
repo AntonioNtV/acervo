@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -5,12 +6,15 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from acervo.core.errors import StalePage
-from acervo.db.models import PageLink
+from acervo.core.settings import Settings
+from acervo.db.models import Kb, Node, PageDraft, PageLink, PageVersion
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
 from acervo.schemas.page import DraftPut, PageSave, PageVersionSummary
 from acervo.services.page_service import PageService
@@ -256,3 +260,48 @@ async def test_link_table_follows_the_latest_version(
 
     await _write(services.pages, page.id, "Só [[Emissão de apólice]]\n")
     assert await rows() == {"emissão de apólice"}
+
+
+@pytest.fixture
+async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], UUID]]:
+    """A page written by sessions on connections of their own that commit, as parallel requests do; removed after."""
+    engine = create_async_engine(test_settings.database_url, poolclass=NullPool)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with UnitOfWork(sessions) as uow:
+        kb = await uow.kbs.create(KbCreate(name="Edições em paralelo"))
+        await uow.commit()
+        page = await TreeService(uow).create(kb.id, NodeAdd(kind="page", title="Prazos"))
+    yield sessions, page.id
+    async with sessions() as session:
+        of_base = select(Node.id).where(Node.kb_id == kb.id)
+        await session.execute(delete(PageLink).where(PageLink.from_node_id.in_(of_base)))
+        await session.execute(delete(PageDraft).where(PageDraft.node_id.in_(of_base)))
+        await session.execute(delete(PageVersion).where(PageVersion.node_id.in_(of_base)))
+        await session.execute(delete(Node).where(Node.kb_id == kb.id))
+        await session.execute(delete(Kb).where(Kb.id == kb.id))
+        await session.commit()
+    await engine.dispose()
+
+
+async def _save_committed(
+    sessions: async_sessionmaker[AsyncSession], node_id: UUID, base: UUID, markdown: str
+) -> PageVersionSummary:
+    async with UnitOfWork(sessions) as uow:
+        return await PageService(uow).save(node_id, PageSave(markdown=markdown, base_version_id=base))
+
+
+async def test_concurrent_saves_from_one_version_give_one_stale_page(
+    committed_page: tuple[async_sessionmaker[AsyncSession], UUID],
+) -> None:
+    sessions, node_id = committed_page
+    async with UnitOfWork(sessions) as uow:
+        base = (await PageService(uow).read(node_id)).version_id
+
+    results = await asyncio.gather(
+        *(_save_committed(sessions, node_id, base, f"# Prazos\n{name}\n") for name in ("Ana", "Bruno")),
+        return_exceptions=True,
+    )
+
+    assert sorted(isinstance(result, StalePage) for result in results) == [False, True]
+    async with UnitOfWork(sessions) as uow:
+        assert len(await PageService(uow).versions(node_id)) == 2

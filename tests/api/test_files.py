@@ -1,4 +1,5 @@
 import hashlib
+import time
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
@@ -6,8 +7,10 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from acervo.core import signing
 from acervo.core.settings import Settings
 from acervo.repositories.kb import KbRepository
 from acervo.schemas.kb import KbUpdate
@@ -160,3 +163,61 @@ async def test_file_routes_without_the_key_are_401(client: httpx.AsyncClient, ma
     ]
 
     assert [(response.status_code, response.json()["error"]) for response in responses] == [(401, "unauthorized")] * 3
+
+
+async def _link(client: httpx.AsyncClient, node_id: str, version_id: str | None = None) -> str:
+    params = {"version_id": version_id} if version_id else {}
+    response = await client.post(f"/v1/files/{node_id}/link", params=params)
+    assert response.status_code == 200, response.text
+    url: str = response.json()["url"]
+    return url
+
+
+async def test_link_downloads_without_the_header(
+    client: httpx.AsyncClient, make_tree: MakeTree, test_settings: Settings
+) -> None:
+    kb_id, folder = await _folder(make_tree)
+    node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
+    with PROTECTED.open("rb") as source:
+        await client.post(f"/v1/nodes/{node_id}/file", files={"file": ("novo.pdf", source)})
+    [old] = (await client.get(f"/v1/files/{node_id}/versions")).json()
+
+    current, older = await _link(client, node_id), await _link(client, node_id, old["id"])
+    del client.headers["X-API-Key"]
+
+    assert test_settings.api_key.get_secret_value() not in current + older
+    assert (await client.get(current)).content == PROTECTED.read_bytes()
+    assert (await client.get(older)).content == SIMPLE.read_bytes()
+    ranged = await client.get(current, headers={"Range": "bytes=0-9"})
+    assert (ranged.status_code, ranged.content) == (206, PROTECTED.read_bytes()[:10])
+
+
+async def test_expired_or_foreign_link_is_401(
+    client: httpx.AsyncClient, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    kb_id, folder = await _folder(make_tree)
+    node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
+    other_id = (await _upload(client, kb_id, folder, PROTECTED, "Outro.pdf")).json()["id"]
+    link = httpx.URL(await _link(client, node_id))
+    del client.headers["X-API-Key"]
+
+    foreign = link.copy_with(path=f"/v1/files/{other_id}/raw")
+    tampered = link.copy_merge_params({"signature": "0" * 64})
+    later = time.time() + signing.LINK_SECONDS + 1
+    monkeypatch.setattr(time, "time", lambda: later)
+    responses = [await client.get(url) for url in (link, foreign, tampered)]
+
+    assert [(response.status_code, response.json()["error"]) for response in responses] == [(401, "unauthorized")] * 3
+
+
+async def test_file_response_has_no_internal_fields(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    kb_id, folder = await _folder(make_tree)
+    uploaded = (await _upload(client, kb_id, folder, SIMPLE)).json()
+    with PROTECTED.open("rb") as source:
+        replaced = (await client.post(f"/v1/nodes/{uploaded['id']}/file", files={"file": ("novo.pdf", source)})).json()
+    [old] = (await client.get(f"/v1/files/{uploaded['id']}/versions")).json()
+
+    public = {"size", "mime", "pages", "protected", "sha256"}
+    assert set(uploaded["file"]) == set(replaced["file"]) == public
+    assert set(old) == public | {"id", "replaced_at"}
+    assert old["sha256"] == hashlib.sha256(SIMPLE.read_bytes()).hexdigest()

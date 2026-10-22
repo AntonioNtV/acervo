@@ -84,6 +84,7 @@ class TreeService:
         """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None."""
         nodes = self._uow.nodes
         node = await nodes.live(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         await nodes.live_folder(node.kb_id, data.parent_id)
         if data.parent_id is not None and node.id in await nodes.ancestors(data.parent_id):
             raise ValidationError(
@@ -121,6 +122,7 @@ class TreeService:
     async def restore(self, node_id: UUID) -> RestoredNode:
         nodes = self._uow.nodes
         node = await nodes.trashed_root(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         to_root = node.parent_id is not None and await nodes.is_trashed(node.parent_id)
         parent_id = None if to_root else node.parent_id
         await self._ensure_title_free(node.kb_id, parent_id, node.kind, node.title)

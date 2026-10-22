@@ -1,11 +1,13 @@
 from typing import Annotated
 
 import httpx
+import pydantic
 import pytest
 from fastapi import APIRouter, Depends, FastAPI, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from acervo.api.deps import require_api_key
+from acervo.api.main import create_app
 from acervo.core.errors import (
     AcervoError,
     AuthError,
@@ -18,6 +20,7 @@ from acervo.core.errors import (
     TitleTaken,
     ValidationError,
 )
+from acervo.core.settings import Settings
 
 ERRORS: dict[str, type[AcervoError]] = {
     error.code: error
@@ -112,3 +115,8 @@ async def test_route_without_the_right_key_is_401(client: httpx.AsyncClient, hea
         "message": "Missing or invalid X-API-Key header.",
         "details": {},
     }
+
+
+def test_empty_api_key_is_refused_at_startup() -> None:
+    with pytest.raises(pydantic.ValidationError, match="API_KEY cannot be empty"):
+        create_app(Settings(_env_file=None, api_key=SecretStr("")))  # type: ignore[call-arg]

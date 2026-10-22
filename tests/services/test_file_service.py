@@ -287,7 +287,7 @@ async def test_storage_round_trip_holds_one_part_in_memory(storage: Settings, tm
             target.write(chunk)
     bucket = Storage(storage)
     # Loads the client's service model first, which is held once whatever the size of the file.
-    await bucket.delete("kb/round-trip/big")
+    await bucket.put("kb/round-trip/small", io.BytesIO(b"small"), 5)
 
     tracemalloc.start()
     with path.open("rb") as source:

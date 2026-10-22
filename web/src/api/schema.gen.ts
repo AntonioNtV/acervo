@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v1/files/{node_id}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File Link
+         * @description A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.
+         */
+        post: operations["file_link_v1_files__node_id__link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/files/{node_id}/raw": {
         parameters: {
             query?: never;
@@ -14,6 +34,8 @@ export interface paths {
         /**
          * Raw File
          * @description The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.
+         *
+         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.
          */
         get: operations["raw_file_v1_files__node_id__raw_get"];
         put?: never;
@@ -501,6 +523,23 @@ export interface components {
             message: string;
         };
         /**
+         * FileLink
+         * @description A short-lived URL of a file's bytes that needs no X-API-Key header.
+         */
+        FileLink: {
+            /**
+             * Expires At
+             * Format: date-time
+             * @description When the link stops working.
+             */
+            expires_at: string;
+            /**
+             * Url
+             * @description The raw route with `expires` and `signature` query parameters.
+             */
+            url: string;
+        };
+        /**
          * FileNodeRead
          * @description A file node with its path and current content.
          */
@@ -527,7 +566,7 @@ export interface components {
              */
             description_locked: boolean;
             /** @description The current content. */
-            file: components["schemas"]["FileRead"];
+            file: components["schemas"]["FileResponse"];
             /**
              * Id
              * Format: uuid
@@ -666,15 +705,41 @@ export interface components {
             updated_at: string;
         };
         /**
-         * FileVersionRead
+         * FileResponse
+         * @description What the API shows of a stored content of a file. Metadata only, never its text.
+         */
+        FileResponse: {
+            /**
+             * Mime
+             * @description The media type; application/octet-stream when unknown.
+             */
+            mime: string;
+            /**
+             * Pages
+             * @description A PDF's page count; null for other files or a broken PDF.
+             */
+            pages: number | null;
+            /**
+             * Protected
+             * @description A PDF that needs a password to open.
+             */
+            protected: boolean;
+            /**
+             * Sha256
+             * @description The content's hash.
+             */
+            sha256: string;
+            /**
+             * Size
+             * @description In bytes.
+             */
+            size: number;
+        };
+        /**
+         * FileVersionResponse
          * @description A content a file node had before its current one.
          */
-        FileVersionRead: {
-            /**
-             * Doc Type
-             * @description What kind of document it is, once known.
-             */
-            doc_type: string | null;
+        FileVersionResponse: {
             /**
              * Id
              * Format: uuid
@@ -682,28 +747,10 @@ export interface components {
              */
             id: string;
             /**
-             * Map
-             * @description A PDF's section map, once built.
-             */
-            map: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Map Origin
-             * @description Where the map came from.
-             */
-            map_origin: ("bookmarks" | "toc" | "generated") | null;
-            /**
              * Mime
              * @description The media type; application/octet-stream when unknown.
              */
             mime: string;
-            /**
-             * Node Id
-             * Format: uuid
-             * @description File node the content belonged to.
-             */
-            node_id: string;
             /**
              * Pages
              * @description A PDF's page count; null for other files or a broken PDF.
@@ -721,11 +768,6 @@ export interface components {
              */
             replaced_at: string;
             /**
-             * Sensitive
-             * @description Whether the content is sensitive.
-             */
-            sensitive: boolean;
-            /**
              * Sha256
              * @description The content's hash.
              */
@@ -735,11 +777,6 @@ export interface components {
              * @description In bytes.
              */
             size: number;
-            /**
-             * Storage Key
-             * @description Key of the bytes in the bucket.
-             */
-            storage_key: string;
         };
         /**
          * HealthResponse
@@ -1451,10 +1488,65 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    file_link_v1_files__node_id__link_post: {
+        parameters: {
+            query?: {
+                version_id?: string | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     raw_file_v1_files__node_id__raw_get: {
         parameters: {
             query?: {
                 version_id?: string | null;
+                expires?: number | null;
+                signature?: string | null;
             };
             header?: {
                 range?: string | null;
@@ -1540,7 +1632,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FileVersionRead"][];
+                    "application/json": components["schemas"]["FileVersionResponse"][];
                 };
             };
             /** @description Unauthorized */

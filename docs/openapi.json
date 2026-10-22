@@ -117,6 +117,28 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "FileLink": {
+        "description": "A short-lived URL of a file's bytes that needs no X-API-Key header.",
+        "properties": {
+          "expires_at": {
+            "description": "When the link stops working.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "url": {
+            "description": "The raw route with `expires` and `signature` query parameters.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "expires_at"
+        ],
+        "title": "FileLink",
+        "type": "object"
+      },
       "FileNodeRead": {
         "description": "A file node with its path and current content.",
         "properties": {
@@ -150,7 +172,7 @@
             "type": "boolean"
           },
           "file": {
-            "$ref": "#/components/schemas/FileRead",
+            "$ref": "#/components/schemas/FileResponse",
             "description": "The current content."
           },
           "id": {
@@ -379,66 +401,64 @@
         "title": "FileRead",
         "type": "object"
       },
-      "FileVersionRead": {
-        "description": "A content a file node had before its current one.",
+      "FileResponse": {
+        "description": "What the API shows of a stored content of a file. Metadata only, never its text.",
         "properties": {
-          "doc_type": {
+          "mime": {
+            "description": "The media type; application/octet-stream when unknown.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "pages": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "description": "What kind of document it is, once known.",
-            "title": "Doc Type"
+            "description": "A PDF's page count; null for other files or a broken PDF.",
+            "title": "Pages"
           },
+          "protected": {
+            "description": "A PDF that needs a password to open.",
+            "title": "Protected",
+            "type": "boolean"
+          },
+          "sha256": {
+            "description": "The content's hash.",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "size": {
+            "description": "In bytes.",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "size",
+          "mime",
+          "pages",
+          "protected",
+          "sha256"
+        ],
+        "title": "FileResponse",
+        "type": "object"
+      },
+      "FileVersionResponse": {
+        "description": "A content a file node had before its current one.",
+        "properties": {
           "id": {
             "description": "Version ID.",
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
-          "map": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "A PDF's section map, once built.",
-            "title": "Map"
-          },
-          "map_origin": {
-            "anyOf": [
-              {
-                "enum": [
-                  "bookmarks",
-                  "toc",
-                  "generated"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Where the map came from.",
-            "title": "Map Origin"
-          },
           "mime": {
             "description": "The media type; application/octet-stream when unknown.",
             "title": "Mime",
-            "type": "string"
-          },
-          "node_id": {
-            "description": "File node the content belonged to.",
-            "format": "uuid",
-            "title": "Node Id",
             "type": "string"
           },
           "pages": {
@@ -464,11 +484,6 @@
             "title": "Replaced At",
             "type": "string"
           },
-          "sensitive": {
-            "description": "Whether the content is sensitive.",
-            "title": "Sensitive",
-            "type": "boolean"
-          },
           "sha256": {
             "description": "The content's hash.",
             "title": "Sha256",
@@ -478,29 +493,18 @@
             "description": "In bytes.",
             "title": "Size",
             "type": "integer"
-          },
-          "storage_key": {
-            "description": "Key of the bytes in the bucket.",
-            "title": "Storage Key",
-            "type": "string"
           }
         },
         "required": [
-          "storage_key",
-          "sha256",
           "size",
           "mime",
           "pages",
           "protected",
-          "doc_type",
-          "sensitive",
-          "map",
-          "map_origin",
+          "sha256",
           "id",
-          "node_id",
           "replaced_at"
         ],
-        "title": "FileVersionRead",
+        "title": "FileVersionResponse",
         "type": "object"
       },
       "HealthResponse": {
@@ -1613,9 +1617,106 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/files/{node_id}/link": {
+      "post": {
+        "description": "A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.",
+        "operationId": "file_link_v1_files__node_id__link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "File Link",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/v1/files/{node_id}/raw": {
       "get": {
-        "description": "The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.",
+        "description": "The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.",
         "operationId": "raw_file_v1_files__node_id__raw_get",
         "parameters": [
           {
@@ -1643,6 +1744,38 @@
                 }
               ],
               "title": "Version Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expires",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires"
+            }
+          },
+          {
+            "in": "query",
+            "name": "signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Signature"
             }
           },
           {
@@ -1768,7 +1901,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/FileVersionRead"
+                    "$ref": "#/components/schemas/FileVersionResponse"
                   },
                   "title": "Response List File Versions V1 Files  Node Id  Versions Get",
                   "type": "array"
