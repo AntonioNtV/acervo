@@ -9,7 +9,7 @@ export type TreeNode = Schemas["TreeNode"];
 export type NodeDetail = Schemas["NodeDetail"];
 export type NodeWithPath = Schemas["NodeWithPath"];
 export type PageVersion = Schemas["PageVersionSummary"];
-export type FileVersion = Schemas["FileVersionRead"];
+export type FileVersion = Schemas["FileVersionResponse"];
 export type DiffLine = Schemas["DiffLine"];
 
 /** The `details` of a `stale_page` error. */

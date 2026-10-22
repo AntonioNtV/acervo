@@ -1,5 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { api, apiHeaders } from "../api/client";
 import type { paths } from "../api/schema.gen";
 import { call, refreshContent } from "./request";
@@ -11,46 +10,39 @@ export function rawFileSource(nodeId: string): { url: string; httpHeaders: Recor
   return { url: RAW.replace("{node_id}", encodeURIComponent(nodeId)), httpHeaders: apiHeaders };
 }
 
-function fetchRaw(nodeId: string, versionId?: string): Promise<Blob> {
-  return call(
-    api.GET(RAW, {
+/** A link that opens the bytes without the key for 60 s; only its path and query, so it goes through the same origin. */
+async function fileLink(nodeId: string, versionId?: string): Promise<string> {
+  const { url } = await call(
+    api.POST("/v1/files/{node_id}/link", {
       params: { path: { node_id: nodeId }, query: versionId ? { version_id: versionId } : {} },
-      parseAs: "blob",
     }),
   );
+  const signed = new URL(url);
+  return signed.pathname + signed.search;
 }
 
-/** A blob URL of the original file, for an `<img>`, which cannot send the key; null until it has arrived. */
+/** A signed link for an `<img>`, which cannot send the key; a new one when the content changes. */
 export function useRawFileUrl(nodeId: string, sha256: string | undefined) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    let made: string | null = null;
-    fetchRaw(nodeId).then(
-      (blob) => {
-        if (!live) return;
-        made = URL.createObjectURL(blob);
-        setUrl(made);
-      },
-      () => {},
-    );
-    return () => {
-      live = false;
-      if (made) URL.revokeObjectURL(made);
-    };
-  }, [nodeId, sha256]);
-  return url;
+  return useQuery({
+    queryKey: ["link", nodeId, sha256],
+    queryFn: () => fileLink(nodeId),
+    // The link expires in 60 s: never refetched while shown, never reused after.
+    staleTime: Infinity,
+    gcTime: 0,
+  });
 }
 
-/** "Baixar": fetches the bytes with the key and saves them under `filename`. */
-export async function downloadFile(nodeId: string, filename: string, versionId?: string) {
-  const url = URL.createObjectURL(await fetchRaw(nodeId, versionId));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  // Revoking in the same task can cancel the download in some browsers.
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+/** "Baixar": the browser streams the signed link to disk under `filename`. */
+export function useDownloadFile(nodeId: string, filename: string) {
+  return useMutation({
+    mutationFn: (versionId?: string) => fileLink(nodeId, versionId),
+    onSuccess: (href) => {
+      const link = document.createElement("a");
+      link.href = href;
+      link.download = filename;
+      link.click();
+    },
+  });
 }
 
 /** A file's older contents (its current one is the node), newest first. */

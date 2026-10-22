@@ -17,8 +17,16 @@ class FakeXhr {
   response: unknown = null;
   responseType = "";
   form?: FormData;
-  open() {}
-  setRequestHeader() {}
+  method = "";
+  path = "";
+  headers: Record<string, string> = {};
+  open(method: string, path: string) {
+    this.method = method;
+    this.path = path;
+  }
+  setRequestHeader(name: string, value: string) {
+    this.headers[name] = value;
+  }
   send(form: FormData) {
     this.form = form;
     FakeXhr.sent.push(this);
@@ -62,6 +70,9 @@ describe("Upload", () => {
     await userEvent.upload(screen.getByLabelText("Enviar arquivos"), files("Nova.pdf", "Condições Gerais 2026.pdf"));
 
     const [first, second] = FakeXhr.sent as [FakeXhr, FakeXhr];
+    expect(first.method).toBe("POST");
+    expect(first.path).toBe("/v1/kbs/kb-1/files");
+    expect(first.headers["X-API-Key"]).toBe("test-key");
     expect(first.form?.get("parent_id")).toBe("residencial");
     first.upload.onprogress?.({ loaded: 40, total: 100 });
     second.upload.onprogress?.({ loaded: 90, total: 100 });
