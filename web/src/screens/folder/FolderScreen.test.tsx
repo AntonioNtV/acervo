@@ -56,42 +56,38 @@ function renderFolder() {
 }
 
 describe("FolderScreen", () => {
-  it("counts its children by kind and filters them", async () => {
+  it("lists its children as links with what they hold", async () => {
     renderFolder();
 
-    expect(await screen.findByRole("button", { name: "Tudo 4" })).toBeInTheDocument();
-    expect(screen.getByText("Produto residencial do Bradesco.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Páginas 2" })).toBeInTheDocument();
+    expect(await screen.findByText("Produto residencial do Bradesco.")).toBeInTheDocument();
     const list = screen.getByRole("list");
-    const renovacao = within(list).getByRole("link", { name: /Renovação/ });
-    expect(await within(renovacao).findByText("2 itens")).toBeInTheDocument();
-    const cg = within(list).getByRole("link", { name: /Condições Gerais 2026/ });
-    expect(await within(cg).findByText("182 páginas")).toBeInTheDocument();
-    expect(cg).toHaveAttribute("href", "/kbs/kb-1/n/cg");
-
-    await userEvent.click(screen.getByRole("button", { name: "Arquivos 1" }));
-    expect(within(list).getAllByRole("link")).toHaveLength(1);
-
-    await userEvent.click(screen.getByRole("button", { name: "Páginas 2" }));
+    expect((await within(list).findAllByRole("link")).map((link) => link.getAttribute("href"))).toEqual([
+      "/kbs/kb-1/n/emissao",
+      "/kbs/kb-1/n/renovacao",
+      "/kbs/kb-1/n/auto",
+      "/kbs/kb-1/n/cg",
+    ]);
+    expect(within(within(list).getByRole("link", { name: /Renovação/ })).getByText("2 itens")).toBeInTheDocument();
     expect(
-      within(list)
-        .getAllByRole("link")
-        .map((link) => link.getAttribute("href")),
-    ).toEqual(["/kbs/kb-1/n/emissao", "/kbs/kb-1/n/renovacao"]);
+      within(within(list).getByRole("link", { name: /Condições Gerais 2026/ })).getByText("182 páginas"),
+    ).toBeInTheDocument();
   });
 
   it("uploads files dropped on it into the folder", async () => {
     renderFolder();
-    const zone = await screen.findByText("Solte arquivos aqui para guardar em Residencial");
+    const title = await screen.findByRole("heading", { name: "Residencial" });
     const files = [new File(["%PDF"], "Nova.pdf", { type: "application/pdf" })];
 
-    fireEvent.drop(zone, { dataTransfer: { files, types: ["Files"] } });
+    fireEvent.dragOver(title, { dataTransfer: { files, types: ["Files"] } });
+    expect(screen.getByText("Solte arquivos aqui para guardar em Residencial")).toBeInTheDocument();
+    fireEvent.drop(title, { dataTransfer: { files, types: ["Files"] } });
 
     await waitFor(() => expect(FakeXhr.sent).toHaveLength(1));
     const [sent] = FakeXhr.sent as [FakeXhr];
     expect(sent.path).toBe("/v1/kbs/kb-1/files");
     expect(sent.form?.get("parent_id")).toBe("residencial");
     expect((sent.form?.get("file") as File).name).toBe("Nova.pdf");
+    expect(screen.queryByText("Solte arquivos aqui para guardar em Residencial")).not.toBeInTheDocument();
   });
 
   it("renames the folder in place", async () => {
