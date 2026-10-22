@@ -20,12 +20,30 @@ string lives in the web app outside the generated client.
 
 | Method and path | Does |
 |---|---|
-| `GET /kbs` · `POST /kbs` | list, create bases |
-| `GET /kbs/{kb_id}/tree` | the node tree with descriptions |
-| `GET /nodes/{node_id}` · `PUT /nodes/{node_id}` | read a page or a PDF's metadata; save a page edit |
-| `GET /nodes/{node_id}/versions` | page or file history |
-| `GET /files/{node_id}/raw` | the original PDF bytes |
-| `POST /kbs/{kb_id}/files` | upload a PDF to staging; starts intake |
+| `GET /kbs?q=` · `POST /kbs` · `PATCH /kbs/{kb_id}` | list (with counts and last edit), create, rename or describe bases |
+| `DELETE /kbs/{kb_id}` · `GET /trash/kbs` · `POST /kbs/{kb_id}/restore` | a base to the global trash and back |
+| `GET /kbs/{kb_id}/children?parent_id=` | one folder's children in the person's order; files carry `protected` |
+| `GET /kbs/{kb_id}/search?q=` | the person's name search, with each hit's path |
+| `GET /kbs/{kb_id}/trash` | the base's trashed items, with where they were |
+| `POST /kbs/{kb_id}/nodes` | a folder or a page; a page gets its first version |
+| `PATCH /nodes/{node_id}` | rename; a page rename fixes the `[[…]]` links to it |
+| `POST /nodes/{node_id}/move` | to a folder, before a sibling or last |
+| `DELETE /nodes/{node_id}` · `POST /nodes/{node_id}/restore` | to the trash with its subtree, and back (`to_root`) |
+| `GET /nodes/{node_id}` | a page's Markdown, version, draft, resolved links and sections; a file's metadata; the path |
+| `PUT /nodes/{node_id}` | save a page version; a stale base is 409 with the current text and the diff, unless `force` |
+| `PUT /nodes/{node_id}/draft` · `DELETE /nodes/{node_id}/draft` | the page's autosaved draft |
+| `GET /nodes/{node_id}/versions` | a page's versions; a file's older contents |
+| `GET /nodes/{node_id}/versions/{version_id}/diff` | a page version against the one before it |
+| `POST /nodes/{node_id}/versions/{version_id}/restore` | an old page version or file content as the current one |
+| `POST /kbs/{kb_id}/files` | multipart `file` and `parent_id`: a file into a folder; a duplicate is 409 with its path |
+| `POST /nodes/{node_id}/file` | replace a file; the current content goes to its history |
+| `GET /files/{node_id}/raw?version_id=` | the original bytes, one `Range` honored, under the original file name |
+
+From F2:
+
+| Method and path | Does |
+|---|---|
+| `POST /kbs/{kb_id}/files` | becomes the upload to staging that starts intake |
 | `POST /kbs/{kb_id}/chat` | a message in Capturar or Perguntar; progress and answer come by websocket |
 | `GET /kbs/{kb_id}/proposals` | with `status` |
 | `POST /proposals/{id}/accept` | optional edited payload |
