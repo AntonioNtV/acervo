@@ -1,6 +1,6 @@
 ---
 name: creating-migrations
-description: How to change Acervo's tables - SQLAlchemy model, repository and an Alembic migration reviewed by hand. Use for any change to python/src/acervo/store/models.py.
+description: How to change Acervo's tables - SQLAlchemy model, repository and an Alembic migration reviewed by hand. Use for any change to src/acervo/store/models.py.
 ---
 
 # Creating migrations
@@ -44,7 +44,7 @@ same migration; do not add it piecemeal.
 ## Check
 
 ```bash
-cd python
+# from the repository root
 uv run pytest tests/store
 uv run acervo db upgrade --url postgresql://acervo:acervo@localhost:55433/<scratch db>
 ```

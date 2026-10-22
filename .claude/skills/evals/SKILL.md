@@ -18,7 +18,7 @@ options are described or a threshold is not done until its eval ran before and a
 Start with 50 real messages and 30 real PDFs from the person's own work; synthetic cases only fill gaps.
 
 ```bash
-cd python
+# from the repository root
 uv run acervo evals run placement --decider jev
 uv run acervo evals run placement --decider llm      # same cases, LLM fallback
 uv run acervo evals run qa

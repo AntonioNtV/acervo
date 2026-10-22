@@ -44,7 +44,7 @@ relaunch a new agent on the same worktree (a finished agent resumed with `SendMe
 1. Check what really changed, not the report: `git log --stat feat/<slug>..card/NN-<slug>`. A file outside the
    card's list goes back to the agent.
 2. `git merge --no-ff card/NN-<slug>` on the feature branch.
-3. Checks on the integrated code, from `python/`:
+3. Checks on the integrated code, from the repository root:
    ```bash
    uv run ruff check && uv run ruff format --check
    uv run pytest tests/<card areas>

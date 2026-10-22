@@ -5,11 +5,11 @@ description: Where each concept of Acervo lives and which way imports go. Use to
 
 # Repo structure
 
-Two apps: `python/` (the API, the agents and the jobs, package `acervo`) and `web/` (the React app, skill `web-app`).
+Two apps: the Python project at the root (the API, the agents and the jobs, package `acervo`) and `web/` (the React app, skill `web-app`).
 The Python package is laid out by concept, one level deep. A concept owns its models, its logic and its storage
 access; there are no layers (no controller → service → repository chain).
 
-| Folder / file in `python/src/acervo/` | Owns | Start reading at |
+| Folder / file in `src/acervo/` | Owns | Start reading at |
 |---|---|---|
 | `config.py` | settings and `Thresholds` (every cut-off a probability is compared to) | `config.py` |
 | `errors.py` | every error with its HTTP status | `errors.py` |
@@ -26,7 +26,7 @@ access; there are no layers (no controller → service → repository chain).
 | `api/` | FastAPI app, routes, request/response models, the websocket | `api/app.py`, `api/routes.py` |
 | `cli.py` | `acervo db upgrade`, `acervo worker`, `acervo contract schemas`, `acervo evals …` | |
 
-`python/tests/` mirrors these folders. `python/evals/` holds the golden sets (skill `evals`).
+`tests/` mirrors these folders. `evals/` holds the golden sets (skill `evals`).
 
 ## Where new code goes
 
@@ -57,9 +57,9 @@ A type two tiers share lives in the lower one.
 
 ```bash
 docker compose up -d     # Postgres :55433, Redis :56379, MinIO :59000 (PDF storage)
-cd python && uv sync
+uv sync
 uv run acervo db upgrade
 uv run uvicorn acervo.api.app:app --reload
 uv run acervo worker
-cd ../web && pnpm install && pnpm dev
+cd web && pnpm install && pnpm dev
 ```

@@ -1,6 +1,6 @@
 ---
 name: testing
-description: How Acervo's Python tests are written and run - real Postgres and MinIO, the fake Decider and Writer, PDF fixtures and what to test. Use when writing or running a test in python/tests/.
+description: How Acervo's Python tests are written and run - real Postgres and MinIO, the fake Decider and Writer, PDF fixtures and what to test. Use when writing or running a test in tests/.
 ---
 
 # Testing
@@ -9,7 +9,7 @@ The web app's tests are in skill `web-app`. Quality of placement and answers is 
 
 ```bash
 docker compose up -d
-cd python
+# from the repository root
 uv run pytest
 uv run pytest tests/curator -k conflict
 ```

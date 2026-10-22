@@ -9,14 +9,11 @@ on:
 jobs:
   python:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       # Not minio-bucket: --wait fails on a container that exits, and the tests create their own bucket.
-      - run: docker compose -f ../docker-compose.yml up -d --wait postgres minio
+      - run: docker compose up -d --wait postgres minio
       - run: uv sync --locked
       - run: uv run ruff check
       - run: uv run ruff format --check

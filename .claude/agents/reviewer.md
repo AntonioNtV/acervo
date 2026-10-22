@@ -32,7 +32,7 @@ Style, refactoring, extra tests and error handling for cases that do not happen 
 
 ## Checks you may run
 
-From `python/`: `uv run ruff check`, `uv run ruff format --check`, `uv run lint-imports`, `uv run pytest <area>`.
+From the repository root: `uv run ruff check`, `uv run ruff format --check`, `uv run lint-imports`, `uv run pytest <area>`.
 For `web/`, the checks of skill `web-app`.
 
 ## Output
@@ -40,7 +40,7 @@ For `web/`, the checks of skill `web-app`.
 A list, most severe first:
 
 ```
-[high|medium] python/src/acervo/path.py:123 — <the problem>
+[high|medium] src/acervo/path.py:123 — <the problem>
   scenario: <concrete input or state → wrong result>
   affects: <card NN / spec criterion / CLAUDE.md rule>
 ```

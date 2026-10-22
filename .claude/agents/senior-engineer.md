@@ -42,7 +42,7 @@ only in `config.Thresholds`; every decision logged. If the card seems to need br
 
 ## Checks
 
-Before returning DONE, from `python/` in your worktree:
+Before returning DONE, from the repository root in your worktree:
 
 ```bash
 uv run ruff check && uv run ruff format --check
