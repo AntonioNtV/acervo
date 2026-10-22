@@ -31,7 +31,9 @@ function Page({ kbId, node, page }: { kbId: string; node: NodeDetail; page: NonN
   const [historyOpen, setHistoryOpen] = useState(false);
   const [draftSettled, setDraftSettled] = useState(false);
   const [resumes, setResumes] = useState(0);
-  const draft = draftSettled ? null : page.draft;
+  // Only a draft found on opening is offered: the autosave writes a draft too, and a refetch would show it back.
+  const [openingDraft] = useState(page.draft);
+  const draft = draftSettled ? null : openingDraft;
   const editing = useEditing(node.id, page, draft !== null);
   const versions = useVersions(node.id);
   const now = useNow(editing.savedAt !== null);

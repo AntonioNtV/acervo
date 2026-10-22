@@ -75,6 +75,30 @@ describe("PageView", () => {
     );
   });
 
+  it("the person's own autosaved draft is not offered back after a refetch", async () => {
+    respond("GET", "/nodes/page-1", { body: pageNode() });
+    const { queryClient } = renderPage();
+    await startEditing();
+    await act(() => vi.advanceTimersByTimeAsync(2100));
+    await waitFor(() => expect(puts("/nodes/page-1/draft")).toHaveLength(1));
+
+    respond("GET", "/nodes/page-1", {
+      body: pageNode({
+        draft: { markdown: "## Documentos\n- Boleto no portal\n", base_version_id: "v2", updated_at: "2026-10-22T12:00:00Z" },
+      }),
+    });
+    const gets = () => calls.filter((call) => call.method === "GET" && call.path === "/nodes/page-1").length;
+    const before = gets();
+    await act(() => queryClient.invalidateQueries());
+    await waitFor(() => expect(gets()).toBe(before + 1));
+    await act(() => vi.advanceTimersByTimeAsync(50));
+
+    expect(screen.queryByText("Continuar rascunho")).not.toBeInTheDocument();
+    typeInSource("- Segunda via\n");
+    await act(() => vi.advanceTimersByTimeAsync(2100));
+    await waitFor(() => expect(puts("/nodes/page-1/draft")).toHaveLength(2));
+  });
+
   it("leaving with changes saves a version", async () => {
     respond("GET", "/nodes/page-1", { body: pageNode() });
     const { unmount } = renderPage();
