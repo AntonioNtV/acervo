@@ -270,137 +270,6 @@
         "title": "FileNodeRead",
         "type": "object"
       },
-      "FileRead": {
-        "description": "The current content of a file node.",
-        "properties": {
-          "created_at": {
-            "description": "When the file was first stored.",
-            "format": "date-time",
-            "title": "Created At",
-            "type": "string"
-          },
-          "doc_type": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "What kind of document it is, once known.",
-            "title": "Doc Type"
-          },
-          "id": {
-            "description": "File ID.",
-            "format": "uuid",
-            "title": "Id",
-            "type": "string"
-          },
-          "map": {
-            "anyOf": [
-              {
-                "additionalProperties": true,
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "A PDF's section map, once built.",
-            "title": "Map"
-          },
-          "map_origin": {
-            "anyOf": [
-              {
-                "enum": [
-                  "bookmarks",
-                  "toc",
-                  "generated"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Where the map came from.",
-            "title": "Map Origin"
-          },
-          "mime": {
-            "description": "The media type; application/octet-stream when unknown.",
-            "title": "Mime",
-            "type": "string"
-          },
-          "node_id": {
-            "description": "File node the content belongs to.",
-            "format": "uuid",
-            "title": "Node Id",
-            "type": "string"
-          },
-          "pages": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "A PDF's page count; null for other files or a broken PDF.",
-            "title": "Pages"
-          },
-          "protected": {
-            "description": "A PDF that needs a password to open.",
-            "title": "Protected",
-            "type": "boolean"
-          },
-          "sensitive": {
-            "description": "Whether the content is sensitive.",
-            "title": "Sensitive",
-            "type": "boolean"
-          },
-          "sha256": {
-            "description": "The content's hash.",
-            "title": "Sha256",
-            "type": "string"
-          },
-          "size": {
-            "description": "In bytes.",
-            "title": "Size",
-            "type": "integer"
-          },
-          "storage_key": {
-            "description": "Key of the bytes in the bucket.",
-            "title": "Storage Key",
-            "type": "string"
-          },
-          "updated_at": {
-            "description": "When the current content was set.",
-            "format": "date-time",
-            "title": "Updated At",
-            "type": "string"
-          }
-        },
-        "required": [
-          "storage_key",
-          "sha256",
-          "size",
-          "mime",
-          "pages",
-          "protected",
-          "doc_type",
-          "sensitive",
-          "map",
-          "map_origin",
-          "id",
-          "node_id",
-          "created_at",
-          "updated_at"
-        ],
-        "title": "FileRead",
-        "type": "object"
-      },
       "FileResponse": {
         "description": "What the API shows of a stored content of a file. Metadata only, never its text.",
         "properties": {
@@ -779,7 +648,7 @@
           "file": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/FileRead"
+                "$ref": "#/components/schemas/FileResponse"
               },
               {
                 "type": "null"

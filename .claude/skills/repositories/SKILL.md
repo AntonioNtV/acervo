@@ -14,14 +14,14 @@ Exemplar: `repositories/node.py`.
 
 | Method | Behavior |
 |---|---|
-| `get(id)` / `get_or_none(id)` | `NotFoundError` / `None` when missing |
+| `get(id)` | `NotFoundError` when missing |
 | `get_by(**filters)` | equality on columns |
-| `list(filters, order_by=("-created_at", "-id"), limit, offset)` | `-col` is descending |
-| `paginate(PageParams, filters)` | `Paginated[ReadT]` with `total` |
-| `count`, `exists` | |
+| `count(filters)` | |
 | `create(data, **extra)`, `create_many(items)` | flush to get ids; no commit |
 | `update(id, data)` | only the fields set on `data`; an empty update emits no SQL |
-| `delete(id)` | |
+
+Only what a caller uses is there; add a generic method (pdflab's `list`, `paginate`, `exists`, `delete`) with its
+first caller.
 
 Rules: no `commit` inside a repository; an unknown filter or order column → `ValidationError`; `IntegrityError` on
 a unique constraint → `ConflictError` naming the constraint in `details`. Rows are always live unless the query

@@ -231,3 +231,4 @@ async def test_open_a_file_and_a_folder_node(client: httpx.AsyncClient, make_tre
         2,
     )
     assert (opened["file"]["mime"], opened["file"]["size"], opened["file"]["pages"]) == ("application/pdf", 11, None)
+    assert set(opened["file"]) == {"size", "mime", "pages", "protected", "sha256"}

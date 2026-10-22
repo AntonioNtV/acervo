@@ -623,88 +623,6 @@ export interface components {
             versions: number;
         };
         /**
-         * FileRead
-         * @description The current content of a file node.
-         */
-        FileRead: {
-            /**
-             * Created At
-             * Format: date-time
-             * @description When the file was first stored.
-             */
-            created_at: string;
-            /**
-             * Doc Type
-             * @description What kind of document it is, once known.
-             */
-            doc_type: string | null;
-            /**
-             * Id
-             * Format: uuid
-             * @description File ID.
-             */
-            id: string;
-            /**
-             * Map
-             * @description A PDF's section map, once built.
-             */
-            map: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Map Origin
-             * @description Where the map came from.
-             */
-            map_origin: ("bookmarks" | "toc" | "generated") | null;
-            /**
-             * Mime
-             * @description The media type; application/octet-stream when unknown.
-             */
-            mime: string;
-            /**
-             * Node Id
-             * Format: uuid
-             * @description File node the content belongs to.
-             */
-            node_id: string;
-            /**
-             * Pages
-             * @description A PDF's page count; null for other files or a broken PDF.
-             */
-            pages: number | null;
-            /**
-             * Protected
-             * @description A PDF that needs a password to open.
-             */
-            protected: boolean;
-            /**
-             * Sensitive
-             * @description Whether the content is sensitive.
-             */
-            sensitive: boolean;
-            /**
-             * Sha256
-             * @description The content's hash.
-             */
-            sha256: string;
-            /**
-             * Size
-             * @description In bytes.
-             */
-            size: number;
-            /**
-             * Storage Key
-             * @description Key of the bytes in the bucket.
-             */
-            storage_key: string;
-            /**
-             * Updated At
-             * Format: date-time
-             * @description When the current content was set.
-             */
-            updated_at: string;
-        };
-        /**
          * FileResponse
          * @description What the API shows of a stored content of a file. Metadata only, never its text.
          */
@@ -967,7 +885,7 @@ export interface components {
              */
             description_locked: boolean;
             /** @description Set for a file. */
-            file: components["schemas"]["FileRead"] | null;
+            file: components["schemas"]["FileResponse"] | null;
             /**
              * Id
              * Format: uuid

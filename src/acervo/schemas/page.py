@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from acervo.schemas.file import FileRead
+from acervo.schemas.file import FileResponse
 from acervo.schemas.node import NodeRead
 
 Author = Literal["user", "agent"]
@@ -122,5 +122,5 @@ class NodeDetail(NodeRead):
 
     path: str = Field(description="Titles from the base's root down to the node, joined by /.")
     page: PageRead | None = Field(description="Set for a page.")
-    file: FileRead | None = Field(description="Set for a file.")
+    file: FileResponse | None = Field(description="Set for a file.")
     versions: int = Field(description="How many versions it has, the current one included; 0 for a folder.")

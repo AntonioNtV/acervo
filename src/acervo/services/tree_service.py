@@ -3,7 +3,7 @@ from uuid import UUID
 from acervo.core.errors import TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.file import FileRead
+from acervo.schemas.file import FileResponse
 from acervo.schemas.node import (
     NodeAdd,
     NodeCreate,
@@ -38,13 +38,13 @@ class TreeService:
         """The live node with its path and, for a page, its text; for a file, its current content."""
         node = await self._uow.nodes.live(node_id)
         page: PageRead | None = None
-        file: FileRead | None = None
+        file: FileResponse | None = None
         versions = 0
         if node.kind == "page":
             page = await self._pages.read(node.id)
             versions = await self._uow.page_versions.count({"node_id": node.id})
         elif node.kind == "file":
-            file = await self._uow.files.of_node(node.id)
+            file = FileResponse.model_validate(await self._uow.files.of_node(node.id), from_attributes=True)
             versions = await self._uow.file_versions.count({"node_id": node.id}) + 1
         path = await self._uow.nodes.path(node.id)
         return NodeDetail(**node.model_dump(), path=path, page=page, file=file, versions=versions)
