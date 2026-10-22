@@ -3,7 +3,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { NodeDetail } from "../api/client";
 import { NodeView } from "../app/NodeView";
-import { calls, filePart, nodeFields, renderInBase, resetApi, respond } from "../api/testing";
+import { calls, nodeFields, renderInBase, resetApi, respond } from "../api/testing";
 import { openPdf, type OnPassword } from "./pdfjs";
 
 vi.mock("../api/client", () => import("../api/testing").then((m) => m.mockClient()));
@@ -22,7 +22,7 @@ const node: NodeDetail = {
   deleted_at: null,
   path: "Contrato.pdf",
   page: null,
-  file: filePart(NODE_ID, { size: 1000, mime: "application/pdf", pages: null, protected: true, sha256: "abc" }),
+  file: { size: 1000, mime: "application/pdf", pages: null, protected: true, sha256: "abc" },
   versions: 1,
 };
 

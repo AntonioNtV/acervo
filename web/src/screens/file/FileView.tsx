@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { NodeDetail } from "../../api/client";
+import { useErrorText } from "../../app/errors";
 import { useRawFileUrl } from "../../data/files";
 import { useI18n } from "../../i18n";
 import { FileHeader } from "./FileHeader";
@@ -30,12 +32,28 @@ export function FileView({ node }: { node: NodeDetail }) {
 }
 
 function ImageView({ node }: { node: NodeDetail }) {
-  const src = useRawFileUrl(node.id, node.file?.sha256);
+  const { t } = useI18n();
+  const errorText = useErrorText();
+  const link = useRawFileUrl(node.id, node.file?.sha256);
+  const [failed, setFailed] = useState<string | null>(null);
   return (
     <>
       <FileHeader node={node} />
       <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        {src && <img src={src} alt={node.title} className="block max-h-full max-w-full object-contain" />}
+        {link.isError ? (
+          <p className="m-0 text-err">{errorText(link.error)}</p>
+        ) : link.data && failed === link.data ? (
+          <p className="m-0 text-err">{t("file.error.image")}</p>
+        ) : (
+          link.data && (
+            <img
+              src={link.data}
+              alt={node.title}
+              onError={() => setFailed(link.data)}
+              className="block max-h-full max-w-full object-contain"
+            />
+          )
+        )}
       </div>
     </>
   );

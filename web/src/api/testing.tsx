@@ -84,19 +84,3 @@ export const nodeFields = {
 export function node(id: string, kind: "folder" | "page" | "file", title: string, parent_id: string | null = null) {
   return { ...nodeFields, id, kb_id: "kb-1", parent_id, kind, title, deleted_at: null, protected: false };
 }
-
-/** A node's file part; `fields` sets what a test looks at. */
-export function filePart(nodeId: string, fields: { size: number; mime: string; pages: number | null; protected: boolean; sha256: string }) {
-  return {
-    ...fields,
-    id: `file-${nodeId}`,
-    node_id: nodeId,
-    storage_key: `files/${fields.sha256}`,
-    doc_type: null,
-    sensitive: false,
-    map: null,
-    map_origin: null,
-    created_at: nodeFields.created_at,
-    updated_at: nodeFields.updated_at,
-  };
-}
