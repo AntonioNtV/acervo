@@ -32,3 +32,4 @@ def test_a_tampered_signature_or_expiry_does_not() -> None:
     assert not verify(SECRET, NODE, None, EXPIRES, signature[:-1] + ("0" if signature[-1] != "0" else "1"), NOW)
     assert not verify(SECRET, NODE, None, EXPIRES + 3600, signature, NOW)
     assert not verify("another-key", NODE, None, EXPIRES, signature, NOW)
+    assert not verify(SECRET, NODE, None, EXPIRES, "é", NOW)
