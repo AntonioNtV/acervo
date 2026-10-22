@@ -1,21 +1,3 @@
-import pytest
-from httpx import ASGITransport, AsyncClient
-
-from acervo.api.app import app
-from acervo.store.db import get_session
-
-
-@pytest.fixture
-async def client(session):
-    async def same_session():
-        yield session
-
-    app.dependency_overrides[get_session] = same_session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        yield client
-    app.dependency_overrides.clear()
-
-
 async def _kb(client) -> str:
     return (await client.post("/kbs", json={"name": "Seguros · Operação"})).json()["id"]
 
@@ -96,3 +78,11 @@ async def test_title_clash_is_409(client) -> None:
         assert response.status_code == 409
         assert (response.json()["error"], response.json()["message"]) == ("ConflictError", "já existe")
     assert await _titles(client, kb_id) == ["Bradesco", "Porto"]
+
+
+async def test_malformed_id_is_error_response(client) -> None:
+    response = await client.get("/nodes/not-an-id")
+
+    assert response.status_code == 400
+    assert response.json()["error"] == "ValidationError"
+    assert response.json()["message"]

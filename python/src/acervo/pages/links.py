@@ -56,18 +56,24 @@ async def resolve(session: AsyncSession, node: Node) -> dict[str, Resolved]:
     return resolved
 
 
-async def fix_links(session: AsyncSession, kb_id: uuid.UUID, old_title: str, new_title: str) -> list[PageVersion]:
-    """A new version by the person of every live page linking to `old_title`, found through `page_link` only."""
+async def fix_links(session: AsyncSession, node: Node, new_title: str) -> list[PageVersion]:
+    """A new version by the person of every live page whose link resolves to `node`, found through `page_link`.
+
+    Called before the rename: once the title changes, those links no longer resolve to `node`.
+    """
+    target = normalize(node.title)
     linking = await session.scalars(
         select(Node)
         .join(PageLink, PageLink.from_node_id == Node.id)
-        .where(PageLink.kb_id == kb_id, PageLink.target == normalize(old_title), Node.deleted_at.is_(None))
+        .where(PageLink.kb_id == node.kb_id, PageLink.target == target, Node.deleted_at.is_(None))
     )
-    pattern = re.compile(r"\[\[\s*" + r"\s+".join(map(re.escape, old_title.split())) + r"\s*\]\]", re.IGNORECASE)
+    pattern = re.compile(r"\[\[\s*" + r"\s+".join(map(re.escape, node.title.split())) + r"\s*\]\]", re.IGNORECASE)
     fixed: list[PageVersion] = []
-    for node in list(linking):
-        latest = await versions.current(session, node.id)
+    for page in list(linking):
+        if (await resolve(session, page)).get(target) != node.id:
+            continue
+        latest = await versions.current(session, page.id)
         markdown = pattern.sub(lambda _: f"[[{new_title}]]", latest.markdown)
         if markdown != latest.markdown:
-            fixed.append(await versions.add(session, node, markdown, "user"))
+            fixed.append(await versions.add(session, page, markdown, "user"))
     return fixed

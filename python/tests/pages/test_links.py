@@ -45,7 +45,7 @@ async def test_rename_fixes_linking_pages_as_new_versions(session, make_tree) ->
     await _write(session, vistoria, "Depois da [[Renovação]].\n")
     unrelated = await _write(session, tree["Porto/Sinistro.md"], "Renovação não é link aqui.\n")
 
-    fixed = await links.fix_links(session, tree.kb.id, "Renovação", "Renovação anual")
+    fixed = await links.fix_links(session, tree["Bradesco/Residencial/Renovação.md"], "Renovação anual")
 
     assert {v.node_id for v in fixed} == {emission.id, vistoria.id}
     assert {v.author for v in fixed} == {"user"}
@@ -55,6 +55,26 @@ async def test_rename_fixes_linking_pages_as_new_versions(session, make_tree) ->
     assert (await versions.current(session, vistoria.id)).markdown == "Depois da [[Renovação anual]].\n"
     assert len(await versions.history(session, emission.id)) == 3
     assert (await versions.current(session, unrelated.node_id)).id == unrelated.id
+
+
+async def test_rename_fixes_only_links_to_that_page(session, make_tree) -> None:
+    tree = await make_tree(
+        {
+            "Bradesco": {"Residencial": ["Renovação.md", "Emissão de apólice.md"], "Auto": ["Sinistro.md"]},
+            "Porto": ["Renovação.md", "Vistoria.md"],
+        }
+    )
+    renewal = tree["Bradesco/Residencial/Renovação.md"]
+    emission = await _write(session, tree["Bradesco/Residencial/Emissão de apólice.md"], "Ver [[Renovação]].\n")
+    other = await _write(session, tree["Porto/Vistoria.md"], "Ver [[Renovação]].\n")
+    ambiguous = await _write(session, tree["Bradesco/Auto/Sinistro.md"], "Ver [[Renovação]].\n")
+
+    fixed = await links.fix_links(session, renewal, "Renovação anual")
+
+    assert [v.node_id for v in fixed] == [emission.node_id]
+    assert (await versions.current(session, emission.node_id)).markdown == "Ver [[Renovação anual]].\n"
+    assert (await versions.current(session, other.node_id)).id == other.id
+    assert (await versions.current(session, ambiguous.node_id)).id == ambiguous.id
 
 
 async def test_link_table_follows_the_latest_version(session, make_tree) -> None:
