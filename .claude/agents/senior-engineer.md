@@ -14,16 +14,18 @@ the code already there.
 ## Before writing
 
 Read the whole card, the spec (context, not scope), `CLAUDE.md` and the exemplar file the card names. Load the
-skill for what you touch (`jev-decisions`, `llm-calls`, `curator-agent`, `navigator-agent`, `pdf-files`,
-`markdown-pages`, `proposals`, `creating-migrations`, `http-contract`, `web-app`, `ui-design`). Read the neighboring
+skill for what you touch (`http-api`, `repositories`, `creating-migrations`, `jev-decisions`, `llm-calls`,
+`curator-agent`, `navigator-agent`, `pdf-files`, `markdown-pages`, `proposals`, `ui-design`, `ui-web`). Read the neighboring
 code: yours should look written by the same person.
 
 Work in ponytail full: the smallest diff that delivers the card, reusing what the code has.
 
 ## The rules of `CLAUDE.md`
 
-A PDF stays a PDF; no chunks, embeddings or vector store; nothing written without an accepted proposal; thresholds
-only in `config.Thresholds`; every decision logged. If the card seems to need breaking one, return BLOCKED.
+The layers of skill `repo-structure`; Pydantic across every boundary, ORM objects only in `repositories/`; a PDF
+stays a PDF; no chunks, embeddings or vector store; nothing written without an accepted proposal; thresholds only
+in `Thresholds`; every decision logged; every table change with its migration. If the card seems to need breaking
+one, return BLOCKED.
 
 ## Limits
 
@@ -34,7 +36,7 @@ only in `config.Thresholds`; every decision logged. If the card seems to need br
 - **Decisions.** Variable names, private methods and internal order are yours. Anything that changes behavior and
   that the card and spec do not cover is the engineer's: return BLOCKED with the question and your recommendation.
 - **Jev and the LLM.** Never call them from tests; use `FakeDecider` and `FakeWriter`. Never invent Jev's wire
-  format: only `decide/jev.py` knows it, and only from the docs the engineer gave.
+  format: only `model_clients/jev.py` knows it, and only from the docs the engineer gave.
 - **Tests.** Exactly the card's. If the card says "none", none.
 - **Comments and documents.** A comment only for the why the code does not show; no new markdown.
 - **Git.** Commit on your worktree's branch, Conventional Commits (`feat(<area>): <what the card delivers>`). Never
@@ -45,12 +47,12 @@ only in `config.Thresholds`; every decision logged. If the card seems to need br
 Before returning DONE, from the repository root in your worktree:
 
 ```bash
-uv run ruff check && uv run ruff format --check
-uv run lint-imports
-uv run pytest <the card's tests> <the areas the card touches>
+make lint                                   # ruff check, ruff format --check, mypy strict
+uv run pytest tests/unit/test_layering.py <the card's tests> <the areas the card touches>
 ```
 
-A card in `web/` runs the checks of skill `web-app` instead. Each pytest session gets its own database and bucket,
+A card that changes a table also runs `uv run pytest tests/migrations`; the last card of a feature runs `make test`
+for the coverage floor. A card in `web/` runs `make web-check` (skill `ui-web`) instead. Each pytest session gets its own database and bucket,
 so your run does not collide with other worktrees. A test failing for a reason outside your card goes in the
 report, not in your diff.
 

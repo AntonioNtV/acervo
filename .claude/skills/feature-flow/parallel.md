@@ -46,10 +46,10 @@ relaunch a new agent on the same worktree (a finished agent resumed with `SendMe
 2. `git merge --no-ff card/NN-<slug>` on the feature branch.
 3. Checks on the integrated code, from the repository root:
    ```bash
-   uv run ruff check && uv run ruff format --check
-   uv run pytest tests/<card areas>
+   make lint
+   uv run pytest tests/<card areas> tests/unit/test_layering.py
    ```
-   A card in `web/`: the checks of skill `web-app`. A card that changes a decision: its eval (skill `evals`).
+   A card in `web/`: the checks of skill `ui-web`. A card that changes a decision: its eval (skill `evals`).
 4. Failed: send the output to a new agent on the same worktree. A one-line fix you make yourself.
 5. Green: card `status: done`, `branch: <name>`; `git worktree remove ../acervo-worktrees/card-NN` and
    `git branch -d card/NN-<slug>`.

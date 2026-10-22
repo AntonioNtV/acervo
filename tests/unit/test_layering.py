@@ -9,9 +9,6 @@ PACKAGE = SRC / "acervo"
 
 LAYERS = {"core", "domain", "schemas", "db", "repositories", "services", "pipeline", "model_clients", "api", "worker"}
 
-# The concept packages of the old layout, skipped until cards 03-05 move them into the layers and delete them.
-LEGACY = {"tree", "pages", "pdfs", "store"}
-
 # Layers each layer must not import: nothing upward, plus the skill's explicit rules.
 FORBIDDEN_LAYERS = {
     "core": LAYERS - {"core"},
@@ -87,15 +84,3 @@ def test_no_import_against_the_layers() -> None:
                 violations.append(f"{path.relative_to(SRC)} ({layer}) imports {name}")
 
     assert not violations, "\n".join(sorted(set(violations)))
-
-
-def test_no_layer_imports_the_legacy_packages() -> None:
-    violations = {
-        f"{path.relative_to(SRC)} imports {name}"
-        for path in _modules()
-        if _layer_of_module(path) is not None
-        for name in _imports(path)
-        if _package_of_import(name) in LEGACY
-    }
-
-    assert not violations, "\n".join(sorted(violations))

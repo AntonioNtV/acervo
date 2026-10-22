@@ -10,12 +10,14 @@ file. A base exports as a plain folder: pages as `.md`, PDFs as the original fil
 
 | Piece | File |
 |---|---|
-| versions | `pages/versions.py` (`page_version`: whole Markdown, author `user` or `agent`, `proposal_id`) |
-| drafts | `pages/drafts.py` (`page_draft`: one per page, with the version it started from) |
-| links | `pages/links.py` (`page_link`: the `[[…]]` targets of each page's current version) |
-| sections | `pages/sections.py` (parse `##` headings into anchors) |
-| patch | `pages/patch.py` (`Patch`, `apply`, `rebase`) |
-| descriptions | `tree/descriptions.py` |
+| use cases | `services/page_service.py` (read, save, drafts, history, diff, restore, fix links on rename) |
+| versions | `repositories/page_version.py` (`page_version`: whole Markdown, author `user` or `agent`, `proposal_id`) |
+| drafts | `repositories/page_draft.py` (`page_draft`: one per page, with the version it started from) |
+| links | `repositories/page_link.py` (`page_link`: the `[[…]]` targets of each page's current version), parsed by `domain/links.py` |
+| sections | `domain/sections.py` (parse `##` headings into anchors) |
+| diff | `domain/diff.py` |
+| patch | `domain/patch.py` (`Patch`, `apply`, `rebase`; F2) |
+| descriptions | `node.description`, written by `TreeService`; the folder refresh is a worker job (F2) |
 
 ## Sections and anchors
 
@@ -52,8 +54,8 @@ A description the person edits is locked (`description_locked`) and never rewrit
 The person writes directly: their own action is their approval (skill `proposals`), and the version records author
 `user`. While editing, a draft is saved every few seconds in `page_draft`; it is not a version, never shows in the
 history and is never read by agents. "Concluir" writes a new version only if the text differs from the current one,
-and only if the current version is still the draft's base version: otherwise it is a `ConflictError` with the
-difference, and the person keeps theirs (a new version on top) or discards it. Restoring an old version writes it as
+and only if the current version is still the draft's base version: otherwise it is a `StalePage` (`stale_page`) with
+the difference, and the person keeps theirs (a new version on top) or discards it. Restoring an old version writes it as
 a new version; no version is ever changed or deleted.
 
 ## Rules

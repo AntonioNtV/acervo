@@ -1,3 +1,16 @@
+name: acervo
+
+x-acervo: &acervo
+  build: .
+  image: acervo:dev
+  # API_KEY and the rest come from .env (copy .env.example); the addresses below are the ones inside compose.
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    DATABASE_URL: postgresql+asyncpg://acervo:acervo@postgres:5432/acervo
+    S3_ENDPOINT: http://minio:9000
+
 services:
   postgres:
     image: postgres:16
@@ -46,6 +59,29 @@ services:
       MC_HOST_local: http://acervo:acervo-secret@minio:9000
     command: mb --ignore-existing local/acervo
     restart: on-failure
+
+  migrate:
+    <<: *acervo
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *acervo
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-bucket:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
 volumes:
   postgres:

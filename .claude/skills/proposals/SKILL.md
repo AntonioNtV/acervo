@@ -6,17 +6,19 @@ description: The proposal lifecycle in Acervo - kinds, states, accept with rebas
 # Proposals
 
 Agents never write to a base. They create proposals; the person accepts, edits or rejects them in the chat or in
-"Propostas". `proposals/apply.py` is the only code path that changes pages, files or folders on an agent's behalf.
+"Propostas". `services/proposal_service.py` is the only code path that changes pages, files or folders on an
+agent's behalf.
 
 The person's own actions (create, edit, rename, drag, upload, trash, restore) are not proposals: their action is
-their approval, and they write directly through `tree/`, `pages/` and `pdfs/` with author `user`. `apply.py` calls
-those same functions for an accepted proposal, with author `agent` and the proposal's id.
+their approval, and they write directly through `TreeService`, `PageService` and `FileService` with author `user`. The proposal
+service calls those same services for an accepted proposal, with author `agent` and the proposal's id.
 
 | Piece | File |
 |---|---|
-| models and kinds | `proposals/models.py` |
-| states and transitions | `proposals/lifecycle.py` |
-| apply per kind | `proposals/apply.py` |
+| models and kinds | `schemas/proposal.py` |
+| states and transitions (pure) | `domain/proposals.py` |
+| storage | `repositories/proposal.py` (on the `UnitOfWork`) |
+| accept, reject, apply per kind | `services/proposal_service.py` |
 | events | `proposal.created`, `proposal.updated` on the websocket |
 
 ## Kinds
@@ -50,5 +52,5 @@ calibration (skill `evals`), so the UI always asks for one.
 - An edited proposal keeps the original payload and stores the edited one; both go to `evals` as data.
 - "Outro lugar" swaps the target for the second path the Curator logged; it does not run the Curator again.
 - Undo after accept is a restore of the previous version (pages) or of the previous location (files).
-- Auto-apply does not exist in the MVP. When it comes, it is a threshold in `config.Thresholds` and a per-base switch,
+- Auto-apply does not exist in the MVP. When it comes, it is a threshold in `Thresholds` and a per-base switch,
   and the proposal still exists with `accepted_by = auto`.
