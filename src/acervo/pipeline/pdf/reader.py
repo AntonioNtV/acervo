@@ -29,3 +29,11 @@ def first_pages(path: Path, pages: int = FIRST_PAGES) -> tuple[str, list[str]]:
     with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
         text = "\n".join(document[number].get_text() for number in range(min(pages, document.page_count)))
         return text, [title for _, title, *_ in document.get_toc()]
+
+
+def page_text(path: Path, first: int, last: int) -> tuple[list[str], int]:
+    """The text of each page from `first` to `last`, counted from 1 and both included, up to the PDF's last page;
+    and how many pages it has."""
+    with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
+        last = min(last, document.page_count)
+        return [document[number - 1].get_text() for number in range(first, last + 1)], document.page_count
