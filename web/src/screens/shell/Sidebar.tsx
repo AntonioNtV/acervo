@@ -53,7 +53,7 @@ function Switch<T extends string>({
 }
 
 /** Every base as a section with its tree, the places phase B fills, and "Nova base" and "Lixeira" at the bottom. */
-export function Sidebar() {
+export function Sidebar({ onSearch }: { onSearch?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
   const { setSidebarOpen } = useShell();
@@ -74,8 +74,7 @@ export function Sidebar() {
       <NavLink to="/bases" className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}>
         <Row icon="bases">{t("bases.title")}</Row>
       </NavLink>
-      {/* Phase B: ⌘K and recents. Shown so the layout is the final one. */}
-      <button type="button" disabled className={cx(rowClass, "cursor-default")}>
+      <button type="button" onClick={onSearch} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
         <Row icon="search">{t("shell.search")}</Row>
         <Kbd>⌘K</Kbd>
       </button>
