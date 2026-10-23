@@ -4,7 +4,6 @@ from uuid import UUID
 import pytest
 
 from acervo.domain.patch import Patch, Stale, apply, provenance
-from acervo.pipeline.curator.page_check import split
 
 ORIGIN = "<!-- origem: chat · 2026-10-22 · proposta 8f3a -->"
 PAGE = "# Emissão de apólice\n\n## Documentos\n- RG\n- CPF\n\n## Prazos\nCinco dias.\n"
@@ -58,21 +57,11 @@ def test_rebase_finds_a_moved_anchor() -> None:
     assert patched == f"# Emissão de apólice\n\n## Prazos\nCinco dias.\n\n## Documentos\n- RG\n- CPF {ORIGIN}\n"
 
 
-def test_a_conflict_without_a_line_keeps_the_heading_and_other_lines() -> None:
-    page = "# Auto\n\nIntro.\n\n## Coberturas\n\n- Franquia R$ 500\n- Vidros inclusos\n\n## Contatos\n\n- 0800\n"
-    [section] = [part for part in split(page) if part.heading == "Coberturas"]
+def test_a_replace_never_takes_the_heading() -> None:
+    page = "# Auto\n\n## Coberturas\n\n- Franquia R$ 500\n"
 
-    patched = apply(
-        page, Patch(section.anchor, "replace", ["- Franquia R$ 800", "- Vidros inclusos"], section.body), ORIGIN
-    )
-
-    assert section.body == "- Franquia R$ 500\n- Vidros inclusos"
-    assert patched == (
-        "# Auto\n\nIntro.\n\n## Coberturas\n\n"
-        f"- Franquia R$ 800 {ORIGIN}\n- Vidros inclusos {ORIGIN}\n\n## Contatos\n\n- 0800\n"
-    )
     with pytest.raises(Stale):
-        apply(page, Patch(section.anchor, "replace", ["## Coberturas"], "## Coberturas"), ORIGIN)
+        apply(page, Patch("coberturas", "replace", ["## Coberturas"], "## Coberturas"), ORIGIN)
 
 
 @pytest.mark.parametrize(

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from acervo.core.settings import Thresholds
 from acervo.domain.cards import Card, CardInput, Placement, WrittenPatch
+from acervo.domain.patch import Patch, apply
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.pipeline.curator.policy import AlreadyWritten, NotSure, Propose, file_pdf, file_text
 from acervo.pipeline.curator.tree import PageText
@@ -118,6 +119,27 @@ async def test_contradicts_is_a_conflict(
             new="- Emissão leva 5 dias úteis",
         )
     )
+
+
+async def test_a_conflict_with_no_line_keeps_the_title_and_the_other_lines(
+    make_snapshot: Make, fake_decider: FakeDecider, fake_writer: FakeWriter, thresholds: Thresholds
+) -> None:
+    snap = make_snapshot(TREE)
+    markdown = "# Emissão de apólice\n\nEmissão leva 3 dias úteis.\nVale para todo o Brasil.\n"
+    fake_decider.table = {**TO_PAGE, "covered": 0.1, "contradicts": 0.7, "line": {"nenhuma linha": 0.9}}
+    fake_writer.patch_output = WrittenPatch(lines=["Emissão leva 5 dias úteis."])
+
+    async def read(page_id: UUID) -> PageText:
+        return PageText(page_id=page_id, version_id=VERSION, markdown=markdown)
+
+    filed = await file_text(FACT, snap.tree, read, fake_decider, fake_writer, thresholds, [])
+
+    assert isinstance(filed, Propose) and isinstance(filed.payload, ConflictPayload)
+    payload = filed.payload
+    assert (payload.anchor, payload.current, fake_writer.inputs["patch"][0].action) == ("", "", "append")
+    # As ProposalService applies a conflict.
+    change = Patch(payload.anchor, "replace", payload.new.splitlines(), payload.current)
+    assert apply(markdown, change, "<!-- origem -->") == f"{markdown}Emissão leva 5 dias úteis. <!-- origem -->\n"
 
 
 async def test_on_a_page_it_appends_to_the_section(
