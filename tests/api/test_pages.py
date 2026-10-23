@@ -164,3 +164,34 @@ async def test_401_without_the_key(client: httpx.AsyncClient, session: AsyncSess
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(401, "unauthorized")] * 4
     assert await session.scalar(select(func.count()).where(PageVersion.node_id == node_id)) == 1
     assert await session.scalar(select(func.count()).where(PageDraft.node_id == node_id)) == 0
+
+
+async def test_mentions_list_linking_pages_with_the_line(client: httpx.AsyncClient) -> None:
+    kb_id, emission = await _page(client)
+    folder = (await client.post(f"/v1/kbs/{kb_id}/nodes", json={"kind": "folder", "title": "Auto"})).json()["id"]
+    body = {"kind": "page", "title": "Vistoria", "parent_id": folder}
+    inspection = (await client.post(f"/v1/kbs/{kb_id}/nodes", json=body)).json()["id"]
+    renewal = (await client.post(f"/v1/kbs/{kb_id}/nodes", json={"kind": "page", "title": "Renovação"})).json()["id"]
+    long_line = "Veja " + "muito " * 50 + "[[emissão de  apólice]]"
+    await _type(client, renewal, "# Renovação\n\n  Antes, a [[Emissão de apólice]].  \nDe novo: [[Emissão de apólice]]")
+    await _type(client, inspection, f"{long_line}\n")
+    await _type(client, emission, "Sem links para si.\n")
+
+    response = await client.get(f"/v1/pages/{emission}/mentions")
+
+    assert response.status_code == 200, response.text
+    mentions = response.json()
+    assert [(m["node"]["id"], m["node"]["path"], m["line"]) for m in mentions] == [
+        (inspection, "Auto/Vistoria", long_line[:200]),
+        (renewal, "Renovação", "Antes, a [[Emissão de apólice]]."),
+    ]
+
+
+async def test_no_mentions_is_empty(client: httpx.AsyncClient) -> None:
+    kb_id, emission = await _page(client)
+    renewal = (await client.post(f"/v1/kbs/{kb_id}/nodes", json={"kind": "page", "title": "Renovação"})).json()["id"]
+    await _type(client, renewal, "Fala de Emissão de apólice sem link, e da [[Vistoria]].\n")
+
+    response = await client.get(f"/v1/pages/{emission}/mentions")
+
+    assert (response.status_code, response.json()) == (200, [])

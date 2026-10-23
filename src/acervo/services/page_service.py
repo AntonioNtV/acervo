@@ -7,8 +7,9 @@ from acervo.domain import links
 from acervo.domain.diff import line_diff
 from acervo.domain.sections import sections
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.node import NodeRead
+from acervo.schemas.node import NodeRead, NodeWithPath
 from acervo.schemas.page import (
+    Mention,
     PageDiff,
     PageDraftCreate,
     PageDraftRead,
@@ -20,6 +21,8 @@ from acervo.schemas.page import (
     PageVersionSummary,
     Section,
 )
+
+MENTION_LINE_CHARS = 200
 
 
 class PageService:
@@ -97,6 +100,27 @@ class PageService:
         await self._settle(node, version.markdown, latest, await self._uow.page_drafts.get_by(node_id=node.id))
         await self._uow.commit()
         return await self.read(node.id)
+
+    async def mentions(self, node_id: UUID) -> list[Mention]:
+        """Each live page of the base whose link opens this page, once, with the first line holding the link,
+        ordered by path."""
+        node = await self._page(node_id)
+        target = links.normalize(node.title)
+        candidates = await self._uow.page_links.candidates(node.kb_id, [target])
+        linking = [
+            page
+            for page in await self._uow.page_links.linking(node.kb_id, target)
+            if links.resolve([target], candidates, page.parent_id)[target] == node.id
+        ]
+        paths = await self._uow.nodes.paths([page.id for page in linking])
+        mentions: list[Mention] = []
+        for page in sorted(linking, key=lambda page: paths[page.id]):
+            text = await self._uow.page_drafts.get_by(node_id=page.id)
+            markdown = (await self._uow.page_versions.current(page.id)).markdown if text is None else text.markdown
+            line = next((line.strip() for line in markdown.splitlines() if target in links.targets(line)), "")
+            node_with_path = NodeWithPath(**page.model_dump(), path=paths[page.id])
+            mentions.append(Mention(node=node_with_path, line=line[:MENTION_LINE_CHARS]))
+        return mentions
 
     async def create(self, node: NodeRead) -> None:
         """The empty first version of a new page, in the caller's transaction."""
