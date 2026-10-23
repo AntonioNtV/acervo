@@ -1,9 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { components } from "../api/schema.gen";
 import { call, invalidate, refreshTree } from "./request";
 
 type Schemas = components["schemas"];
+
+// A favorite shows the node's title, icon and base, and leaves with it for the trash.
+const refreshWithFavorites = (queryClient: QueryClient) =>
+  Promise.all([refreshTree(queryClient), invalidate(queryClient, ["favorites"])]);
 
 export function useChildren(kbId: string, parentId: string | null = null, enabled = true) {
   return useQuery({
@@ -56,7 +60,7 @@ export function useRenameNode() {
   return useMutation({
     mutationFn: ({ nodeId, title }: { nodeId: string; title: string }) =>
       call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body: { title } })),
-    onSuccess: () => Promise.all([refreshTree(queryClient), invalidate(queryClient, ["versions"], ["diff"])]),
+    onSuccess: () => Promise.all([refreshTree(queryClient), invalidate(queryClient, ["versions"], ["diff"], ["favorites"])]),
   });
 }
 
@@ -75,7 +79,7 @@ export function useDecorateNode() {
   return useMutation({
     mutationFn: ({ nodeId, ...body }: { nodeId: string } & Pick<Schemas["NodeEdit"], "icon" | "cover">) =>
       call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body })),
-    onSuccess: () => refreshTree(queryClient),
+    onSuccess: () => refreshWithFavorites(queryClient),
   });
 }
 
@@ -84,7 +88,7 @@ export function useMoveNode() {
   return useMutation({
     mutationFn: ({ nodeId, ...body }: { nodeId: string } & Schemas["NodeMove"]) =>
       call(api.POST("/v1/nodes/{node_id}/move", { params: { path: { node_id: nodeId } }, body })),
-    onSuccess: () => refreshTree(queryClient),
+    onSuccess: () => refreshWithFavorites(queryClient),
   });
 }
 
@@ -93,7 +97,28 @@ export function useTrashNode() {
   return useMutation({
     mutationFn: (nodeId: string) =>
       call(api.DELETE("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } } })),
+    onSuccess: () => refreshWithFavorites(queryClient),
+  });
+}
+
+/** "<título> (cópia)" right after the page, with its text and sub-pages; resolves to the copy. */
+export function useDuplicateNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) =>
+      call(api.POST("/v1/nodes/{node_id}/duplicate", { params: { path: { node_id: nodeId } } })),
     onSuccess: () => refreshTree(queryClient),
+  });
+}
+
+/** A link to the .zip of a page or folder that opens without the key; only its path and query, for the same origin. */
+export function useExportNode() {
+  return useMutation({
+    mutationFn: async (nodeId: string) => {
+      const link = await call(api.POST("/v1/nodes/{node_id}/export/link", { params: { path: { node_id: nodeId } } }));
+      const signed = new URL(link.url);
+      return signed.pathname + signed.search;
+    },
   });
 }
 
@@ -102,6 +127,6 @@ export function useRestoreNode() {
   return useMutation({
     mutationFn: (nodeId: string) =>
       call(api.POST("/v1/nodes/{node_id}/restore", { params: { path: { node_id: nodeId } } })),
-    onSuccess: () => refreshTree(queryClient),
+    onSuccess: () => refreshWithFavorites(queryClient),
   });
 }
