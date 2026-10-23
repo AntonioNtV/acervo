@@ -10,6 +10,7 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
+from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
@@ -73,3 +74,9 @@ def get_cover_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> CoverService:
     return CoverService(uow, storage, settings.cover_max_bytes)
+
+
+def get_export_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
+) -> ExportService:
+    return ExportService(uow, storage)
