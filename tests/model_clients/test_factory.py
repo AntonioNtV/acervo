@@ -22,4 +22,5 @@ def test_the_setting_picks_the_clients() -> None:
 
 def test_jev_without_a_key_is_refused() -> None:
     with pytest.raises(DecisionUnavailable):
-        build_decider(_with("jev"))
+        # Explicit: a key in the developer's .env must not make this pass by accident.
+        build_decider(_with("jev").model_copy(update={"jev_api_key": None}))
