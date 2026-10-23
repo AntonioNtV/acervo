@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { AiMark } from "../../app/AiMark";
 import { useErrorText } from "../../app/errors";
 import { useRetry, type ChatMessage, type Citation } from "../../data/chat";
-import type { Proposal, ProposalSummary } from "../../data/proposals";
+import { newest, useProposalStates, type Proposal, type ProposalSummary } from "../../data/proposals";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
@@ -98,7 +98,10 @@ function Reply({
   const [review, setReview] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
 
-  const proposals: AnyProposal[] = message.parts.flatMap((part) => (part.type === "data-proposal" ? [part.data] : []));
+  const states = useProposalStates().data;
+  const proposals: AnyProposal[] = message.parts.flatMap((part) =>
+    part.type === "data-proposal" ? [newest(states?.[part.data.id], part.data)] : [],
+  );
   const citations = message.parts.flatMap((part) => {
     const citation = part.type === "source-document" ? (part.providerMetadata?.acervo as Citation | undefined) : undefined;
     return citation?.node_id ? [citation] : [];

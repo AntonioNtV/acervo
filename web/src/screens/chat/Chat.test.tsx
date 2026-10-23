@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { apiFetch, calls, node, renderWithApi, resetApi, respond } from "../../api/testing";
 import { Chat } from "./Chat";
-import { append, message, proposal, T0, undo } from "./testing";
+import { append, message, proposal, savePdf, T0, undo } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
@@ -225,6 +225,25 @@ describe("Chat", () => {
     await waitFor(() => expect(screen.queryByText("Trabalhando nisso…")).not.toBeInTheDocument());
     expect(within(card).getByText("Aplicada")).toBeInTheDocument();
     expect(within(card).queryByRole("button", { name: "Aceitar" })).not.toBeInTheDocument();
+  });
+
+  it("the file group counts only files still pending in their newest state", async () => {
+    thread("c-1", [person("m-1", "Guarda os dois."), message("r-1", { status: "working" })]);
+    const pdf = (id: string, fields = {}) => proposal(savePdf, { id, ...fields });
+    respond(
+      "GET",
+      "/v1/messages/r-1/stream",
+      ended(
+        { type: "start", messageId: "r-1" },
+        { type: "data-proposal", id: "p-1", data: pdf("p-1", { status: "applied", accepted_by: "person", updated_at: "2026-10-22T10:01:00Z" }) },
+        { type: "data-proposal", id: "p-2", data: pdf("p-2") },
+        { type: "data-proposal", id: "p-1", data: pdf("p-1") },
+      ),
+    );
+    renderChat();
+
+    expect(await screen.findByText("Aplicada")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Arquivos para guardar" })).not.toBeInTheDocument();
   });
 
   it("a reply that was retried is not shown, so it cannot be retried again", async () => {

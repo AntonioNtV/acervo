@@ -59,7 +59,7 @@ export function useProposalStates() {
 }
 
 /** The newer of two states of one proposal: what this session was told, or what the API listed. */
-function newest<A extends Proposal | ProposalSummary>(known: Proposal | undefined, listed: A): A | Proposal {
+export function newest<A extends Proposal | ProposalSummary>(known: Proposal | undefined, listed: A): A | Proposal {
   return known && known.updated_at >= listed.updated_at ? known : listed;
 }
 
