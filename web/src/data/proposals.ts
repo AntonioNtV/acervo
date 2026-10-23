@@ -8,7 +8,6 @@ export type Proposal = Schemas["ProposalRead"];
 export type ProposalSummary = Schemas["ProposalSummary"];
 export type Payload = Proposal["payload"];
 export type RejectReason = Schemas["ProposalReject"]["reason"];
-export type Placement = Schemas["Placement"];
 
 export const REJECT_REASONS: RejectReason[] = ["wrong_place", "already_there", "wrong_info", "not_worth_keeping"];
 

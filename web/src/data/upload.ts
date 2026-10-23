@@ -11,10 +11,14 @@ const REPLACE = "/v1/nodes/{node_id}/file" satisfies keyof paths;
 /** `loaded` and `total` in bytes, for one file. */
 export type OnProgress = (loaded: number, total: number) => void;
 
-/** A multipart POST of `fields`, resolving to the API's JSON answer. XMLHttpRequest, not fetch: only it reports upload progress. */
-export function send<T>(path: string, fields: Record<string, string | Blob | undefined>, onProgress?: OnProgress) {
+/**
+ * A multipart POST of `fields` (a list repeats its field), resolving to the API's JSON answer. XMLHttpRequest, not
+ * fetch: only it reports upload progress.
+ */
+export function send<T>(path: string, fields: Record<string, string | Blob | Blob[] | undefined>, onProgress?: OnProgress) {
   const form = new FormData();
-  for (const [name, value] of Object.entries(fields)) if (value !== undefined) form.append(name, value);
+  for (const [name, value] of Object.entries(fields))
+    for (const one of Array.isArray(value) ? value : [value]) if (one !== undefined) form.append(name, one);
   return new Promise<T>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", path);

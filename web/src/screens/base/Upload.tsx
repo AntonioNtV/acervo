@@ -1,4 +1,4 @@
-import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../../data/request";
 import { useUploadFiles } from "../../data/upload";
@@ -66,28 +66,6 @@ export function useStartUpload(kbId: string) {
       ),
     );
   };
-}
-
-export function UploadButton({ kbId, parentId }: { kbId: string; parentId: string | null }) {
-  const { t } = useI18n();
-  const start = useStartUpload(kbId);
-  const input = useRef<HTMLInputElement>(null);
-  return (
-    <>
-      <Button onClick={() => input.current?.click()}>{t("base.upload")}</Button>
-      <input
-        ref={input}
-        type="file"
-        multiple
-        hidden
-        aria-label={t("base.upload")}
-        onChange={(event) => {
-          start(Array.from(event.target.files ?? []), parentId);
-          event.target.value = "";
-        }}
-      />
-    </>
-  );
 }
 
 export function UploadGlyph() {

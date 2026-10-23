@@ -13,6 +13,7 @@ vi.mock("../../editor/BlockEditor", () => ({ useEditorSelection: () => editor.se
 
 class FakeXhr {
   static sent: FakeXhr[] = [];
+  upload = {};
   onload?: () => void;
   status = 0;
   statusText = "";

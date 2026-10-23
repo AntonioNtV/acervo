@@ -6,6 +6,7 @@ import { api, apiHeaders } from "../api/client";
 import type { components, paths } from "../api/schema.gen";
 import { settleProposal, type Proposal, type ProposalSummary } from "./proposals";
 import { ApiError, call } from "./request";
+import { send as postForm } from "./upload";
 
 type Schemas = components["schemas"];
 export type Conversation = Schemas["ConversationRead"];
@@ -44,22 +45,6 @@ export type Outgoing = {
   pageId: string | null;
   selection: string | null;
 };
-
-/** A multipart POST with repeated `files` fields; XMLHttpRequest like the uploads, so both send files the same way. */
-function sendForm<T>(path: string, form: FormData) {
-  return new Promise<T>((resolve, reject) => {
-    const request = new XMLHttpRequest();
-    request.open("POST", path);
-    for (const [name, value] of Object.entries(apiHeaders)) request.setRequestHeader(name, value);
-    request.responseType = "json";
-    request.onload = () => {
-      if (request.status >= 200 && request.status < 300) return resolve(request.response as T);
-      reject(new ApiError(request.status, request.response, request.statusText));
-    };
-    request.onerror = () => reject(new ApiError(0, null, "network error"));
-    request.send(form);
-  });
-}
 
 // Plain fetch for the routes the generated client does not have yet.
 async function fetchOk(path: string, signal?: AbortSignal): Promise<Response> {
@@ -184,14 +169,14 @@ export function useAcervoChat({
             await call(api.POST("/v1/kbs/{kb_id}/conversations", { params: { path: { kb_id: kbId } }, body: { title: "" } }))
           ).id;
           const { message } = current;
-          const form = new FormData();
-          form.append("text", message.text);
-          for (const file of message.files) form.append("files", file);
-          if (message.pageId) form.append("page_id", message.pageId);
-          if (message.selection) form.append("selection", message.selection);
-          const { reply } = await sendForm<Schemas["MessagePosted"]>(
+          const { reply } = await postForm<Schemas["MessagePosted"]>(
             POST_MESSAGE.replace("{conversation_id}", encodeURIComponent(conversation.current)),
-            form,
+            {
+              text: message.text,
+              files: message.files,
+              page_id: message.pageId || undefined,
+              selection: message.selection || undefined,
+            },
           );
           following.current = reply.id;
           current.posted();
