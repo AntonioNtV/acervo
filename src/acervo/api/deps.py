@@ -17,6 +17,7 @@ from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -110,3 +111,9 @@ def get_export_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> ExportService:
     return ExportService(uow, storage)
+
+
+def get_proposal_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
+) -> ProposalService:
+    return ProposalService(uow, storage)

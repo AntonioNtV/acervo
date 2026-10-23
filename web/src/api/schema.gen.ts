@@ -236,6 +236,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/kbs/{kb_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The base's proposals waiting for the person, from any conversation or agent, newest first.
+         */
+        get: operations["list_proposals_v1_kbs__kb_id__proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kbs/{kb_id}/restore": {
         parameters: {
             query?: never;
@@ -650,6 +670,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Proposal */
+        get: operations["get_proposal_v1_proposals__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Proposal
+         * @description The person's version of what it does, of the same kind; the original is kept.
+         */
+        patch: operations["edit_proposal_v1_proposals__proposal_id__patch"];
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Proposal
+         * @description Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
+         *     gone it comes back `stale` and nothing changes.
+         */
+        post: operations["accept_proposal_v1_proposals__proposal_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/other-place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Other Place
+         * @description A new page or a file goes to the second place that was close instead.
+         */
+        post: operations["other_place_v1_proposals__proposal_id__other_place_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Proposal */
+        post: operations["reject_proposal_v1_proposals__proposal_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Proposal
+         * @description A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode.
+         */
+        post: operations["undo_proposal_v1_proposals__proposal_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -673,6 +792,85 @@ export interface components {
              * @description Folder to save into; omitted for the base's root.
              */
             parent_id?: string | null;
+        };
+        /**
+         * ConflictPayload
+         * @description A fact that contradicts a page: both texts, for the person to choose.
+         */
+        ConflictPayload: {
+            /**
+             * Anchor
+             * @description The section's anchor.
+             */
+            anchor: string;
+            /**
+             * Base Version Id
+             * Format: uuid
+             * @description The version the current text comes from.
+             */
+            base_version_id: string;
+            /**
+             * Current
+             * @description What the page says now.
+             */
+            current: string;
+            /**
+             * Heading
+             * @description The section's heading, to show.
+             */
+            heading: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "conflict";
+            /**
+             * New
+             * @description What the input says.
+             */
+            new: string;
+            /**
+             * Page Id
+             * Format: uuid
+             * @description The page.
+             */
+            page_id: string;
+            /**
+             * Path
+             * @description The page's path, joined by /.
+             */
+            path: string;
+        };
+        /**
+         * CreatePagePayload
+         * @description A new page under a folder or page.
+         */
+        CreatePagePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "create_page";
+            /**
+             * Markdown
+             * @description Its first version.
+             */
+            markdown: string;
+            /**
+             * Parent Id
+             * @description Where it goes; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Parent Path
+             * @description The parent's path, joined by /; empty for the root.
+             */
+            parent_path: string;
+            /**
+             * Title
+             * @description The page's title.
+             */
+            title: string;
         };
         /**
          * DiffLine
@@ -1081,6 +1279,38 @@ export interface components {
             line: string;
             /** @description The linking page. */
             node: components["schemas"]["NodeWithPath"];
+        };
+        /**
+         * MovePayload
+         * @description A node moved under another folder or page of the same base.
+         */
+        MovePayload: {
+            /**
+             * From Path
+             * @description Its path now.
+             */
+            from_path: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "move";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The node moved.
+             */
+            node_id: string;
+            /**
+             * Parent Id
+             * @description Its new parent; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * To Path
+             * @description The new parent's path; empty for the root.
+             */
+            to_path: string;
         };
         /**
          * NodeAdd
@@ -1547,6 +1777,358 @@ export interface components {
             id: string;
         };
         /**
+         * PatchPayload
+         * @description Lines added to a section of a page, or one line changed in it (skill `markdown-pages`).
+         */
+        PatchPayload: {
+            /**
+             * Anchor
+             * @description The section's anchor; empty for the text before the first ##.
+             */
+            anchor: string;
+            /**
+             * Base Version Id
+             * Format: uuid
+             * @description The version the lines were written against.
+             */
+            base_version_id: string;
+            /**
+             * Heading
+             * @description The section's heading, to show.
+             */
+            heading: string;
+            /**
+             * @description append adds lines to the section; edit changes a line. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "append" | "edit";
+            /**
+             * Line
+             * @description For insert_after and replace: the exact text of the line it refers to.
+             */
+            line?: string | null;
+            /**
+             * Lines
+             * @description The lines to add, each followed by its provenance comment.
+             */
+            lines: string[];
+            /**
+             * Op
+             * @description How the lines go in.
+             * @enum {string}
+             */
+            op: "append" | "insert_after" | "replace" | "new_section";
+            /**
+             * Page Id
+             * Format: uuid
+             * @description The page.
+             */
+            page_id: string;
+            /**
+             * Path
+             * @description The page's path from the base's root, joined by /.
+             */
+            path: string;
+        };
+        /**
+         * Placement
+         * @description A place the descent reached, as the proposal shows it and as "Outro lugar" swaps to.
+         */
+        Placement: {
+            /**
+             * Landing
+             * @description Into that page's text, under that node (save or stay here), or a new page or folder under it.
+             * @enum {string}
+             */
+            landing: "page" | "here" | "new_page" | "new_folder";
+            /**
+             * Node Id
+             * @description The folder or page it stopped at; null for the base's root.
+             */
+            node_id: string | null;
+            /**
+             * Path
+             * @description Titles from the root down to that node, joined by /; empty for the root.
+             */
+            path: string;
+            /**
+             * Probability
+             * @description The product of the chosen options' probabilities along the path.
+             */
+            probability: number;
+        };
+        /**
+         * ProposalRead
+         * @description A stored proposal: the only way an agent's change gets into a base.
+         */
+        ProposalRead: {
+            /**
+             * Accepted By
+             * @description The person, or auto for an agent in auto mode.
+             */
+            accepted_by: ("person" | "auto") | null;
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent that made it.
+             */
+            agent_id: string;
+            /**
+             * Alternatives
+             * @description Other places that were close: the second path, or the top 3 when unsure.
+             */
+            alternatives?: components["schemas"]["Placement"][] | null;
+            /**
+             * Applied At
+             * @description When it changed the base; null until then.
+             */
+            applied_at: string | null;
+            /**
+             * Conversation Id
+             * @description Conversation it came from.
+             */
+            conversation_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was made.
+             */
+            created_at: string;
+            /**
+             * Edited Payload
+             * @description The person's edited version; the original stays.
+             */
+            edited_payload: (components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"]) | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Proposal ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it changes.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description What it does.
+             * @enum {string}
+             */
+            kind: "append" | "edit" | "create_page" | "conflict" | "save_pdf" | "replace_pdf" | "move" | "rename" | "undo";
+            /**
+             * Message Id
+             * @description The reply it belongs to.
+             */
+            message_id?: string | null;
+            /**
+             * Payload
+             * @description What it does; its `kind` is the proposal's kind.
+             */
+            payload: components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            /**
+             * Reject Reason
+             * @description Why the person rejected it.
+             */
+            reject_reason: ("wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping") | null;
+            /**
+             * Run Id
+             * @description The run whose decisions produced it.
+             */
+            run_id?: string | null;
+            /** @description The waiting PDF of a save_pdf or replace_pdf. */
+            staged?: components["schemas"]["StagedFile"] | null;
+            /**
+             * Status
+             * @description pending until accepted, rejected or stale.
+             * @enum {string}
+             */
+            status: "pending" | "editing" | "accepted" | "applied" | "rejected" | "stale";
+            /**
+             * Undo Of
+             * @description The applied proposal an undo reverts.
+             */
+            undo_of?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * ProposalReject
+         * @description Rejecting a proposal; the reason labels it for calibration.
+         */
+        ProposalReject: {
+            /**
+             * Reason
+             * @description Why it is rejected.
+             * @enum {string}
+             */
+            reason: "wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping";
+        };
+        /**
+         * ProposalSummary
+         * @description A proposal as the chat's list shows it, with where it came from.
+         */
+        ProposalSummary: {
+            /**
+             * Accepted By
+             * @description The person, or auto for an agent in auto mode.
+             */
+            accepted_by: ("person" | "auto") | null;
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent that made it.
+             */
+            agent_id: string;
+            /**
+             * Agent Name
+             * @description The agent that made it.
+             */
+            agent_name: string;
+            /**
+             * Alternatives
+             * @description Other places that were close: the second path, or the top 3 when unsure.
+             */
+            alternatives?: components["schemas"]["Placement"][] | null;
+            /**
+             * Applied At
+             * @description When it changed the base; null until then.
+             */
+            applied_at: string | null;
+            /**
+             * Conversation Id
+             * @description Conversation it came from.
+             */
+            conversation_id?: string | null;
+            /**
+             * Conversation Title
+             * @description The conversation it came from; null when none.
+             */
+            conversation_title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was made.
+             */
+            created_at: string;
+            /**
+             * Edited Payload
+             * @description The person's edited version; the original stays.
+             */
+            edited_payload: (components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"]) | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Proposal ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it changes.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description What it does.
+             * @enum {string}
+             */
+            kind: "append" | "edit" | "create_page" | "conflict" | "save_pdf" | "replace_pdf" | "move" | "rename" | "undo";
+            /**
+             * Message Id
+             * @description The reply it belongs to.
+             */
+            message_id?: string | null;
+            /**
+             * Payload
+             * @description What it does; its `kind` is the proposal's kind.
+             */
+            payload: components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            /**
+             * Reject Reason
+             * @description Why the person rejected it.
+             */
+            reject_reason: ("wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping") | null;
+            /**
+             * Run Id
+             * @description The run whose decisions produced it.
+             */
+            run_id?: string | null;
+            /** @description The waiting PDF of a save_pdf or replace_pdf. */
+            staged?: components["schemas"]["StagedFile"] | null;
+            /**
+             * Status
+             * @description pending until accepted, rejected or stale.
+             * @enum {string}
+             */
+            status: "pending" | "editing" | "accepted" | "applied" | "rejected" | "stale";
+            /**
+             * Undo Of
+             * @description The applied proposal an undo reverts.
+             */
+            undo_of?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * RenamePayload
+         * @description A node renamed; links to a renamed page are fixed.
+         */
+        RenamePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "rename";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The node renamed.
+             */
+            node_id: string;
+            /**
+             * Path
+             * @description Its path now.
+             */
+            path: string;
+            /**
+             * Title
+             * @description The new title.
+             */
+            title: string;
+        };
+        /**
+         * ReplacePdfPayload
+         * @description A staged PDF as the new version of a file already in the base; the old one goes to its history.
+         */
+        ReplacePdfPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "replace_pdf";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The file replaced.
+             */
+            node_id: string;
+            /**
+             * Path
+             * @description The file's path, joined by /.
+             */
+            path: string;
+        };
+        /**
          * RestoredNode
          * @description A node back from the trash.
          */
@@ -1638,6 +2220,32 @@ export interface components {
             updated_at: string;
         };
         /**
+         * SavePdfPayload
+         * @description A staged PDF saved under a folder or page.
+         */
+        SavePdfPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "save_pdf";
+            /**
+             * Name
+             * @description The suggested name, ending in .pdf; editable before accepting.
+             */
+            name: string;
+            /**
+             * Parent Id
+             * @description Where it goes; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Parent Path
+             * @description The parent's path, joined by /; empty for the root.
+             */
+            parent_path: string;
+        };
+        /**
          * Section
          * @description A `##` heading of a page.
          */
@@ -1652,6 +2260,32 @@ export interface components {
              * @description The heading's text.
              */
             heading: string;
+        };
+        /**
+         * StagedFile
+         * @description A file waiting in storage, outside the base's tree, search and Lixeira.
+         */
+        StagedFile: {
+            /**
+             * Name
+             * @description The file's name as received.
+             */
+            name: string;
+            /**
+             * Sha256
+             * @description Hash of the bytes.
+             */
+            sha256: string;
+            /**
+             * Size
+             * @description Size in bytes.
+             */
+            size: number;
+            /**
+             * Storage Key
+             * @description Where the bytes wait.
+             */
+            storage_key: string;
         };
         /**
          * TreeNode
@@ -1758,6 +2392,28 @@ export interface components {
              * @description When the node last changed.
              */
             updated_at: string;
+        };
+        /**
+         * UndoPayload
+         * @description Undoing an applied proposal: a page back to its previous version, a file to its previous place or version.
+         */
+        UndoPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "undo";
+            /**
+             * Path
+             * @description The path of what it changes back.
+             */
+            path: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             * @description The applied proposal it undoes.
+             */
+            proposal_id: string;
         };
     };
     responses: never;
@@ -2460,6 +3116,59 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_proposals_v1_kbs__kb_id__proposals_get: {
+        parameters: {
+            query?: {
+                status?: "pending";
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3743,6 +4452,365 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_proposal_v1_proposals__proposal_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    edit_proposal_v1_proposals__proposal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    accept_proposal_v1_proposals__proposal_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    other_place_v1_proposals__proposal_id__other_place_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_proposal_v1_proposals__proposal_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    undo_proposal_v1_proposals__proposal_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

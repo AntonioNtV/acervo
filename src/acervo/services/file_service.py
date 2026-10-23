@@ -114,8 +114,11 @@ class FileService:
         self._uow = uow
         self._storage = storage
 
-    async def save(self, kb_id: UUID, parent_id: UUID | None, filename: str | None, source: BinaryIO) -> FileNodeRead:
-        """Stores a file byte for byte into a folder or a page of the base, as the last of its siblings."""
+    async def save(
+        self, kb_id: UUID, parent_id: UUID | None, filename: str | None, source: BinaryIO, *, commit: bool = True
+    ) -> FileNodeRead:
+        """Stores a file byte for byte into a folder or a page of the base, as the last of its siblings. Without
+        `commit`, in the caller's transaction."""
         if not filename:
             raise ValidationError("the file has no name")
         content = await _stage(kb_id, source, filename)
@@ -130,10 +133,11 @@ class FileService:
             NodeCreate(kb_id=kb_id, parent_id=parent_id, kind="file", title=filename, sort=key_between(last, None))
         )
         await self._uow.files.create(FileCreate(node_id=node.id, **content.model_dump()))
-        return await self._commit(node)
+        return await self._commit(node, commit)
 
-    async def replace(self, node_id: UUID, source: BinaryIO) -> FileNodeRead:
-        """The file node gets new content; the current one goes to its history."""
+    async def replace(self, node_id: UUID, source: BinaryIO, *, commit: bool = True) -> FileNodeRead:
+        """The file node gets new content; the current one goes to its history. Without `commit`, in the caller's
+        transaction."""
         node = await self._file_node(node_id)
         content = await _stage(node.kb_id, source, node.title)
         await self._uow.kbs.lock(node.kb_id)
@@ -144,7 +148,7 @@ class FileService:
         await self._storage.put(content.storage_key, source, content.size)
         await self._to_history(node.id, current)
         await self._uow.files.set_content(current.id, content)
-        return await self._commit(node)
+        return await self._commit(node, commit)
 
     async def versions(self, node_id: UUID) -> list[FileVersionResponse]:
         """The file's older contents, newest first; its current one is the node's."""
@@ -152,8 +156,9 @@ class FileService:
         history = await self._uow.file_versions.history(node.id)
         return [FileVersionResponse.model_validate(version, from_attributes=True) for version in history]
 
-    async def restore(self, node_id: UUID, version_id: UUID) -> FileNodeRead:
-        """An old content becomes current again; the current one goes to history and no version is removed."""
+    async def restore(self, node_id: UUID, version_id: UUID, *, commit: bool = True) -> FileNodeRead:
+        """An old content becomes current again; the current one goes to history and no version is removed. Without
+        `commit`, in the caller's transaction."""
         node = await self._file_node(node_id)
         version = await self._version(node.id, version_id)
         current = await self._uow.files.of_node(node.id)
@@ -161,7 +166,7 @@ class FileService:
             raise SameFile("é o mesmo arquivo", {"node_id": str(node.id)})
         await self._to_history(node.id, current)
         await self._uow.files.set_content(current.id, version)
-        return await self._commit(node)
+        return await self._commit(node, commit)
 
     async def open(self, node_id: UUID, version_id: UUID | None = None) -> tuple[NodeRead, FileContent]:
         """The node and the metadata of its current content, or of one older content of it."""
@@ -241,12 +246,13 @@ class FileService:
             message = f"está na Lixeira: {where}" if trashed else f"já está em {where}"
         raise Duplicate(message, {"node_id": str(holder.id), "path": where, "trashed": trashed, "history": in_history})
 
-    async def _commit(self, node: NodeRead) -> FileNodeRead:
+    async def _commit(self, node: NodeRead, commit: bool = True) -> FileNodeRead:
         detail = FileNodeRead(
             **node.model_dump(),
             path=await self._uow.nodes.path(node.id),
             file=FileResponse.model_validate(await self._uow.files.of_node(node.id), from_attributes=True),
             versions=await self._uow.file_versions.count({"node_id": node.id}) + 1,
         )
-        await self._uow.commit()
+        if commit:
+            await self._uow.commit()
         return detail

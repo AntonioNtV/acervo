@@ -1,3 +1,65 @@
-from fastapi import APIRouter
+from typing import Annotated, Any, Literal
+from uuid import UUID
 
-router = APIRouter(prefix="/v1", tags=["proposals"])
+from fastapi import APIRouter, Body, Depends
+
+from acervo.api.deps import get_proposal_service, require_api_key
+from acervo.schemas.common import ErrorResponse
+from acervo.schemas.proposal import ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
+from acervo.services.proposal_service import ProposalService
+
+ERROR: dict[str, Any] = {"model": ErrorResponse}
+
+router = APIRouter(
+    prefix="/v1",
+    tags=["proposals"],
+    dependencies=[Depends(require_api_key)],
+    responses={401: ERROR, 422: ERROR},
+)
+
+Service = Annotated[ProposalService, Depends(get_proposal_service)]
+
+
+@router.get("/kbs/{kb_id}/proposals", response_model=list[ProposalSummary], responses={404: ERROR})
+async def list_proposals(
+    kb_id: UUID, service: Service, status: Literal["pending"] = "pending"
+) -> list[ProposalSummary]:
+    """The base's proposals waiting for the person, from any conversation or agent, newest first."""
+    return await service.pending(kb_id)
+
+
+@router.get("/proposals/{proposal_id}", response_model=ProposalRead, responses={404: ERROR})
+async def get_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
+    return await service.get(proposal_id)
+
+
+@router.post("/proposals/{proposal_id}/accept", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
+async def accept_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
+    """Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
+    gone it comes back `stale` and nothing changes."""
+    return await service.accept(proposal_id)
+
+
+@router.post("/proposals/{proposal_id}/reject", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
+async def reject_proposal(proposal_id: UUID, body: ProposalReject, service: Service) -> ProposalRead:
+    return await service.reject(proposal_id, body.reason)
+
+
+@router.patch("/proposals/{proposal_id}", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
+async def edit_proposal(proposal_id: UUID, body: Annotated[ProposalPayload, Body()], service: Service) -> ProposalRead:
+    """The person's version of what it does, of the same kind; the original is kept."""
+    return await service.edit(proposal_id, body)
+
+
+@router.post("/proposals/{proposal_id}/other-place", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
+async def other_place(proposal_id: UUID, service: Service) -> ProposalRead:
+    """A new page or a file goes to the second place that was close instead."""
+    return await service.other_place(proposal_id)
+
+
+@router.post(
+    "/proposals/{proposal_id}/undo", status_code=201, response_model=ProposalRead, responses={404: ERROR, 409: ERROR}
+)
+async def undo_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
+    """A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode."""
+    return await service.undo(proposal_id)
