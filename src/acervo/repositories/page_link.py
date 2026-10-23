@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 
 from acervo.db.models.node import Node
 from acervo.db.models.page_link import PageLink
@@ -43,3 +43,7 @@ class PageLinkRepository(BaseRepository[PageLink, PageLinkRead, PageLinkCreate, 
             .execution_options(populate_existing=True)
         )
         return [NodeRead.model_validate(node) for node in await self._session.scalars(query)]
+
+    async def set_base(self, node_ids: list[UUID], kb_id: UUID) -> None:
+        """The rows of these pages, as their nodes go to another base."""
+        await self._session.execute(update(PageLink).where(PageLink.from_node_id.in_(node_ids)).values(kb_id=kb_id))
