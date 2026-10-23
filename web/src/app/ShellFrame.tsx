@@ -25,7 +25,7 @@ function Frame() {
   return (
     <div className="flex h-full min-h-0">
       {sidebarOpen && <Sidebar onSearch={() => setSearchOpen(true)} />}
-      <main className="flex min-w-[480px] flex-1 flex-col overflow-y-auto">
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
         <Outlet />
       </main>
       <ChatPanel />
