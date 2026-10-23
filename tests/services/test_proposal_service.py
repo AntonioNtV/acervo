@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from botocore.exceptions import ClientError
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -205,6 +206,21 @@ async def test_save_pdf_creates_the_node_from_the_staged_file_in_the_other_place
     assert node is not None and node.parent_id == env.node("Arquivo")
     file = await env.session.scalar(select(File).where(File.node_id == node.id))
     assert file is not None and (file.sha256, file.pages) == (staged.sha256, 3)
+
+
+async def test_a_staged_file_is_deleted_once_no_open_proposal_waits_on_it(env: Env) -> None:
+    staged = await _staged(env)
+    payload = SavePdfPayload(parent_id=env.node("Bradesco"), parent_path="Bradesco", name="CG 2026.pdf")
+    first, second = [await env.propose(payload, staged=staged) for _ in range(2)]
+
+    await env.proposals.accept(first.id)
+    async with env.storage.download(staged.storage_key) as path:
+        assert path.read_bytes() == SIMPLE.read_bytes()
+    await env.proposals.reject(second.id, "already_there")
+
+    with pytest.raises(ClientError):
+        async with env.storage.download(staged.storage_key):
+            pass
 
 
 async def test_replace_pdf_adds_a_file_version(env: Env) -> None:

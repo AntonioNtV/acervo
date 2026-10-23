@@ -31,7 +31,7 @@ from acervo.schemas.proposal import (
     RenamePayload,
 )
 from acervo.services.agent_service import AgentService
-from acervo.services.conversation_service import ConversationService, Upload
+from acervo.services.conversation_service import ConversationService, Upload, too_large
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
 from acervo.services.proposal_service import ProposalService, enqueue_refresh
@@ -199,6 +199,10 @@ class AgentTools:
         mime = mimetypes.guess_type(name)[0]
         if mime != "application/pdf":
             raise ValidationError("só um PDF pode ser enviado", {"name": name})
+        max_bytes = self._storage.settings.upload_max_bytes
+        # Base64 takes 4 characters for every 3 bytes: an oversized file is refused before it is decoded.
+        if len(content_base64) > 4 * -(-max_bytes // 3):
+            raise ValidationError(too_large(max_bytes), {"max_bytes": max_bytes})
         try:
             data = base64.b64decode(content_base64, validate=True)
         except binascii.Error as exc:

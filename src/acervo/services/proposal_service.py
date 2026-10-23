@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -35,6 +36,8 @@ from acervo.services.tree_service import TreeService
 
 OPEN = ("pending", "stale")
 REFRESH_DESCRIPTIONS = "refresh_descriptions"
+
+logger = logging.getLogger(__name__)
 
 
 def changed_parent(payload: ProposalPayload) -> UUID | None:
@@ -129,6 +132,7 @@ class ProposalService:
             id, ProposalUpdate(status="applied", accepted_by=by, applied_at=datetime.now(UTC))
         )
         await self._uow.commit()
+        await self._discard(applied.staged)
         return applied
 
     async def reject(self, id: UUID, reason: RejectReason) -> ProposalRead:
@@ -136,6 +140,7 @@ class ProposalService:
         self._open(await self._uow.proposals.locked(id))
         rejected = await self._uow.proposals.update(id, ProposalUpdate(status="rejected", reject_reason=reason))
         await self._uow.commit()
+        await self._discard(rejected.staged)
         return rejected
 
     async def edit(self, id: UUID, payload: ProposalPayload) -> ProposalRead:
@@ -184,6 +189,16 @@ class ProposalService:
                 undo_of=original.id,
             )
         )
+
+    async def _discard(self, staged: StagedFile | None) -> None:
+        """A staged file no open proposal waits on any more is deleted: a saved one has its own copy in the base.
+        The proposal is settled already, so a failed delete only leaves the file behind."""
+        if staged is None or await self._uow.proposals.waits_on(staged.storage_key):
+            return
+        try:
+            await self._storage.delete(staged.storage_key)
+        except Exception:
+            logger.exception("staged file %s was not deleted", staged.storage_key)
 
     def _open(self, proposal: ProposalRead) -> None:
         if proposal.status not in OPEN:

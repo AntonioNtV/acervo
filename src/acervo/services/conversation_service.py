@@ -202,12 +202,19 @@ class ConversationService:
     async def _stage(self, kb_id: UUID, upload: Upload) -> Attachment:
         if not upload.name:
             raise ValidationError("o arquivo não tem nome")
-        sha256, size, _ = await asyncio.to_thread(read_hash, upload.source)
+        max_bytes = self._storage.settings.upload_max_bytes
+        sha256, size, _ = await asyncio.to_thread(read_hash, upload.source, max_bytes)
+        if size > max_bytes:
+            raise ValidationError(too_large(max_bytes), {"max_bytes": max_bytes})
         # Outside the keys of the base's files, so discarding a staged file never touches one saved in the base.
         key = f"staged/{kb_id}/{sha256}"
         await self._storage.put(key, upload.source, size)
         mime = upload.mime or mimetypes.guess_type(upload.name)[0] or "application/octet-stream"
         return Attachment(storage_key=key, sha256=sha256, size=size, name=upload.name, mime=mime)
+
+
+def too_large(max_bytes: int) -> str:
+    return f"o arquivo passa de {max_bytes // (1024 * 1024)} MB"
 
 
 def _text(text: str) -> list[UiPart]:

@@ -1,4 +1,5 @@
 import base64
+import io
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,8 +15,10 @@ from acervo.core.settings import Settings
 from acervo.db.models import PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate, AgentRead, AgentUpdate
+from acervo.schemas.conversation import ConversationStart
 from acervo.schemas.proposal import MovePayload, PatchPayload, RenamePayload
 from acervo.services.agent_tools import MAX_PDF_PAGES, AgentTools
+from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.file_service import FileService
 from acervo.services.storage import Storage
@@ -188,6 +191,21 @@ async def test_save_file_refuses_anything_but_a_pdf(env: Env) -> None:
         await env.tools.save_file("Notas.txt", base64.b64encode(b"texto").decode())
 
     assert await env.uow.conversations.of_agent(env.agent.id) == []
+
+
+async def test_a_file_past_the_cap_is_refused_in_the_chat_and_in_base64(env: Env, storage: Settings) -> None:
+    small = Storage(storage.model_copy(update={"upload_max_bytes": 4}))
+    tools = AgentTools(env.uow, small, env.jobs, InMemoryEventBus(), env.agent, wait_seconds=0)
+    conversations = ConversationService(env.uow, small, env.jobs, InMemoryEventBus())
+    conversation = await conversations.create(env.tree.kb.id, ConversationStart(agent_id=env.agent.id))
+
+    with pytest.raises(ValidationError):
+        await tools.save_file("Tabela.pdf", base64.b64encode(b"%PDF-1.4").decode())
+    with pytest.raises(ValidationError):
+        upload = Upload(name="Tabela.pdf", mime="application/pdf", source=io.BytesIO(b"%PDF-1.4"))
+        await conversations.post(conversation.id, "", [upload], None)
+
+    assert await env.uow.messages.of_conversation(conversation.id) == []
 
 
 async def test_an_auto_write_refreshes_descriptions(env: Env) -> None:

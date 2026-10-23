@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024
+    # A file sent in the chat or by an MCP agent's save_file is refused past this.
+    upload_max_bytes: int = 100 * 1024 * 1024
     # A message's job is cancelled past this, and its reply marked failed.
     job_timeout_seconds: int = 600
     # How many earlier messages of a conversation the chat reads as its history.
