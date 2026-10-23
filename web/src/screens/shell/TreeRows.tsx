@@ -8,6 +8,7 @@ import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Input } from "../../ui/Input";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { NodeName, useTreeErrorText } from "../base/names";
 import { useStartUpload } from "../base/Upload";
 
@@ -315,7 +316,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
         onClick={() => hasCaret && setOpen(node.id, true)}
         className={cx("flex h-7 min-w-0 flex-1 items-center gap-1.5 no-underline", selected ? "text-text" : "text-text-2")}
       >
-        <Icon name={node.kind} size={14} />
+        <NodeIcon icon={node.icon} kind={node.kind} size={14} />
         <NodeName node={node} pageExt={false} className="truncate" />
       </Link>
     );

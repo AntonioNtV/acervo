@@ -11,10 +11,12 @@ import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Menu, MenuItem } from "../../ui/Menu";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { splitExt } from "../../ui/names";
 import { useCreateUntitledPage, useTreeErrorText } from "../base/names";
 import { FileDropZone, useStartUpload } from "../base/Upload";
 import { TopBar } from "../shell/TopBar";
+import { Cover, HeaderDecor } from "./Cover";
 import { dateOf, dayLabel, timeOf, versionsText } from "./format";
 import { History, VersionText } from "./History";
 import { useAutosave } from "./useAutosave";
@@ -205,16 +207,20 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
+          <Cover node={node} />
           <FileDropZone
             kbId={kbId}
             parentId={node.id}
             name={node.title}
             className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30"
           >
-            <div className="mb-1 text-13 text-ghost">
-              {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
+            <div className="group/header">
+              <HeaderDecor node={node} />
+              <div className="mb-1 text-13 text-ghost">
+                {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
+              </div>
+              <Title node={node} />
             </div>
-            <Title node={node} />
             {autosave.reloaded && (
               <div role="status" className="mt-4 flex items-start gap-2 border-y border-line py-2 text-13 text-text-2">
                 <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-warn" />
@@ -257,7 +263,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                             className="-mx-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-15 text-text no-underline hover:bg-subtle"
                           >
                             <span className="text-text-3">
-                              <Icon name={child.kind} />
+                              <NodeIcon icon={child.icon} kind={child.kind} />
                             </span>
                             <FileName title={name} ext={ext} />
                           </Link>

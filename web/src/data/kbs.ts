@@ -25,7 +25,7 @@ export function useCreateKb() {
 export function useUpdateKb() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ kbId, ...body }: { kbId: string; name?: string; description?: string }) =>
+    mutationFn: ({ kbId, ...body }: { kbId: string; name?: string; description?: string; icon?: string | null }) =>
       call(api.PATCH("/v1/kbs/{kb_id}", { params: { path: { kb_id: kbId } }, body })),
     onSuccess: () => refreshKbs(queryClient),
   });
