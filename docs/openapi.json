@@ -1461,6 +1461,19 @@
       "MovePayload": {
         "description": "A node moved under another folder or page of the same base.",
         "properties": {
+          "from_parent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its parent now; null for the base's root.",
+            "title": "From Parent Id"
+          },
           "from_path": {
             "description": "Its path now.",
             "title": "From Path",
@@ -2402,12 +2415,11 @@
         "description": "A place the descent reached, as the proposal shows it and as \"Outro lugar\" swaps to.",
         "properties": {
           "landing": {
-            "description": "Into that page's text, under that node (save or stay here), or a new page or folder under it.",
+            "description": "Into that page's text, under that node (save or stay here), or a new page under it.",
             "enum": [
               "page",
               "here",
-              "new_page",
-              "new_folder"
+              "new_page"
             ],
             "title": "Landing",
             "type": "string"
