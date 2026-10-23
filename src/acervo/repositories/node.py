@@ -133,6 +133,12 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             for node, protected, count, pages, size in rows
         ]
 
+    async def live_in(self, kb_id: UUID) -> list[NodeRead]:
+        """Every live node of the base, siblings in the person's order."""
+        query = select(Node).where(Node.kb_id == kb_id, Node.deleted_at.is_(None)).order_by(sort_key(), Node.id)
+        nodes = await self._session.scalars(query.execution_options(populate_existing=True))
+        return [self._to_read(node) for node in nodes]
+
     async def ancestors(self, node_id: UUID) -> set[UUID]:
         """The node itself and every node above it."""
         return set(await self._session.scalars(select(upwards([node_id]).c.id)))

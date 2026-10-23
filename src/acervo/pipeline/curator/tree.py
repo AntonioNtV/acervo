@@ -2,9 +2,10 @@
 
 from collections.abc import Awaitable, Callable
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from acervo.domain.cards import NodeKind
 
@@ -24,13 +25,20 @@ class TreeSnapshot(BaseModel):
     """Every live node of a base, siblings in their sort order."""
 
     nodes: list[SnapshotNode]
+    # Positions in `nodes`, not the nodes: a caller may swap a node for an updated copy in place.
+    _at: dict[UUID, int] = PrivateAttr(default_factory=dict)
+    _under: dict[UUID | None, list[int]] = PrivateAttr(default_factory=dict)
+
+    def model_post_init(self, context: Any) -> None:
+        for index, node in enumerate(self.nodes):
+            self._at[node.id] = index
+            self._under.setdefault(node.parent_id, []).append(index)
 
     def node(self, id: UUID) -> SnapshotNode:
-        return next(node for node in self.nodes if node.id == id)
+        return self.nodes[self._at[id]]
 
     def children(self, parent: SnapshotNode | None) -> list[SnapshotNode]:
-        parent_id = parent.id if parent else None
-        return [node for node in self.nodes if node.parent_id == parent_id]
+        return [self.nodes[index] for index in self._under.get(parent.id if parent else None, [])]
 
     def path(self, node: SnapshotNode | None) -> str:
         """Titles from the root down to the node, joined by /; empty for the root."""

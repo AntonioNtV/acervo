@@ -59,24 +59,19 @@ class TreeService:
         return await self._uow.nodes.children(kb_id, parent_id)
 
     async def snapshot(self, kb_id: UUID) -> TreeSnapshot:
-        """Every live node of the base with its description, parents before children, siblings in their order: what
-        the pipeline decides over."""
-        nodes: list[SnapshotNode] = []
-        parents: list[UUID | None] = [None]
-        while parents:
-            for child in await self._uow.nodes.children(kb_id, parents.pop(0)):
-                nodes.append(
-                    SnapshotNode(
-                        id=child.id,
-                        parent_id=child.parent_id,
-                        kind=child.kind,
-                        title=child.title,
-                        description=child.description,
-                        active_at=child.updated_at,
-                    )
-                )
-                if child.child_count:
-                    parents.append(child.id)
+        """Every live node of the base with its description, siblings in their order: what the pipeline decides
+        over."""
+        nodes = [
+            SnapshotNode(
+                id=node.id,
+                parent_id=node.parent_id,
+                kind=node.kind,
+                title=node.title,
+                description=node.description,
+                active_at=node.updated_at,
+            )
+            for node in await self._uow.nodes.live_in(kb_id)
+        ]
         return TreeSnapshot(nodes=nodes)
 
     async def create(
