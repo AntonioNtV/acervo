@@ -355,7 +355,9 @@ export interface paths {
         };
         /**
          * List Proposals
-         * @description The base's proposals waiting for the person, from any conversation or agent, newest first.
+         * @description The base's proposals waiting for the person, from any conversation or agent, newest first; with
+         *     `status=applied`, those applied in the last days, most recent first (`accepted_by=auto`: by an agent in auto
+         *     mode), each with its agent's name, to undo.
          */
         get: operations["list_proposals_v1_kbs__kb_id__proposals_get"];
         put?: never;
@@ -856,6 +858,27 @@ export interface paths {
          * @description A new page or a file goes to the second place that was close instead.
          */
         post: operations["other_place_v1_proposals__proposal_id__other_place_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/redo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redo Proposal
+         * @description A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;
+         *     the stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.
+         */
+        post: operations["redo_proposal_v1_proposals__proposal_id__redo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1760,9 +1783,9 @@ export interface components {
         MessageRead: {
             /**
              * Ask
-             * @description A reply that asks first: the two readings, likeliest first; null otherwise.
+             * @description A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an organizar is, likeliest first; null otherwise.
              */
-            ask?: ("perguntar" | "guardar" | "organizar" | "conversar")[] | null;
+            ask?: (("perguntar" | "guardar" | "organizar" | "conversar") | ("move" | "rename" | "undo"))[] | null;
             /**
              * Attachments
              * @description Files sent with it.
@@ -2504,7 +2527,7 @@ export interface components {
              * @description pending until accepted, rejected or stale.
              * @enum {string}
              */
-            status: "pending" | "editing" | "accepted" | "applied" | "rejected" | "stale";
+            status: "pending" | "applied" | "rejected" | "stale";
             /**
              * Undo Of
              * @description The applied proposal an undo reverts.
@@ -2626,7 +2649,7 @@ export interface components {
              * @description pending until accepted, rejected or stale.
              * @enum {string}
              */
-            status: "pending" | "editing" | "accepted" | "applied" | "rejected" | "stale";
+            status: "pending" | "applied" | "rejected" | "stale";
             /**
              * Undo Of
              * @description The applied proposal an undo reverts.
@@ -2695,10 +2718,9 @@ export interface components {
         Reroute: {
             /**
              * Route
-             * @description The understanding to redo the message with.
-             * @enum {string}
+             * @description The understanding to redo the message with, or which change it asks.
              */
-            route: "perguntar" | "guardar" | "organizar" | "conversar";
+            route: ("perguntar" | "guardar" | "organizar" | "conversar") | ("move" | "rename" | "undo");
         };
         /**
          * RestoredNode
@@ -4223,7 +4245,8 @@ export interface operations {
     list_proposals_v1_kbs__kb_id__proposals_get: {
         parameters: {
             query?: {
-                status?: "pending";
+                status?: "pending" | "applied";
+                accepted_by?: ("person" | "auto") | null;
             };
             header?: {
                 "x-api-key"?: string | null;
@@ -5815,6 +5838,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    redo_proposal_v1_proposals__proposal_id__redo_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRead"];
                 };
             };
             /** @description Unauthorized */

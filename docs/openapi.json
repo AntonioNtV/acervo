@@ -1336,13 +1336,25 @@
             "anyOf": [
               {
                 "items": {
-                  "enum": [
-                    "perguntar",
-                    "guardar",
-                    "organizar",
-                    "conversar"
-                  ],
-                  "type": "string"
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "perguntar",
+                        "guardar",
+                        "organizar",
+                        "conversar"
+                      ],
+                      "type": "string"
+                    },
+                    {
+                      "enum": [
+                        "move",
+                        "rename",
+                        "undo"
+                      ],
+                      "type": "string"
+                    }
+                  ]
                 },
                 "type": "array"
               },
@@ -1350,7 +1362,7 @@
                 "type": "null"
               }
             ],
-            "description": "A reply that asks first: the two readings, likeliest first; null otherwise.",
+            "description": "A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an organizar is, likeliest first; null otherwise.",
             "title": "Ask"
           },
           "attachments": {
@@ -2744,8 +2756,6 @@
             "description": "pending until accepted, rejected or stale.",
             "enum": [
               "pending",
-              "editing",
-              "accepted",
               "applied",
               "rejected",
               "stale"
@@ -3082,8 +3092,6 @@
             "description": "pending until accepted, rejected or stale.",
             "enum": [
               "pending",
-              "editing",
-              "accepted",
               "applied",
               "rejected",
               "stale"
@@ -3196,15 +3204,27 @@
         "description": "How a message is to be understood instead (\"era uma pergunta\").",
         "properties": {
           "route": {
-            "description": "The understanding to redo the message with.",
-            "enum": [
-              "perguntar",
-              "guardar",
-              "organizar",
-              "conversar"
+            "anyOf": [
+              {
+                "enum": [
+                  "perguntar",
+                  "guardar",
+                  "organizar",
+                  "conversar"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "move",
+                  "rename",
+                  "undo"
+                ],
+                "type": "string"
+              }
             ],
-            "title": "Route",
-            "type": "string"
+            "description": "The understanding to redo the message with, or which change it asks.",
+            "title": "Route"
           }
         },
         "required": [
@@ -5755,7 +5775,7 @@
     },
     "/v1/kbs/{kb_id}/proposals": {
       "get": {
-        "description": "The base's proposals waiting for the person, from any conversation or agent, newest first.",
+        "description": "The base's proposals waiting for the person, from any conversation or agent, newest first; with\n`status=applied`, those applied in the last days, most recent first (`accepted_by=auto`: by an agent in auto\nmode), each with its agent's name, to undo.",
         "operationId": "list_proposals_v1_kbs__kb_id__proposals_get",
         "parameters": [
           {
@@ -5773,10 +5793,33 @@
             "name": "status",
             "required": false,
             "schema": {
-              "const": "pending",
               "default": "pending",
+              "enum": [
+                "pending",
+                "applied"
+              ],
               "title": "Status",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accepted_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "person",
+                    "auto"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accepted By"
             }
           },
           {
@@ -8430,6 +8473,96 @@
           }
         },
         "summary": "Other Place",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/redo": {
+      "post": {
+        "description": "A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;\nthe stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.",
+        "operationId": "redo_proposal_v1_proposals__proposal_id__redo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Redo Proposal",
         "tags": [
           "proposals"
         ]
