@@ -15,11 +15,14 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate
 from acervo.schemas.conversation import ConversationStart
 from acervo.schemas.kb import KbCreate
+from acervo.schemas.node import NodeAdd
 from acervo.services.chat_service import INTERRUPTED, fail_interrupted
 from acervo.services.conversation_service import NOT_STARTED, ConversationService
 from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
+from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
-from acervo.worker.jobs import handle_message
+from acervo.services.tree_service import TreeService
+from acervo.worker.jobs import handle_message, index_node, index_pending
 
 
 async def test_handle_message_runs_the_chat_and_publishes_done(
@@ -96,3 +99,23 @@ async def test_a_reply_left_working_is_failed_at_startup_and_when_its_job_is_not
     assert (replies[killed.id].status, replies[killed.id].error) == ("failed", INTERRUPTED)
     assert replies[running.id].status == "working"
     assert (unsent.status, replies[unsent.id].status, unsent.error) == ("failed", "failed", NOT_STARTED)
+
+
+async def test_the_sweep_enqueues_each_build_asked_for_once_and_the_job_builds_it(
+    uow: UnitOfWork, session: AsyncSession, session_factory: async_sessionmaker[AsyncSession], test_settings: Settings
+) -> None:
+    async with uow:
+        kb = await uow.kbs.create(KbCreate(name="Seguros · Operação"))
+        page = await TreeService(uow).create(kb.id, NodeAdd(kind="page", title="Prazos"), markdown="# Prazos\n")
+        version = await PageService(uow).read(page.id)
+    jobs = RecordingJobQueue()
+    ctx = {"session_factory": session_factory, "storage": Storage(test_settings), "settings": test_settings}
+
+    await index_pending(ctx | {"jobs": jobs})
+    [(job, kwargs)] = jobs.jobs
+    await index_node(ctx, kwargs["node_id"], kwargs["key"])
+
+    key = str(version.version_id)
+    assert (job, kwargs) == ("index_node", {"node_id": str(page.id), "key": key, "_job_id": f"index:{page.id}:{key}"})
+    async with UnitOfWork(session_factory) as check:
+        assert await check.indexes.states([page.id]) == {page.id: "ready"}

@@ -1,4 +1,4 @@
-.PHONY: up down migrate revision worker test lint openapi web-check eval-ai1 eval-retrieval
+.PHONY: up down migrate revision worker reindex test lint openapi web-check eval-ai1 eval-retrieval
 
 up:
 	docker compose up -d --build --wait
@@ -14,6 +14,10 @@ revision:
 
 worker:
 	uv run arq acervo.worker.settings.WorkerSettings
+
+# Indexes every file and page of base `kb`, for what was there before indexing; the worker builds them.
+reindex:
+	uv run python -m acervo.cli reindex $(kb)
 
 test:
 	uv run pytest --cov=acervo

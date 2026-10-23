@@ -126,7 +126,7 @@ class PageService:
     async def create(self, node: NodeRead, markdown: str = "", proposal_id: UUID | None = None) -> None:
         """The first version of a new page, empty unless an accepted proposal wrote it, in the caller's
         transaction."""
-        await self._add(node, markdown, proposal_id=proposal_id)
+        await self._add(node, markdown, proposal_id=proposal_id, index=bool(markdown))
         if markdown:
             await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
 
@@ -235,7 +235,9 @@ class PageService:
         started_at: datetime | None = None,
         ended_at: datetime | None = None,
         proposal_id: UUID | None = None,
+        index: bool = True,
     ) -> PageVersionRead:
+        """A new version, indexed once committed; the working text between cuts is never indexed."""
         data = PageVersionCreate(
             node_id=node.id,
             markdown=markdown,
@@ -244,10 +246,14 @@ class PageService:
             edit_ended_at=ended_at,
         )
         if proposal_id is None:
-            return await self._uow.page_versions.add(data)
-        # The database clock, as `add` uses, so versions written in one transaction keep their order.
-        now = await self._uow.page_drafts.clock()
-        return await self._uow.page_versions.create(data, created_at=now, proposal_id=proposal_id)
+            version = await self._uow.page_versions.add(data)
+        else:
+            # The database clock, as `add` uses, so versions written in one transaction keep their order.
+            now = await self._uow.page_drafts.clock()
+            version = await self._uow.page_versions.create(data, created_at=now, proposal_id=proposal_id)
+        if index:
+            await self._uow.indexes.start(node.id, str(version.id))
+        return version
 
     async def _page(self, node_id: UUID) -> NodeRead:
         node = await self._uow.nodes.live(node_id)

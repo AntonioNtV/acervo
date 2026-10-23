@@ -2,6 +2,7 @@
 
 from typing import Any, ClassVar
 
+from arq import cron, func
 from arq.connections import RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -12,7 +13,10 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.services.chat_service import fail_interrupted
 from acervo.services.events import ArqJobQueue, RedisEventBus
 from acervo.services.storage import Storage
-from acervo.worker.jobs import handle_message, refresh_descriptions
+from acervo.worker.jobs import handle_message, index_node, index_pending, refresh_descriptions
+
+# How often the worker looks for index builds asked for.
+INDEX_SWEEP_SECONDS = 5
 
 
 async def startup(ctx: dict[str, Any]) -> None:
@@ -42,7 +46,11 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 
 class WorkerSettings:
-    functions: ClassVar[list[Any]] = [handle_message, refresh_descriptions]
+    # No result kept for an index build, so a retry of the same version is enqueued again at once.
+    functions: ClassVar[list[Any]] = [handle_message, refresh_descriptions, func(index_node, keep_result=0)]
+    cron_jobs: ClassVar[list[Any]] = [
+        cron(index_pending, second=set(range(0, 60, INDEX_SWEEP_SECONDS)), run_at_startup=True)
+    ]
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)

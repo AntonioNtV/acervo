@@ -31,6 +31,11 @@ class NodeIndexRepository:
         found = {node_id: status for node_id, status in await self._session.execute(query)}
         return {node_id: cast(IndexState, found.get(node_id, "none")) for node_id in node_ids}
 
+    async def pending(self) -> list[tuple[UUID, str]]:
+        """Builds asked for and not yet finished or failed: (node_id, building_key)."""
+        query = select(NodeIndex.node_id, NodeIndex.building_key).where(NodeIndex.building_key.is_not(None))
+        return [(node_id, key) for node_id, key in await self._session.execute(query) if key is not None]
+
     async def start(self, node_id: UUID, key: str) -> None:
         """Marks the version `key` as building; a later `start` supersedes it."""
         row = await self._session.get(NodeIndex, node_id, populate_existing=True)

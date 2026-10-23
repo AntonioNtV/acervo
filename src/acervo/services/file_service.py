@@ -135,6 +135,7 @@ class FileService:
             NodeCreate(kb_id=kb_id, parent_id=parent_id, kind="file", title=filename, sort=key_between(last, None))
         )
         await self._uow.files.create(FileCreate(node_id=node.id, **content.model_dump()))
+        await self._index(node.id, content)
         return await self._commit(node, commit)
 
     async def replace(self, node_id: UUID, source: BinaryIO, *, commit: bool = True) -> FileNodeRead:
@@ -150,6 +151,7 @@ class FileService:
         await self._storage.put(content.storage_key, source, content.size)
         await self._to_history(node.id, current)
         await self._uow.files.set_content(current.id, content)
+        await self._index(node.id, content)
         return await self._commit(node, commit)
 
     async def versions(self, node_id: UUID) -> list[FileVersionResponse]:
@@ -169,6 +171,7 @@ class FileService:
             raise SameFile("é o mesmo arquivo", {"node_id": str(node.id)})
         await self._to_history(node.id, current)
         await self._uow.files.set_content(current.id, version)
+        await self._index(node.id, version)
         return await self._commit(node, commit)
 
     async def open(self, node_id: UUID, version_id: UUID | None = None) -> tuple[NodeRead, FileContent]:
@@ -228,6 +231,11 @@ class FileService:
         await self._uow.file_versions.create(
             FileVersionCreate(node_id=node_id, replaced_at=datetime.now(UTC), **current.only_content().model_dump())
         )
+
+    async def _index(self, node_id: UUID, content: FileContent) -> None:
+        """A PDF's new content is indexed once committed; its previous index stays readable meanwhile."""
+        if content.mime == PDF:
+            await self._uow.indexes.start(node_id, content.sha256)
 
     async def _refuse_duplicate(self, kb_id: UUID, sha256: str, other_than: UUID | None = None) -> None:
         """Refuses content the base already holds: in a file, in the trash, or in any file's history."""

@@ -69,6 +69,13 @@ async def restore_node(node_id: UUID, service: Service) -> RestoredNode:
     return await service.restore(node_id)
 
 
+@router.post("/nodes/{node_id}/index", status_code=202, response_model=NodeRead, responses={404: ERROR})
+async def reindex_node(node_id: UUID, service: Service) -> NodeRead:
+    """Builds the search index of a file or page again, as "Tentar de novo" after a failure; it runs in the
+    background and the previous index stays searchable meanwhile."""
+    return await service.reindex(node_id)
+
+
 @router.post("/nodes/{node_id}/duplicate", status_code=201, response_model=NodeRead, responses={404: ERROR})
 async def duplicate_node(
     node_id: UUID, service: Annotated[DuplicateService, Depends(get_duplicate_service)]

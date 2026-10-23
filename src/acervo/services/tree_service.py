@@ -18,6 +18,7 @@ from acervo.schemas.node import (
     TreeNode,
 )
 from acervo.schemas.page import NodeDetail, PageRead
+from acervo.services import index_service
 from acervo.services.page_service import PageService
 
 
@@ -56,7 +57,18 @@ class TreeService:
 
     async def children(self, kb_id: UUID, parent_id: UUID | None) -> list[TreeNode]:
         await self._uow.nodes.live_parent(kb_id, parent_id)
-        return await self._uow.nodes.children(kb_id, parent_id)
+        children = await self._uow.nodes.children(kb_id, parent_id)
+        states = await self._uow.indexes.states([node.id for node in children])
+        return [node.model_copy(update={"index_state": states[node.id]}) for node in children]
+
+    async def reindex(self, node_id: UUID) -> NodeRead:
+        """Builds the index of the file or page's current version again, as after a failure."""
+        node = await self._uow.nodes.live(node_id)
+        if await index_service.current_key(self._uow, node) is None:
+            raise ValidationError(f"node {node_id} has no index", {"id": str(node_id)})
+        await index_service.request(self._uow, node)
+        await self._uow.commit()
+        return node.model_copy(update={"index_state": "building"})
 
     async def snapshot(self, kb_id: UUID) -> TreeSnapshot:
         """Every live node of the base with its description, siblings in their order: what the pipeline decides
