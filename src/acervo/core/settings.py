@@ -69,7 +69,7 @@ class LlmRoles(BaseModel):
     card: str = "anthropic:claude-haiku-5-5"
     patch: str = "anthropic:claude-opus-5-5"
     describe: str = "anthropic:claude-haiku-5-5"
-    # The LLM decider, until Jev's client exists: probabilities per option through structured output.
+    # The LLM decider: probabilities per option through structured output; DECIDER=jev uses Jev's API.
     decide: str = "anthropic:claude-opus-5-5"
     # The chat: it converses and chooses when to use the base's tools; it never decides where anything goes.
     chat: str = "anthropic:claude-sonnet-5-5"

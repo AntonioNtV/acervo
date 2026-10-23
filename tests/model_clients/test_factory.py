@@ -20,6 +20,6 @@ def test_the_setting_picks_the_clients() -> None:
     assert isinstance(build_writer(_with("fake")), FakeWriter)
 
 
-def test_jev_is_refused_until_its_client_exists() -> None:
+def test_jev_without_a_key_is_refused() -> None:
     with pytest.raises(DecisionUnavailable):
         build_decider(_with("jev"))
