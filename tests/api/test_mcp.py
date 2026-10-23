@@ -27,8 +27,8 @@ PAGE = "Bradesco/Residencial/Emissão de apólice.md"
 TEXT = "# Emissão de apólice\n\n## Documentos\n- RG\n\n## Prazos\nCinco dias.\n"
 TREE = {"Bradesco": {"Residencial": ["Emissão de apólice.md"]}, "Arquivo": None}
 TO_THE_PAGE: dict[str, FakeProbs] = {
-    "descent:": {"Bradesco (pasta) — Descrição": 1.0},
-    "descent:Bradesco": {"Residencial (pasta) — Descrição": 1.0},
+    "descent:": {"Bradesco (pasta) — Contém:\nResidencial": 1.0},
+    "descent:Bradesco": {"Residencial (pasta) — Contém:\nEmissão de apólice": 1.0},
     "descent:Bradesco/Residencial": {"Emissão de apólice (página)": 1.0},
     "covered": 0.1,
     "contradicts": 0.1,

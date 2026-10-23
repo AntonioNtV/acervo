@@ -454,7 +454,6 @@ class ChatService:
             logger.exception("proposal %s was not applied", proposal.id)
             await self._uow.rollback()
             proposal, failed = await self._uow.proposals.get(proposal.id), str(exc)
-        await self._proposals.enqueue_refresh(self._jobs, proposal)
         return proposal, failed
 
     async def _drop(self, reply_id: UUID) -> list[ProposalRead]:

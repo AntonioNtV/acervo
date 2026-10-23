@@ -23,7 +23,6 @@ Inputs and outputs are `domain/` types; the pipeline calls the `Writer`, never a
 | Role | Input | Output | Model |
 |---|---|---|---|
 | `card` | a chat message, or the first pages and the outline of a PDF | `Card`: title, one-line subject, entities, key facts, suggested file name | small |
-| `describe` | a folder's children and their descriptions | a description of at most 200 characters | small |
 | `pdf_map` | page titles detected on each page, when the PDF has no bookmarks and no table of contents | a list of sections with page ranges | small |
 | `patch` | the page's Markdown, the section anchor, the decided action, the card | a `Patch` (skill `markdown-pages`) | strong |
 | `split_question` | a question Jev flagged as two-part | sub-questions | small |

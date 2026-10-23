@@ -4,13 +4,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
 
-from acervo.api.deps import get_conversation_service, get_job_queue, get_proposal_service, get_settings, require_api_key
+from acervo.api.deps import get_conversation_service, get_proposal_service, get_settings, require_api_key
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.conversation import MessageRead
 from acervo.schemas.proposal import AcceptedBy, ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
 from acervo.services.conversation_service import ConversationService
-from acervo.services.events import JobQueue
 from acervo.services.proposal_service import ProposalService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -48,14 +47,10 @@ async def get_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
 
 
 @router.post("/proposals/{proposal_id}/accept", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
-async def accept_proposal(
-    proposal_id: UUID, service: Service, jobs: Annotated[JobQueue, Depends(get_job_queue)]
-) -> ProposalRead:
+async def accept_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
     """Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
     gone it comes back `stale` and nothing changes."""
-    proposal = await service.accept(proposal_id)
-    await service.enqueue_refresh(jobs, proposal)
-    return proposal
+    return await service.accept(proposal_id)
 
 
 @router.post("/proposals/{proposal_id}/reject", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
@@ -78,13 +73,9 @@ async def other_place(proposal_id: UUID, service: Service) -> ProposalRead:
 @router.post(
     "/proposals/{proposal_id}/undo", status_code=201, response_model=ProposalRead, responses={404: ERROR, 409: ERROR}
 )
-async def undo_proposal(
-    proposal_id: UUID, service: Service, jobs: Annotated[JobQueue, Depends(get_job_queue)]
-) -> ProposalRead:
+async def undo_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
     """A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode."""
-    undo = await service.undo(proposal_id)
-    await service.enqueue_refresh(jobs, undo)
-    return undo
+    return await service.undo(proposal_id)
 
 
 @router.post(

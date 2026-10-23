@@ -183,7 +183,6 @@ class AgentTools:
     ) -> None:
         self._uow = uow
         self._storage = storage
-        self._jobs = jobs
         self._agent = agent
         self._wait_seconds = wait_seconds
         self._pages = PageService(uow)
@@ -415,11 +414,9 @@ class AgentTools:
         return node
 
     async def _propose(self, payload: ProposalPayload) -> ProposalRead:
-        proposal = await self._proposals.create(
+        return await self._proposals.create(
             ProposalCreate(kb_id=self._agent.kb_id, agent_id=self._agent.id, payload=payload)
         )
-        await self._proposals.enqueue_refresh(self._jobs, proposal)
-        return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:
         """Posted to the agent's latest conversation, or a new one; its job files it straight through the Curator,

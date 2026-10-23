@@ -51,11 +51,3 @@ class WrittenPatch(BaseModel):
 
     lines: list[str] = Field(description="The lines to add, or the line that replaces `replaces`.")
     replaces: str | None = Field(default=None, description="For an edit: the exact text of the line it replaces.")
-
-
-class ChildDescription(BaseModel):
-    """One child of a node, as the LLM `describe` role reads it."""
-
-    title: str
-    kind: NodeKind
-    description: str

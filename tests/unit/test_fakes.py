@@ -1,6 +1,6 @@
 import pytest
 
-from acervo.domain.cards import Card, CardInput, ChildDescription
+from acervo.domain.cards import Card, CardInput
 from acervo.domain.decisions import Choice, Noul
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
@@ -32,13 +32,8 @@ async def test_fake_writer_records_inputs_per_role() -> None:
     card = Card(title="Prazo de emissão", subject="Emissão leva 3 dias úteis")
     writer: Writer = FakeWriter(card_output=card)
     source = CardInput(text="Emissão leva 3 dias úteis")
-    children = [ChildDescription(title="Residencial", kind="folder", description="produto residencial")]
 
     assert await writer.card(source) == card
-    assert await writer.describe("Bradesco", children) == "Descrição"
 
     assert isinstance(writer, FakeWriter)
-    assert writer.inputs == {
-        "card": [source],
-        "describe": [("Bradesco", children)],
-    }
+    assert writer.inputs == {"card": [source]}

@@ -14,7 +14,7 @@ from acervo.core.errors import NotFoundError, ValidationError
 from acervo.core.settings import Settings
 from acervo.db.models import PageVersion
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.agent import AgentCreate, AgentRead, AgentUpdate
+from acervo.schemas.agent import AgentCreate, AgentRead
 from acervo.schemas.conversation import ConversationStart
 from acervo.schemas.proposal import MovePayload, PatchPayload, RenamePayload
 from acervo.services.agent_tools import MAX_PDF_PAGES, AgentTools
@@ -207,15 +207,3 @@ async def test_a_file_past_the_cap_is_refused_in_the_chat_and_in_base64(env: Env
         await conversations.post(conversation.id, "", [upload], None)
 
     assert await env.uow.messages.of_conversation(conversation.id) == []
-
-
-async def test_an_auto_write_refreshes_descriptions(env: Env) -> None:
-    await env.uow.agents.update(env.agent.id, AgentUpdate(mode="auto"))
-    await env.uow.commit()
-
-    moved = await env.tools.move(env.tree["Bradesco/Residencial"].id, env.tree["Arquivo"].id)
-
-    assert moved.status == "applied"
-    # The folder it went to, and the one it left.
-    refreshed = [str(env.tree["Arquivo"].id), str(env.tree["Bradesco"].id)]
-    assert env.jobs.jobs == [("refresh_descriptions", {"node_ids": refreshed})]

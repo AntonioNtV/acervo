@@ -67,15 +67,15 @@ async def test_list_pending_then_accept(client: httpx.AsyncClient, session: Asyn
     assert (await client.get(f"/v1/kbs/{kb_id}/proposals")).json() == []
 
 
-async def test_accepting_a_new_page_refreshes_its_folder_description(
+async def test_accepting_a_new_page_enqueues_no_description_refresh(
     client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue
 ) -> None:
-    kb_id, proposal_id = await _proposal(client, session, parent="Bradesco")
-    folder = (await _children(client, kb_id))[0]["id"]
+    _, proposal_id = await _proposal(client, session, parent="Bradesco")
 
     await client.post(f"/v1/proposals/{proposal_id}/accept")
 
-    assert jobs.jobs == [("refresh_descriptions", {"node_ids": [folder]})]
+    # What Jev sees of a folder is built from the index when asked, so nothing is rewritten after a change.
+    assert jobs.jobs == []
 
 
 async def test_reject_without_a_reason_is_422(client: httpx.AsyncClient, session: AsyncSession) -> None:
