@@ -30,6 +30,7 @@ from acervo.schemas.file import (
 )
 from acervo.schemas.node import NodeCreate, NodeRead
 from acervo.services.storage import Storage, key_for
+from acervo.services.tree_service import clean_title
 
 CHUNK_SIZE = 1024 * 1024
 PDF = "application/pdf"
@@ -121,6 +122,7 @@ class FileService:
         `commit`, in the caller's transaction."""
         if not filename:
             raise ValidationError("the file has no name")
+        filename = clean_title(filename)
         content = await _stage(kb_id, source, filename)
         await self._uow.kbs.lock(kb_id)
         await self._uow.nodes.live_parent(kb_id, parent_id)
@@ -161,6 +163,7 @@ class FileService:
         `commit`, in the caller's transaction."""
         node = await self._file_node(node_id)
         version = await self._version(node.id, version_id)
+        await self._uow.kbs.lock(node.kb_id)
         current = await self._uow.files.of_node(node.id)
         if version.sha256 == current.sha256:
             raise SameFile("é o mesmo arquivo", {"node_id": str(node.id)})
@@ -197,7 +200,7 @@ class FileService:
         match = _RANGE.fullmatch(range_header.strip()) if range_header else None
         if match is None or match.groups() == ("", ""):
             headers["Content-Length"] = str(content.size)
-            return Download(200, headers, content.mime, self.stream(content))
+            return Download(200, headers, content.mime, self._storage.stream(content.storage_key))
         first, last = match.groups()
         if first:
             start, end = int(first), min(int(last), content.size - 1) if last else content.size - 1
@@ -207,11 +210,7 @@ class FileService:
             return Download(416, {"Content-Range": f"bytes */{content.size}"})
         headers["Content-Range"] = f"bytes {start}-{end}/{content.size}"
         headers["Content-Length"] = str(end - start + 1)
-        return Download(206, headers, content.mime, self.stream(content, (start, end)))
-
-    def stream(self, content: FileContent, byte_range: tuple[int, int] | None = None) -> AsyncIterator[bytes]:
-        """The stored bytes, or bytes `start` to `end` of them, both included."""
-        return self._storage.stream(content.storage_key, byte_range)
+        return Download(206, headers, content.mime, self._storage.stream(content.storage_key, (start, end)))
 
     async def _file_node(self, node_id: UUID) -> NodeRead:
         node = await self._uow.nodes.get(node_id)

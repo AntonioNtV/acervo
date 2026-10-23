@@ -42,14 +42,14 @@ async def patch(writer: Writer, card: Card, page: PageText, path: str, check: Pa
 
 async def conflict(writer: Writer, card: Card, page: PageText, path: str, check: PageCheck) -> ConflictPayload:
     """What the page says now next to what the input says, written as the edit it would be."""
-    lines = await _written(writer, card, check, "edit")
+    lines = await _written(writer, card, check, "edit" if check.line else "append")
     return ConflictPayload(
         page_id=page.page_id,
         path=path,
         base_version_id=page.version_id,
         anchor=check.section.anchor,
         heading=check.section.heading,
-        current=check.line or check.section.body,
+        current=check.line or "",
         new="\n".join(lines),
     )
 

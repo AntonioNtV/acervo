@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core.errors import ConflictError, StalePage, TitleTaken
@@ -186,3 +186,19 @@ async def test_title_clash_at_destination(services: Services, bases: Bases) -> N
         await _move_to_y(services, bases)
 
     assert (await services.tree.detail(bases.a)).kb_id == bases.x.kb.id
+
+
+async def test_the_snapshot_is_one_query_whatever_the_number_of_folders(
+    services: Services, make_tree: MakeTree, session: AsyncSession
+) -> None:
+    tree = await make_tree({"A": {"A1": {"A2": ["Nota.md"]}}, "B": {"B1": None}, "C.md": None})
+    queries: list[str] = []
+    connection = (await session.connection()).sync_connection
+    assert connection is not None
+    event.listen(connection, "before_cursor_execute", lambda *args: queries.append(args[2]))
+
+    snapshot = await services.tree.snapshot(tree.kb.id)
+
+    assert len([query for query in queries if query.startswith("SELECT")]) == 1
+    assert [node.title for node in snapshot.children(None)] == ["A", "B", "C"]
+    assert snapshot.path(snapshot.node(tree["A/A1/A2/Nota.md"].id)) == "A/A1/A2/Nota"

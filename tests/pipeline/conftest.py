@@ -39,7 +39,8 @@ def make_snapshot() -> Callable[[Any], Snapshot]:
     active."""
 
     def make(spec: Any) -> Snapshot:
-        snapshot = Snapshot(TreeSnapshot(nodes=[]))
+        nodes: list[SnapshotNode] = []
+        by_path: dict[str, SnapshotNode] = {}
         start = datetime(2026, 1, 1, tzinfo=UTC)
 
         def add(parent: SnapshotNode | None, prefix: str, spec: Any) -> None:
@@ -53,13 +54,13 @@ def make_snapshot() -> Callable[[Any], Snapshot]:
                     title=name.removesuffix(".md"),
                     active_at=start + timedelta(minutes=index),
                 )
-                snapshot.tree.nodes.append(node)
-                snapshot.nodes[f"{prefix}{name}"] = node
+                nodes.append(node)
+                by_path[f"{prefix}{name}"] = node
                 if kind != "file":
                     add(node, f"{prefix}{name}/", children)
 
         add(None, "", spec)
-        return snapshot
+        return Snapshot(TreeSnapshot(nodes=nodes), by_path)
 
     return make
 

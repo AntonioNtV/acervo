@@ -5,9 +5,12 @@ from pathlib import Path
 from uuid import UUID
 
 import httpx
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core import signing
 from acervo.core.settings import Settings
+from acervo.db.models import Node
 
 PDF = Path(__file__).parent.parent / "fixtures" / "pdfs" / "simple.pdf"
 
@@ -71,9 +74,11 @@ async def test_zip_holds_pages_sub_pages_and_files(client: httpx.AsyncClient) ->
     assert archive.read("A/Condições.pdf") == PDF.read_bytes()
 
 
-async def test_names_are_sanitized_and_deduplicated(client: httpx.AsyncClient) -> None:
+async def test_names_are_sanitized_and_deduplicated(client: httpx.AsyncClient, session: AsyncSession) -> None:
     kb_id = await _kb(client)
-    folder = await _node(client, kb_id, "folder", "Seguros/Auto: 2026")
+    folder = await _node(client, kb_id, "folder", "Seguros")
+    # A title from before `/` was refused.
+    await session.execute(update(Node).where(Node.id == UUID(folder)).values(title="Seguros/Auto: 2026"))
     await _node(client, kb_id, "page", "Relatório", folder)
     await _node(client, kb_id, "folder", "relatório", folder)
     await _upload(client, kb_id, folder, "Relatório.md")

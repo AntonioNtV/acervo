@@ -9,7 +9,7 @@ from acervo.schemas.kb import KbCreate, KbEdit, KbRead, KbSummary, KbUpdate
 
 
 def _name(name: str) -> str:
-    name = name.strip()
+    name = name.replace("\x00", "").strip()
     if not name:
         raise ValidationError("a base needs a name", {"name": name})
     return name
