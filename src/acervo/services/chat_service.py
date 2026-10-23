@@ -52,7 +52,7 @@ from acervo.schemas.proposal import (
 from acervo.services.agent_tools import AgentTools, Folder, PageContent
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.filing_service import Filing, FilingService, Origin
-from acervo.services.proposal_service import OPEN, ProposalService, enqueue_refresh
+from acervo.services.proposal_service import OPEN, ProposalService
 from acervo.services.storage import Storage
 
 # The earlier messages the chat reads, when the caller does not say (the worker passes `Settings.chat_history`).
@@ -454,7 +454,7 @@ class ChatService:
             logger.exception("proposal %s was not applied", proposal.id)
             await self._uow.rollback()
             proposal, failed = await self._uow.proposals.get(proposal.id), str(exc)
-        await enqueue_refresh(self._jobs, proposal)
+        await self._proposals.enqueue_refresh(self._jobs, proposal)
         return proposal, failed
 
     async def _drop(self, reply_id: UUID) -> list[ProposalRead]:

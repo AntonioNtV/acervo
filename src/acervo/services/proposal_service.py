@@ -40,22 +40,6 @@ REFRESH_DESCRIPTIONS = "refresh_descriptions"
 logger = logging.getLogger(__name__)
 
 
-def changed_parent(payload: ProposalPayload) -> UUID | None:
-    """The folder or page that got, lost or renamed a child, whose description follows its children."""
-    match payload:
-        case CreatePagePayload() | SavePdfPayload() | MovePayload():
-            return payload.parent_id
-        case _:
-            return None
-
-
-async def enqueue_refresh(jobs: JobQueue, proposal: ProposalRead) -> None:
-    """An applied proposal's changed parent describes its children again, in the worker."""
-    parent = changed_parent(proposal.edited_payload or proposal.payload)
-    if proposal.status == "applied" and parent is not None:
-        await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
-
-
 class ProposalService:
     """The only path an agent's change takes into a base (rule 5): a proposal, applied once accepted by the person,
     or on creation for an agent in auto mode, except a conflict or an input with no clear place."""
@@ -189,6 +173,29 @@ class ProposalService:
                 undo_of=original.id,
             )
         )
+
+    async def enqueue_refresh(self, jobs: JobQueue, proposal: ProposalRead) -> None:
+        """The parents an applied proposal changed describe their children again, in the worker."""
+        if proposal.status != "applied":
+            return
+        parents = [str(parent) for parent in dict.fromkeys(await self._changed_parents(proposal)) if parent]
+        if parents:
+            await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=parents)
+
+    async def _changed_parents(self, proposal: ProposalRead) -> list[UUID | None]:
+        """The folders or pages that got, lost or renamed a child, whose descriptions follow their children."""
+        payload = proposal.edited_payload or proposal.payload
+        match payload:
+            case CreatePagePayload() | SavePdfPayload():
+                return [payload.parent_id]
+            case MovePayload():
+                return [payload.parent_id, payload.from_parent_id]
+            case RenamePayload():
+                return [(await self._uow.nodes.get(payload.node_id)).parent_id]
+            case UndoPayload():
+                return await self._changed_parents(await self._uow.proposals.get(payload.proposal_id))
+            case _:
+                return []
 
     async def _discard(self, staged: StagedFile | None) -> None:
         """A staged file no open proposal waits on any more is deleted: a saved one has its own copy in the base.

@@ -34,7 +34,7 @@ from acervo.services.agent_service import AgentService
 from acervo.services.conversation_service import ConversationService, Upload, too_large
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
-from acervo.services.proposal_service import ProposalService, enqueue_refresh
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -250,7 +250,9 @@ class AgentTools:
                 raise ValidationError("nada vai dentro de um arquivo", {"parent_id": str(parent_id)})
             to_path = await self._uow.nodes.path(parent.id)
         from_path = await self._uow.nodes.path(node.id)
-        return MovePayload(node_id=node.id, from_path=from_path, parent_id=parent_id, to_path=to_path)
+        return MovePayload(
+            node_id=node.id, from_path=from_path, from_parent_id=node.parent_id, parent_id=parent_id, to_path=to_path
+        )
 
     async def rename_payload(self, node_id: UUID, title: str) -> RenamePayload:
         node = await self._node(node_id)
@@ -276,7 +278,7 @@ class AgentTools:
         proposal = await self._proposals.create(
             ProposalCreate(kb_id=self._agent.kb_id, agent_id=self._agent.id, payload=payload)
         )
-        await enqueue_refresh(self._jobs, proposal)
+        await self._proposals.enqueue_refresh(self._jobs, proposal)
         return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:

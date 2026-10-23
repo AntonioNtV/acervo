@@ -144,6 +144,7 @@ async def test_writes_are_pending_proposals_of_the_agent(env: Env) -> None:
     assert moved.payload == MovePayload(
         node_id=env.tree["Bradesco/Residencial"].id,
         from_path="Bradesco/Residencial",
+        from_parent_id=env.tree["Bradesco"].id,
         parent_id=env.tree["Arquivo"].id,
         to_path="Arquivo",
     )
@@ -215,4 +216,6 @@ async def test_an_auto_write_refreshes_descriptions(env: Env) -> None:
     moved = await env.tools.move(env.tree["Bradesco/Residencial"].id, env.tree["Arquivo"].id)
 
     assert moved.status == "applied"
-    assert env.jobs.jobs == [("refresh_descriptions", {"node_ids": [str(env.tree["Arquivo"].id)]})]
+    # The folder it went to, and the one it left.
+    refreshed = [str(env.tree["Arquivo"].id), str(env.tree["Bradesco"].id)]
+    assert env.jobs.jobs == [("refresh_descriptions", {"node_ids": refreshed})]

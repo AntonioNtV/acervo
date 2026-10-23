@@ -83,6 +83,7 @@ class MovePayload(BaseModel):
     kind: Literal["move"] = "move"
     node_id: UUID = Field(description="The node moved.")
     from_path: str = Field(description="Its path now.")
+    from_parent_id: UUID | None = Field(default=None, description="Its parent now; null for the base's root.")
     parent_id: UUID | None = Field(description="Its new parent; null for the base's root.")
     to_path: str = Field(description="The new parent's path; empty for the root.")
 

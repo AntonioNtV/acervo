@@ -11,7 +11,7 @@ from acervo.schemas.conversation import MessageRead
 from acervo.schemas.proposal import AcceptedBy, ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
 from acervo.services.conversation_service import ConversationService
 from acervo.services.events import JobQueue
-from acervo.services.proposal_service import ProposalService, enqueue_refresh
+from acervo.services.proposal_service import ProposalService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
@@ -54,7 +54,7 @@ async def accept_proposal(
     """Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
     gone it comes back `stale` and nothing changes."""
     proposal = await service.accept(proposal_id)
-    await enqueue_refresh(jobs, proposal)
+    await service.enqueue_refresh(jobs, proposal)
     return proposal
 
 
@@ -78,9 +78,13 @@ async def other_place(proposal_id: UUID, service: Service) -> ProposalRead:
 @router.post(
     "/proposals/{proposal_id}/undo", status_code=201, response_model=ProposalRead, responses={404: ERROR, 409: ERROR}
 )
-async def undo_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
+async def undo_proposal(
+    proposal_id: UUID, service: Service, jobs: Annotated[JobQueue, Depends(get_job_queue)]
+) -> ProposalRead:
     """A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode."""
-    return await service.undo(proposal_id)
+    undo = await service.undo(proposal_id)
+    await service.enqueue_refresh(jobs, undo)
+    return undo
 
 
 @router.post(
