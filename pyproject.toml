@@ -15,6 +15,9 @@ dependencies = [
     "python-multipart",
     "uuid6>=2025.0.1",
     "zipstream-ng>=1.9.3",
+    "pydantic-ai-slim[anthropic,bedrock,cohere,google,groq,huggingface,mistral,openai,retries]>=2.59.0",
+    "arq>=0.28.0",
+    "fastmcp>=2.14.7,<3",
 ]
 
 [dependency-groups]
