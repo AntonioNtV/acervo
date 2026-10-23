@@ -198,7 +198,7 @@ class FileService:
         match = _RANGE.fullmatch(range_header.strip()) if range_header else None
         if match is None or match.groups() == ("", ""):
             headers["Content-Length"] = str(content.size)
-            return Download(200, headers, content.mime, self.stream(content))
+            return Download(200, headers, content.mime, self._storage.stream(content.storage_key))
         first, last = match.groups()
         if first:
             start, end = int(first), min(int(last), content.size - 1) if last else content.size - 1
@@ -208,11 +208,7 @@ class FileService:
             return Download(416, {"Content-Range": f"bytes */{content.size}"})
         headers["Content-Range"] = f"bytes {start}-{end}/{content.size}"
         headers["Content-Length"] = str(end - start + 1)
-        return Download(206, headers, content.mime, self.stream(content, (start, end)))
-
-    def stream(self, content: FileContent, byte_range: tuple[int, int] | None = None) -> AsyncIterator[bytes]:
-        """The stored bytes, or bytes `start` to `end` of them, both included."""
-        return self._storage.stream(content.storage_key, byte_range)
+        return Download(206, headers, content.mime, self._storage.stream(content.storage_key, (start, end)))
 
     async def _file_node(self, node_id: UUID) -> NodeRead:
         node = await self._uow.nodes.get(node_id)
