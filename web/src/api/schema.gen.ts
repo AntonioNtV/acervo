@@ -346,6 +346,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/kbs/{kb_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The base's proposals waiting for the person, from any conversation or agent, newest first.
+         */
+        get: operations["list_proposals_v1_kbs__kb_id__proposals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kbs/{kb_id}/restore": {
         parameters: {
             query?: never;
@@ -774,6 +794,105 @@ export interface paths {
         put?: never;
         /** Restore Page Version */
         post: operations["restore_page_version_v1_pages__node_id__versions__version_id__restore_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Proposal */
+        get: operations["get_proposal_v1_proposals__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Proposal
+         * @description The person's version of what it does, of the same kind; the original is kept.
+         */
+        patch: operations["edit_proposal_v1_proposals__proposal_id__patch"];
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Proposal
+         * @description Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
+         *     gone it comes back `stale` and nothing changes.
+         */
+        post: operations["accept_proposal_v1_proposals__proposal_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/other-place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Other Place
+         * @description A new page or a file goes to the second place that was close instead.
+         */
+        post: operations["other_place_v1_proposals__proposal_id__other_place_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Proposal */
+        post: operations["reject_proposal_v1_proposals__proposal_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Proposal
+         * @description A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode.
+         */
+        post: operations["undo_proposal_v1_proposals__proposal_id__undo_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2324,6 +2443,128 @@ export interface components {
              * @description Conversation it came from.
              */
             conversation_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was made.
+             */
+            created_at: string;
+            /**
+             * Edited Payload
+             * @description The person's edited version; the original stays.
+             */
+            edited_payload: (components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"]) | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Proposal ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it changes.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description What it does.
+             * @enum {string}
+             */
+            kind: "append" | "edit" | "create_page" | "conflict" | "save_pdf" | "replace_pdf" | "move" | "rename" | "undo";
+            /**
+             * Message Id
+             * @description The reply it belongs to.
+             */
+            message_id?: string | null;
+            /**
+             * Payload
+             * @description What it does; its `kind` is the proposal's kind.
+             */
+            payload: components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            /**
+             * Reject Reason
+             * @description Why the person rejected it.
+             */
+            reject_reason: ("wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping") | null;
+            /**
+             * Run Id
+             * @description The run whose decisions produced it.
+             */
+            run_id?: string | null;
+            /** @description The waiting PDF of a save_pdf or replace_pdf. */
+            staged?: components["schemas"]["StagedFile"] | null;
+            /**
+             * Status
+             * @description pending until accepted, rejected or stale.
+             * @enum {string}
+             */
+            status: "pending" | "editing" | "accepted" | "applied" | "rejected" | "stale";
+            /**
+             * Undo Of
+             * @description The applied proposal an undo reverts.
+             */
+            undo_of?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * ProposalReject
+         * @description Rejecting a proposal; the reason labels it for calibration.
+         */
+        ProposalReject: {
+            /**
+             * Reason
+             * @description Why it is rejected.
+             * @enum {string}
+             */
+            reason: "wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping";
+        };
+        /**
+         * ProposalSummary
+         * @description A proposal as the chat's list shows it, with where it came from.
+         */
+        ProposalSummary: {
+            /**
+             * Accepted By
+             * @description The person, or auto for an agent in auto mode.
+             */
+            accepted_by: ("person" | "auto") | null;
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent that made it.
+             */
+            agent_id: string;
+            /**
+             * Agent Name
+             * @description The agent that made it.
+             */
+            agent_name: string;
+            /**
+             * Alternatives
+             * @description Other places that were close: the second path, or the top 3 when unsure.
+             */
+            alternatives?: components["schemas"]["Placement"][] | null;
+            /**
+             * Applied At
+             * @description When it changed the base; null until then.
+             */
+            applied_at: string | null;
+            /**
+             * Conversation Id
+             * @description Conversation it came from.
+             */
+            conversation_id?: string | null;
+            /**
+             * Conversation Title
+             * @description The conversation it came from; null when none.
+             */
+            conversation_title: string | null;
             /**
              * Created At
              * Format: date-time
@@ -3974,6 +4215,59 @@ export interface operations {
             };
         };
     };
+    list_proposals_v1_kbs__kb_id__proposals_get: {
+        parameters: {
+            query?: {
+                status?: "pending";
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     restore_kb_v1_kbs__kb_id__restore_post: {
         parameters: {
             query?: never;
@@ -5303,6 +5597,365 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_proposal_v1_proposals__proposal_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    edit_proposal_v1_proposals__proposal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    accept_proposal_v1_proposals__proposal_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    other_place_v1_proposals__proposal_id__other_place_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_proposal_v1_proposals__proposal_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    undo_proposal_v1_proposals__proposal_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -20,6 +20,7 @@ from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -141,3 +142,9 @@ def get_conversation_service(
     events: Annotated[EventBus, Depends(get_event_bus)],
 ) -> ConversationService:
     return ConversationService(uow, storage, jobs, events)
+
+
+def get_proposal_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
+) -> ProposalService:
+    return ProposalService(uow, storage)

@@ -2769,6 +2769,346 @@
         "title": "ProposalRead",
         "type": "object"
       },
+      "ProposalReject": {
+        "description": "Rejecting a proposal; the reason labels it for calibration.",
+        "properties": {
+          "reason": {
+            "description": "Why it is rejected.",
+            "enum": [
+              "wrong_place",
+              "already_there",
+              "wrong_info",
+              "not_worth_keeping"
+            ],
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ProposalReject",
+        "type": "object"
+      },
+      "ProposalSummary": {
+        "description": "A proposal as the chat's list shows it, with where it came from.",
+        "properties": {
+          "accepted_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "person",
+                  "auto"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person, or auto for an agent in auto mode.",
+            "title": "Accepted By"
+          },
+          "agent_id": {
+            "description": "The agent that made it.",
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "agent_name": {
+            "description": "The agent that made it.",
+            "title": "Agent Name",
+            "type": "string"
+          },
+          "alternatives": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Placement"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Other places that were close: the second path, or the top 3 when unsure.",
+            "title": "Alternatives"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it changed the base; null until then.",
+            "title": "Applied At"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Conversation it came from.",
+            "title": "Conversation Id"
+          },
+          "conversation_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The conversation it came from; null when none.",
+            "title": "Conversation Title"
+          },
+          "created_at": {
+            "description": "When it was made.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "edited_payload": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "append": "#/components/schemas/PatchPayload",
+                    "conflict": "#/components/schemas/ConflictPayload",
+                    "create_page": "#/components/schemas/CreatePagePayload",
+                    "edit": "#/components/schemas/PatchPayload",
+                    "move": "#/components/schemas/MovePayload",
+                    "rename": "#/components/schemas/RenamePayload",
+                    "replace_pdf": "#/components/schemas/ReplacePdfPayload",
+                    "save_pdf": "#/components/schemas/SavePdfPayload",
+                    "undo": "#/components/schemas/UndoPayload"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreatePagePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConflictPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SavePdfPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplacePdfPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MovePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RenamePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UndoPayload"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's edited version; the original stays.",
+            "title": "Edited Payload"
+          },
+          "id": {
+            "description": "Proposal ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "description": "Base it changes.",
+            "format": "uuid",
+            "title": "Kb Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "What it does.",
+            "enum": [
+              "append",
+              "edit",
+              "create_page",
+              "conflict",
+              "save_pdf",
+              "replace_pdf",
+              "move",
+              "rename",
+              "undo"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "message_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reply it belongs to.",
+            "title": "Message Id"
+          },
+          "payload": {
+            "description": "What it does; its `kind` is the proposal's kind.",
+            "discriminator": {
+              "mapping": {
+                "append": "#/components/schemas/PatchPayload",
+                "conflict": "#/components/schemas/ConflictPayload",
+                "create_page": "#/components/schemas/CreatePagePayload",
+                "edit": "#/components/schemas/PatchPayload",
+                "move": "#/components/schemas/MovePayload",
+                "rename": "#/components/schemas/RenamePayload",
+                "replace_pdf": "#/components/schemas/ReplacePdfPayload",
+                "save_pdf": "#/components/schemas/SavePdfPayload",
+                "undo": "#/components/schemas/UndoPayload"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PatchPayload"
+              },
+              {
+                "$ref": "#/components/schemas/CreatePagePayload"
+              },
+              {
+                "$ref": "#/components/schemas/ConflictPayload"
+              },
+              {
+                "$ref": "#/components/schemas/SavePdfPayload"
+              },
+              {
+                "$ref": "#/components/schemas/ReplacePdfPayload"
+              },
+              {
+                "$ref": "#/components/schemas/MovePayload"
+              },
+              {
+                "$ref": "#/components/schemas/RenamePayload"
+              },
+              {
+                "$ref": "#/components/schemas/UndoPayload"
+              }
+            ],
+            "title": "Payload"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "wrong_place",
+                  "already_there",
+                  "wrong_info",
+                  "not_worth_keeping"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the person rejected it.",
+            "title": "Reject Reason"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The run whose decisions produced it.",
+            "title": "Run Id"
+          },
+          "staged": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StagedFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The waiting PDF of a save_pdf or replace_pdf."
+          },
+          "status": {
+            "description": "pending until accepted, rejected or stale.",
+            "enum": [
+              "pending",
+              "editing",
+              "accepted",
+              "applied",
+              "rejected",
+              "stale"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "undo_of": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The applied proposal an undo reverts.",
+            "title": "Undo Of"
+          },
+          "updated_at": {
+            "description": "When it last changed.",
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kb_id",
+          "agent_id",
+          "payload",
+          "id",
+          "kind",
+          "status",
+          "edited_payload",
+          "reject_reason",
+          "accepted_by",
+          "applied_at",
+          "created_at",
+          "updated_at",
+          "agent_name",
+          "conversation_title"
+        ],
+        "title": "ProposalSummary",
+        "type": "object"
+      },
       "RenamePayload": {
         "description": "A node renamed; links to a renamed page are fixed.",
         "properties": {
@@ -5392,6 +5732,101 @@
         ]
       }
     },
+    "/v1/kbs/{kb_id}/proposals": {
+      "get": {
+        "description": "The base's proposals waiting for the person, from any conversation or agent, newest first.",
+        "operationId": "list_proposals_v1_kbs__kb_id__proposals_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "const": "pending",
+              "default": "pending",
+              "title": "Status",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProposalSummary"
+                  },
+                  "title": "Response List Proposals V1 Kbs  Kb Id  Proposals Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Proposals",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
     "/v1/kbs/{kb_id}/restore": {
       "post": {
         "operationId": "restore_kb_v1_kbs__kb_id__restore_post",
@@ -7579,6 +8014,592 @@
         "summary": "Restore Page Version",
         "tags": [
           "pages"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}": {
+      "get": {
+        "operationId": "get_proposal_v1_proposals__proposal_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Proposal",
+        "tags": [
+          "proposals"
+        ]
+      },
+      "patch": {
+        "description": "The person's version of what it does, of the same kind; the original is kept.",
+        "operationId": "edit_proposal_v1_proposals__proposal_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "discriminator": {
+                  "mapping": {
+                    "append": "#/components/schemas/PatchPayload",
+                    "conflict": "#/components/schemas/ConflictPayload",
+                    "create_page": "#/components/schemas/CreatePagePayload",
+                    "edit": "#/components/schemas/PatchPayload",
+                    "move": "#/components/schemas/MovePayload",
+                    "rename": "#/components/schemas/RenamePayload",
+                    "replace_pdf": "#/components/schemas/ReplacePdfPayload",
+                    "save_pdf": "#/components/schemas/SavePdfPayload",
+                    "undo": "#/components/schemas/UndoPayload"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/PatchPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/CreatePagePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ConflictPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/SavePdfPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/ReplacePdfPayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/MovePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RenamePayload"
+                  },
+                  {
+                    "$ref": "#/components/schemas/UndoPayload"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Edit Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/accept": {
+      "post": {
+        "description": "Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is\ngone it comes back `stale` and nothing changes.",
+        "operationId": "accept_proposal_v1_proposals__proposal_id__accept_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Accept Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/other-place": {
+      "post": {
+        "description": "A new page or a file goes to the second place that was close instead.",
+        "operationId": "other_place_v1_proposals__proposal_id__other_place_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Other Place",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/reject": {
+      "post": {
+        "operationId": "reject_proposal_v1_proposals__proposal_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalReject"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Reject Proposal",
+        "tags": [
+          "proposals"
+        ]
+      }
+    },
+    "/v1/proposals/{proposal_id}/undo": {
+      "post": {
+        "description": "A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode.",
+        "operationId": "undo_proposal_v1_proposals__proposal_id__undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "proposal_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Proposal Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProposalRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Undo Proposal",
+        "tags": [
+          "proposals"
         ]
       }
     }

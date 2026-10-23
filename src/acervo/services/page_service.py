@@ -1,4 +1,5 @@
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -122,13 +123,25 @@ class PageService:
             mentions.append(Mention(node=node_with_path, line=line[:MENTION_LINE_CHARS]))
         return mentions
 
-    async def create(self, node: NodeRead) -> None:
-        """The empty first version of a new page, in the caller's transaction."""
-        await self._add(node, "")
+    async def create(self, node: NodeRead, markdown: str = "", proposal_id: UUID | None = None) -> None:
+        """The first version of a new page, empty unless an accepted proposal wrote it, in the caller's
+        transaction."""
+        await self._add(node, markdown, proposal_id=proposal_id)
+        if markdown:
+            await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
 
-    async def fix_links(self, node: NodeRead, new_title: str) -> list[PageVersionRead]:
-        """A new version by the person, also set as the working text, of every live page whose link resolves to
-        `node`, in the caller's transaction.
+    async def agent_write(self, node_id: UUID, change: Callable[[str], str], proposal_id: UUID) -> PageVersionRead:
+        """An accepted proposal's change, in the caller's transaction: the person's working text is cut as a version
+        first, so `change` gets what they typed; its result becomes a version by the agent, linked to the proposal,
+        and the working text with a new revision."""
+        node = await self._page(node_id)
+        latest = await self._cut_now(node)
+        text = await self._uow.page_drafts.get_by(node_id=node.id)
+        return await self._settle(node, change(latest.markdown), latest, text, proposal_id)
+
+    async def fix_links(self, node: NodeRead, new_title: str, proposal_id: UUID | None = None) -> list[PageVersionRead]:
+        """A new version by the person, or by the agent of `proposal_id`, also set as the working text, of every live
+        page whose link resolves to `node`, in the caller's transaction.
 
         Called before the rename, with the base locked: once the title changes, those links no longer resolve to it.
         """
@@ -144,7 +157,7 @@ class PageService:
             current = latest.markdown if text is None else text.markdown
             markdown = links.rewrite(current, node.title, new_title)
             if markdown != current:
-                fixed.append(await self._settle(page, markdown, latest, text))
+                fixed.append(await self._settle(page, markdown, latest, text, proposal_id))
         return fixed
 
     async def unlink_moved(self, moved: list[NodeRead]) -> None:
@@ -195,11 +208,16 @@ class PageService:
         return await self._add(node, text.markdown, text.started_at, text.updated_at)
 
     async def _settle(
-        self, node: NodeRead, markdown: str, latest: PageVersionRead, text: PageDraftRead | None
+        self,
+        node: NodeRead,
+        markdown: str,
+        latest: PageVersionRead,
+        text: PageDraftRead | None,
+        proposal_id: UUID | None = None,
     ) -> PageVersionRead:
         """`markdown` as a version, unless it is the newest one's text, and as the working text `text` was, bumping
         its revision so an open editor reloads instead of overwriting it."""
-        version = latest if markdown == latest.markdown else await self._add(node, markdown)
+        version = latest if markdown == latest.markdown else await self._add(node, markdown, proposal_id=proposal_id)
         await self._store(node, markdown, (0 if text is None else text.revision) + 1, version.created_at)
         return version
 
@@ -211,12 +229,25 @@ class PageService:
         return text
 
     async def _add(
-        self, node: NodeRead, markdown: str, started_at: datetime | None = None, ended_at: datetime | None = None
+        self,
+        node: NodeRead,
+        markdown: str,
+        started_at: datetime | None = None,
+        ended_at: datetime | None = None,
+        proposal_id: UUID | None = None,
     ) -> PageVersionRead:
         data = PageVersionCreate(
-            node_id=node.id, markdown=markdown, author="user", edit_started_at=started_at, edit_ended_at=ended_at
+            node_id=node.id,
+            markdown=markdown,
+            author="user" if proposal_id is None else "agent",
+            edit_started_at=started_at,
+            edit_ended_at=ended_at,
         )
-        return await self._uow.page_versions.add(data)
+        if proposal_id is None:
+            return await self._uow.page_versions.add(data)
+        # The database clock, as `add` uses, so versions written in one transaction keep their order.
+        now = await self._uow.page_drafts.clock()
+        return await self._uow.page_versions.create(data, created_at=now, proposal_id=proposal_id)
 
     async def _page(self, node_id: UUID) -> NodeRead:
         node = await self._uow.nodes.live(node_id)
