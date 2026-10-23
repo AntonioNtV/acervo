@@ -8,6 +8,7 @@ from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.base_service import BaseService
+from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
@@ -64,3 +65,11 @@ def get_favorite_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> Favori
 
 def get_duplicate_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> DuplicateService:
     return DuplicateService(uow)
+
+
+def get_cover_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> CoverService:
+    return CoverService(uow, storage, settings.cover_max_bytes)
