@@ -47,7 +47,7 @@ async def conflict(writer: Writer, card: Card, page: PageText, path: str, check:
         base_version_id=page.version_id,
         anchor=check.section.anchor,
         heading=check.section.heading,
-        current=check.line or check.section.markdown,
+        current=check.line or check.section.body,
         new="\n".join(written.lines),
     )
 

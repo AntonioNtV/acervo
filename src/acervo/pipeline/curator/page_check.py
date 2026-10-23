@@ -25,6 +25,16 @@ class PageSection:
     def markdown(self) -> str:
         return "\n".join([f"## {self.heading}", *self.lines] if self.heading else self.lines)
 
+    @property
+    def body(self) -> str:
+        """The lines under the heading, without the blank ones around them: what a conflict with no line replaces."""
+        lines = list(self.lines)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        return "\n".join(lines)
+
 
 @dataclass
 class PageCheck:

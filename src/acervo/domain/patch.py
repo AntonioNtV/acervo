@@ -44,10 +44,12 @@ def apply(markdown: str, patch: Patch, origin: str) -> str:
         added = ([""] if at and lines[at - 1].strip() else []) + added + ([""] if at < len(lines) else [])
     else:
         wanted = (patch.line or "").splitlines()
-        found = _find(lines[start:end], wanted)
+        # Below the heading: a replace or an insert never touches it, so the section keeps its anchor.
+        body = start + 1 if patch.anchor else start
+        found = _find(lines[body:end], wanted)
         if found is None:
             raise Stale(f"line not in section {patch.anchor!r}")
-        first, after = start + found, start + found + len(wanted)
+        first, after = body + found, body + found + len(wanted)
         at, cut = (after, after) if patch.op == "insert_after" else (first, after)
     text = "\n".join(lines[:at] + added + lines[cut:])
     return text + "\n" if text else text
