@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { useErrorText } from "../../app/errors";
+import { useRedo } from "../../data/chat";
 import {
   REJECT_REASONS,
   useAcceptProposal,
-  useEditAndAccept,
   useEditProposal,
   useOtherPlace,
   useRejectProposal,
@@ -19,12 +19,12 @@ import { Dot } from "../../ui/Dot";
 import { Input } from "../../ui/Input";
 import { cx } from "../../ui/cx";
 import { formatSize } from "../file/format";
+import { useFollow } from "./follow";
 import { FolderPicker, type Place } from "./FolderPicker";
 import { isUnplaced, lastPart, payloadOf, probability, spaced, whereOf } from "./where";
 
 type AnyProposal = Proposal | ProposalSummary;
 
-const OPEN = ["pending", "editing"];
 const EDITABLE = ["append", "edit", "create_page", "save_pdf", "rename"];
 
 const textareaClass =
@@ -187,13 +187,14 @@ export function ProposalCard({ proposal: given, agentName }: { proposal: AnyProp
   const edit = useEditProposal();
   const otherPlace = useOtherPlace();
   const undo = useUndoProposal();
-  const editAndAccept = useEditAndAccept();
-  const actions = [accept, reject, edit, otherPlace, undo, editAndAccept];
+  const redo = useRedo();
+  const follow = useFollow();
+  const actions = [accept, reject, edit, otherPlace, undo, redo];
   const busy = actions.some((action) => action.isPending);
   const failed = actions.find((action) => action.error)?.error;
 
   const payload = payloadOf(proposal);
-  const open = OPEN.includes(proposal.status);
+  const open = proposal.status === "pending";
   const unplaced = open && isUnplaced(proposal);
   const id = proposal.id;
 
@@ -232,7 +233,19 @@ export function ProposalCard({ proposal: given, agentName }: { proposal: AnyProp
             )}
           </>
         )}
-        {proposal.status === "stale" && <Dot tone="warn">{t("chat.status.stale")}</Dot>}
+        {proposal.status === "stale" && (
+          <>
+            <Dot tone="warn">{t("chat.status.stale")}</Dot>
+            <Button
+              size="sm"
+              className="ml-auto"
+              disabled={busy}
+              onClick={() => redo.mutate(id, { onSuccess: (reply) => follow(reply.id) })}
+            >
+              {t("chat.redo")}
+            </Button>
+          </>
+        )}
         {proposal.status === "rejected" && (
           <Dot>
             {proposal.reject_reason
@@ -288,7 +301,7 @@ export function ProposalCard({ proposal: given, agentName }: { proposal: AnyProp
         <Button size="sm" disabled={busy} onClick={() => reject.mutate({ id, input: "wrong_info" })}>
           {t("chat.conflict.keep")}
         </Button>
-        <Button size="sm" variant="quiet" disabled={busy} onClick={() => editAndAccept.mutate({ id, input: both })}>
+        <Button size="sm" variant="quiet" disabled={busy} onClick={() => edit.mutate({ id, input: both }, { onSuccess: () => accept.mutate({ id, input: undefined }) })}>
           {t("chat.conflict.both")}
         </Button>
       </Foot>

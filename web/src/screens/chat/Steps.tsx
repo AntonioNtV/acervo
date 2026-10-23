@@ -1,20 +1,40 @@
-import type { StepEvent } from "../../data/chat";
+import { getToolName, isToolUIPart } from "ai";
+import type { ChatPart } from "../../data/chat";
 import { useI18n } from "../../i18n";
 import { Dot } from "../../ui/Dot";
 
-/** The steps of a reply being worked on, as they arrive: the last one is running, the ones before it are done. */
-export function Steps({ steps }: { steps: StepEvent[] }) {
+const TOOLS = ["list_folder", "read_page", "read_pdf_pages", "file_fact", "file_attachment", "move", "rename", "undo_last"];
+
+type ToolPart = Extract<ChatPart, { toolCallId: string }>;
+
+/** What the step was about: the path it read, the text it filed, the file it saved. */
+function detailOf(part: ToolPart): string | null {
+  const input = (part.input ?? {}) as Record<string, unknown>;
+  const output = (part.state === "output-available" ? part.output : null) as Record<string, unknown> | null;
+  const detail = input.path ?? output?.path ?? input.name ?? input.title ?? input.text;
+  return typeof detail === "string" && detail ? detail : null;
+}
+
+/** The base's tools a reply used, as they ran: done, running or failed. */
+export function Steps({ parts }: { parts: ChatPart[] }) {
   const { t } = useI18n();
+  const steps = parts.filter(isToolUIPart) as ToolPart[];
+  if (steps.length === 0) return null;
   return (
     <ol aria-label={t("chat.steps")} className="m-0 flex list-none flex-col p-0">
-      {steps.map((step, i) => {
-        const running = i === steps.length - 1;
+      {steps.map((part) => {
+        const name = getToolName(part);
+        const done = part.state === "output-available";
+        const failed = part.state === "output-error";
+        const detail = detailOf(part);
         return (
-          <li key={i} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-12 leading-[22px] text-text-3">
-            <Dot tone={running ? "run" : "ok"}>
-              <span className={running ? "text-text" : "text-text-3"}>{t(`chat.step.${step.step}`)}</span>
+          <li key={part.toolCallId} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-12 leading-[22px] text-text-3">
+            <Dot tone={failed ? "err" : done ? "ok" : "run"}>
+              <span className={done ? "text-text-3" : "text-text"}>
+                {t(TOOLS.includes(name) ? `chat.step.${name}` : "chat.step.other")}
+              </span>
             </Dot>
-            {step.detail && <span className="truncate font-mono text-text-2">{step.detail}</span>}
+            {detail && <span className="truncate font-mono text-text-2">{detail}</span>}
           </li>
         );
       })}

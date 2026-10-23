@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { calls, renderWithApi, resetApi, respond } from "../../api/testing";
 import type { Payload } from "../../data/proposals";
 import { FileGroup, ProposalCard } from "./ProposalCard";
-import { append, conflict, createPage, move, proposal, rename, replacePdf, savePdf, staged, undo } from "./testing";
+import { append, conflict, createPage, message, move, proposal, rename, replacePdf, savePdf, staged, undo } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
@@ -128,6 +128,16 @@ describe("ProposalCard", () => {
     await userEvent.click(screen.getByRole("button", { name: "Desfazer" }));
     await waitFor(() => expect(posted("/v1/proposals/p-1/undo")).toHaveLength(1));
     expect(await screen.findByRole("region", { name: "Desfazer" })).toBeInTheDocument();
+  });
+
+  it("a stale proposal offers Refazer and calls redo", async () => {
+    respond("POST", "/v1/proposals/p-1/redo", { status: 201, body: message("r-2", { status: "working" }) });
+    renderWithApi(<ProposalCard proposal={proposal(append, { status: "stale" })} />);
+
+    expect(screen.getByText("A página mudou.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Aceitar" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Refazer" }));
+    await waitFor(() => expect(posted("/v1/proposals/p-1/redo")).toHaveLength(1));
   });
 
   it("several files accept all at once", async () => {
