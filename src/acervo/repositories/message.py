@@ -1,8 +1,9 @@
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from acervo.db.models.message import Message
 from acervo.repositories.base import BaseRepository
@@ -19,6 +20,14 @@ class MessageRepository(BaseRepository[Message, MessageRead, MessageCreate, Mess
             select(Message).where(Message.conversation_id == conversation_id).order_by(Message.created_at, Message.id)
         )
         return [self._to_read(message) for message in await self._session.scalars(query)]
+
+    async def fail_working(self, before: datetime, error: str) -> None:
+        """Every reply still working that nothing changed since `before` becomes failed with `error`."""
+        await self._session.execute(
+            update(Message)
+            .where(Message.status == "working", Message.updated_at < before)
+            .values(status="failed", error=error)
+        )
 
     async def update(self, id: UUID, data: MessageUpdate) -> MessageRead:
         message = await self._get_orm(id)

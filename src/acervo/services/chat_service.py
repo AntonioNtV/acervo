@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
@@ -135,6 +135,13 @@ class _Run:
             )
             self.sources.append(same)
         return f"[{same.marker}]"
+
+
+async def fail_interrupted(uow: UnitOfWork, timeout_seconds: int) -> None:
+    """A reply still working past the job timeout lost its job with the worker that ran it, and arq does not run a
+    job again (`max_tries` 1): it is failed, so it never stays working."""
+    await uow.messages.fail_working(datetime.now(UTC) - timedelta(seconds=timeout_seconds), INTERRUPTED)
+    await uow.commit()
 
 
 def _join(parent: str, name: str) -> str:
