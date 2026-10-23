@@ -161,6 +161,7 @@ class FileService:
         `commit`, in the caller's transaction."""
         node = await self._file_node(node_id)
         version = await self._version(node.id, version_id)
+        await self._uow.kbs.lock(node.kb_id)
         current = await self._uow.files.of_node(node.id)
         if version.sha256 == current.sha256:
             raise SameFile("é o mesmo arquivo", {"node_id": str(node.id)})

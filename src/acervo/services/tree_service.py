@@ -180,7 +180,8 @@ class TreeService:
 
     async def trash(self, node_id: UUID, *, commit: bool = True) -> NodeRead:
         """Without `commit`, in the caller's transaction."""
-        await self._uow.nodes.live(node_id)
+        node = await self._uow.nodes.live(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         await self._uow.nodes.trash_subtree(node_id)
         trashed = await self._uow.nodes.trashed_root(node_id)
         if commit:

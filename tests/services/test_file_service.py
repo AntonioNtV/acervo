@@ -23,6 +23,7 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileContent, FileNodeRead
 from acervo.services.file_service import FileService
 from acervo.services.storage import PART_SIZE, Storage
+from acervo.services.tree_service import TreeService
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 SIMPLE = FIXTURES / "pdfs" / "simple.pdf"
@@ -311,3 +312,25 @@ async def test_storage_keeps_the_first_content_of_a_key(storage: Settings) -> No
     await bucket.put("kb/once/key", io.BytesIO(b"other"), 5)
 
     assert b"".join([chunk async for chunk in bucket.stream("kb/once/key")]) == b"same content"
+
+
+async def test_trash_and_restore_take_the_base_lock(
+    files: FileService, uow: UnitOfWork, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = await make_tree({"Bradesco": None})
+    saved = await _save(files, tree, "Bradesco", SIMPLE, "CG 2026.pdf")
+    await _replace(files, saved.id, PROTECTED)
+    [first] = await files.versions(saved.id)
+    locked: list[uuid.UUID] = []
+    lock = uow.kbs.lock
+
+    async def spy(kb_id: uuid.UUID) -> None:
+        locked.append(kb_id)
+        await lock(kb_id)
+
+    monkeypatch.setattr(uow.kbs, "lock", spy)
+
+    await files.restore(saved.id, first.id)
+    await TreeService(uow).trash(saved.id)
+
+    assert locked == [tree.kb.id, tree.kb.id]
