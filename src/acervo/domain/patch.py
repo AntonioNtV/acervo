@@ -33,7 +33,7 @@ def apply(markdown: str, patch: Patch, origin: str) -> str:
     text given, so applying to the newest text is the rebase: a section that moved is still found, one that is gone
     raises `Stale`."""
     lines = markdown.splitlines()
-    start, end = _span(lines, patch.anchor)
+    start, end = span(lines, patch.anchor)
     added = [_marked(line, origin) for line in patch.lines]
     if patch.op == "append":
         while end > start + 1 and not lines[end - 1].strip():
@@ -62,8 +62,9 @@ def _marked(line: str, origin: str) -> str:
     return f"{line} {origin}"
 
 
-def _span(lines: list[str], anchor: str) -> tuple[int, int]:
-    """The section's first line and the line after its last; "" is the text before the first `##`."""
+def span(lines: list[str], anchor: str) -> tuple[int, int]:
+    """The section's first line (its heading's) and the line after its last; "" is the text before the first `##`,
+    which has no heading. `Stale` when the page has no such section."""
     starts: list[int] = []
     in_code = False
     for index, line in enumerate(lines):

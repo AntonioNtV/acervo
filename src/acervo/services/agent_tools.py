@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.errors import NotFoundError, ValidationError
+from acervo.domain.patch import span
 from acervo.domain.sections import sections
 from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
@@ -309,17 +310,8 @@ class AgentTools:
 
 def _section(markdown: str, wanted: str) -> tuple[Section, int, int]:
     """The section whose anchor or heading is `wanted`, with its heading's line and the line after its last."""
-    found = sections(markdown)
-    index = next((i for i, section in enumerate(found) if wanted in (section.anchor, section.heading)), None)
-    if index is None:
+    found = next((section for section in sections(markdown) if wanted in (section.anchor, section.heading)), None)
+    if found is None:
         raise NotFoundError(f"section {wanted!r} not in the page", {"section": wanted})
-    lines = markdown.splitlines()
-    starts: list[int] = []
-    in_code = False
-    for number, line in enumerate(lines):
-        if line.startswith(("```", "~~~")):
-            in_code = not in_code
-        elif not in_code and sections(line):
-            starts.append(number)
-    bounds = [*starts, len(lines)]
-    return Section(anchor=found[index].anchor, heading=found[index].heading), bounds[index], bounds[index + 1]
+    start, end = span(markdown.splitlines(), found.anchor)
+    return Section(anchor=found.anchor, heading=found.heading), start, end
