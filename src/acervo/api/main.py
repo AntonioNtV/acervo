@@ -22,6 +22,7 @@ from acervo.api.routers import (
 )
 from acervo.core.settings import Settings, get_settings
 from acervo.db.session import create_engine, create_session_factory
+from acervo.services.events import ArqJobQueue, RedisEventBus
 from acervo.services.storage import Storage
 
 
@@ -33,6 +34,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # Built on first use by `api/deps.py`, so only what a request started is there to close.
+        for name in ("job_queue", "event_bus"):
+            if isinstance(port := getattr(app.state, name, None), ArqJobQueue | RedisEventBus):
+                await port.close()
         await engine.dispose()
 
 

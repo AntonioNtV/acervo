@@ -1,4 +1,4 @@
-.PHONY: up down migrate revision test lint openapi web-check
+.PHONY: up down migrate revision worker test lint openapi web-check
 
 up:
 	docker compose up -d --build --wait
@@ -11,6 +11,9 @@ migrate:
 
 revision:
 	uv run alembic revision --autogenerate -m "$(m)"
+
+worker:
+	uv run arq acervo.worker.settings.WorkerSettings
 
 test:
 	uv run pytest --cov=acervo

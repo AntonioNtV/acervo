@@ -31,6 +31,22 @@ class ProposalRepository(BaseRepository[Proposal, ProposalRead, ProposalCreate, 
             for proposal, agent, conversation in await self._session.execute(query)
         ]
 
+    async def of_message(self, message_id: UUID) -> list[ProposalRead]:
+        """The proposals a reply produced, in the order they were made."""
+        query = select(Proposal).where(Proposal.message_id == message_id).order_by(Proposal.created_at, Proposal.id)
+        return [self._to_read(proposal) for proposal in await self._session.scalars(query)]
+
+    async def last_applied(self, kb_id: UUID) -> ProposalRead | None:
+        """The base's most recently applied proposal an undo can revert: undos themselves are left out."""
+        query = (
+            select(Proposal)
+            .where(Proposal.kb_id == kb_id, Proposal.status == "applied", Proposal.kind != "undo")
+            .order_by(Proposal.applied_at.desc(), Proposal.id.desc())
+            .limit(1)
+        )
+        proposal = await self._session.scalar(query)
+        return None if proposal is None else self._to_read(proposal)
+
     async def update(self, id: UUID, data: ProposalUpdate) -> ProposalRead:
         proposal = await self._get_orm(id)
         values = {**dict(data), **data.model_dump(mode="json", include=JSON_FIELDS)}

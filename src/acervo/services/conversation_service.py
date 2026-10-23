@@ -3,6 +3,7 @@ import builtins
 import mimetypes
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import BinaryIO
 from uuid import UUID
 
@@ -106,9 +107,10 @@ class ConversationService:
         reply = await self._uow.messages.create(
             MessageCreate(conversation_id=conversation.id, role="acervo", status="working")
         )
+        change = ConversationUpdate(updated_at=datetime.now(UTC))
         if not conversation.title:
-            title = (text.splitlines()[0] if text else attachments[0].name)[:TITLE_LENGTH]
-            await self._uow.conversations.update(conversation.id, ConversationUpdate(title=title))
+            change.title = (text.splitlines()[0] if text else attachments[0].name)[:TITLE_LENGTH]
+        await self._uow.conversations.update(conversation.id, change)
         await self._uow.commit()
         await self._run(conversation.id, message, reply, None)
         return MessagePosted(message=message, reply=reply)
