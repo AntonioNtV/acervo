@@ -36,8 +36,10 @@ TO_PAGE = {
 TO_FOLDER = {"descent:": {"Bradesco (pasta)": 1.0}, "descent:Bradesco": {"Residencial (pasta)": 1.0}}
 
 
-def _page_check(covered: float = 0.1, contradicts: float = 0.1, line: str = "nenhuma linha") -> dict[str, Any]:
-    return {"covered": covered, "contradicts": contradicts, "section": {"Prazos": 0.9}, "line": {line: 0.8}}
+def _page_check(
+    covered: float = 0.1, contradicts: float = 0.1, line: str = "nenhuma linha", p_line: float = 0.8
+) -> dict[str, Any]:
+    return {"covered": covered, "contradicts": contradicts, "section": {"Prazos": 0.9}, "line": {line: p_line}}
 
 
 def _reader(snap: Any) -> Callable[[UUID], Any]:
@@ -141,6 +143,18 @@ async def test_on_a_page_a_line_about_the_same_thing_is_edited(
     assert isinstance(filed, Propose) and isinstance(filed.payload, PatchPayload)
     assert (filed.payload.kind, filed.payload.op, filed.payload.line) == ("edit", "replace", "- RG e CPF")
     assert filed.payload.anchor == "documentos"
+
+
+async def test_a_line_below_same_line_is_appended_to_not_edited(
+    make_snapshot: Make, fake_decider: FakeDecider, fake_writer: FakeWriter, thresholds: Thresholds
+) -> None:
+    snap = make_snapshot(TREE)
+    fake_decider.table = {**TO_PAGE, **_page_check(line="- RG e CPF", p_line=thresholds.same_line - 0.1)}
+
+    filed = await _text(snap, fake_decider, fake_writer, thresholds)
+
+    assert isinstance(filed, Propose) and isinstance(filed.payload, PatchPayload)
+    assert (filed.payload.kind, filed.payload.op) == ("append", "append")
 
 
 async def test_on_a_folder_it_creates_a_page(

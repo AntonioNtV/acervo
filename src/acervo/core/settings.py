@@ -20,6 +20,8 @@ class Thresholds(BaseModel):
     covered: float = 0.80
     # Above: a conflict proposal instead of an edit.
     contradicts: float = 0.60
+    # Above, for the page line about the same thing as the input: edit that line instead of appending a new one.
+    same_line: float = 0.70
     # Above: propose replacing the existing PDF with the new one.
     pdf_new_version: float = 0.70
     # Above: the read page is kept as evidence.

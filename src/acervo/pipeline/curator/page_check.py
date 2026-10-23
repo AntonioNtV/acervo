@@ -87,8 +87,11 @@ async def check_page(
     covered = answers.p_yes("covered") > thresholds.covered
     contradicts = answers.p_yes("contradicts") > thresholds.contradicts
     section = headed[best(answers, "section")[0]] if headed else parts[0]
-    line = answers.winner("line") if "line" in answers.probs else None
-    line = None if line == NO_LINE else line
+    line = None
+    if "line" in answers.probs:
+        index, p = best(answers, "line")
+        picked = (*lines, NO_LINE)[index]
+        line = picked if picked != NO_LINE and p >= thresholds.same_line else None
     if line is not None:
         section = next(part for part in parts if line in part.lines)
 
@@ -99,5 +102,5 @@ async def check_page(
     if headed:
         log.append(record(answers, "section", STEP, f"section {section.anchor}"))
     if "line" in answers.probs:
-        log.append(record(answers, "line", STEP, "edit" if line else "append"))
+        log.append(record(answers, "line", STEP, "edit" if line else "append", thresholds.same_line))
     return PageCheck(covered, contradicts, section, line)
