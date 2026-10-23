@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { api } from "../api/client";
+import { useCallback, useState } from "react";
+import { api, type KbSummary } from "../api/client";
 import { call, invalidate } from "./request";
 
 function refreshKbs(queryClient: QueryClient) {
@@ -29,6 +30,24 @@ export function useUpdateKb() {
       call(api.PATCH("/v1/kbs/{kb_id}", { params: { path: { kb_id: kbId } }, body })),
     onSuccess: () => refreshKbs(queryClient),
   });
+}
+
+/** A base's emoji from its menu: whether the picker is open, and what it picks or removes. */
+export function useKbIcon(kb: KbSummary) {
+  const update = useUpdateKb();
+  const [picking, setPicking] = useState(false);
+  const close = useCallback(() => setPicking(false), []);
+  const setIcon = (icon: string | null) => {
+    setPicking(false);
+    update.mutate({ kbId: kb.id, icon });
+  };
+  return {
+    picking,
+    open: () => setPicking(true),
+    close,
+    pick: setIcon,
+    remove: kb.icon ? () => setIcon(null) : undefined,
+  };
 }
 
 export function useTrashKb() {

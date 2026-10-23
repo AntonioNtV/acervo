@@ -1,14 +1,29 @@
 import * as RadixMenu from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
 
-export function Menu({ trigger, children }: { trigger: ReactNode; children: ReactNode }) {
+/** Opens below its trigger; `align` picks which of its edges lines up with the trigger's, `width` fixes it in px. */
+export function Menu({
+  trigger,
+  children,
+  align = "start",
+  width,
+  label,
+}: {
+  trigger: ReactNode;
+  children: ReactNode;
+  align?: "start" | "end";
+  width?: number;
+  label?: string;
+}) {
   return (
     <RadixMenu.Root>
       <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
       <RadixMenu.Portal>
         <RadixMenu.Content
-          align="start"
+          align={align}
           sideOffset={4}
+          aria-label={label}
+          style={width ? { width } : undefined}
           className="flex min-w-[180px] flex-col rounded-[8px] border border-line-2 bg-bg p-1"
         >
           {children}

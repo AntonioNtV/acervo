@@ -1,11 +1,12 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { KbSummary } from "../../api/client";
-import { useKbs, useTrashKb, useUpdateKb } from "../../data/kbs";
+import { useKbIcon, useKbs, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { EmojiPicker } from "../../ui/EmojiPicker";
+import { Icon } from "../../ui/Icon";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
 import { NodeIcon } from "../../ui/NodeIcon";
 import { TopBar } from "../shell/TopBar";
@@ -21,13 +22,7 @@ function fold(text: string): string {
 function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => void }) {
   const { t, lang } = useI18n();
   const trash = useTrashKb();
-  const update = useUpdateKb();
-  const [picking, setPicking] = useState(false);
-  const closePicker = useCallback(() => setPicking(false), []);
-  const setIcon = (icon: string | null) => {
-    setPicking(false);
-    update.mutate({ kbId: kb.id, icon });
-  };
+  const icon = useKbIcon(kb);
   const count = (key: string, n: number) => t(`bases.${key}.${n === 1 ? "one" : "other"}`, { n });
 
   return (
@@ -44,9 +39,7 @@ function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => v
             <NodeIcon icon={kb.icon} size={18} />
             {kb.name}
           </Link>
-          {picking && (
-            <EmojiPicker onPick={setIcon} onRemove={kb.icon ? () => setIcon(null) : undefined} onClose={closePicker} />
-          )}
+          {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
         </div>
         <Menu
           trigger={
@@ -57,17 +50,13 @@ function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => v
               aria-label={t("bases.actions", { name: kb.name })}
               className="relative -mt-1 -mr-2"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[15px] fill-current">
-                <circle cx="5" cy="12" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="19" cy="12" r="1.5" />
-              </svg>
+              <Icon name="more" />
             </Button>
           }
         >
           <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
           <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
-          <MenuItem onSelect={() => setPicking(true)}>{t("bases.icon")}</MenuItem>
+          <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
           <MenuSeparator />
           <MenuItem onSelect={() => trash.mutate(kb.id)}>{t("bases.trash")}</MenuItem>
         </Menu>

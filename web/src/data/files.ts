@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, apiHeaders } from "../api/client";
 import type { paths } from "../api/schema.gen";
-import { call, refreshContent } from "./request";
+import { call, refreshContent, samePath } from "./request";
 
 const RAW = "/v1/files/{node_id}/raw" satisfies keyof paths;
 
@@ -17,8 +17,7 @@ async function fileLink(nodeId: string, versionId?: string): Promise<string> {
       params: { path: { node_id: nodeId }, query: versionId ? { version_id: versionId } : {} },
     }),
   );
-  const signed = new URL(url);
-  return signed.pathname + signed.search;
+  return samePath(url);
 }
 
 /** A signed link for an `<img>`, which cannot send the key; a new one when the content changes. */

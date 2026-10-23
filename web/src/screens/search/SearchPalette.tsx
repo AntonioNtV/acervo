@@ -2,7 +2,7 @@ import * as RadixDialog from "@radix-ui/react-dialog";
 import { useCallback, useEffect, useId, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { NodeWithPath } from "../../api/client";
-import { readRecentPages } from "../../app/lastPage";
+import { forgetRecent, readRecentPages } from "../../app/lastPage";
 import { useKbs } from "../../data/kbs";
 import { useCreateNode, useNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
@@ -14,7 +14,7 @@ import { useCurrent } from "../shell/shell";
 const SEARCH_DELAY_MS = 200;
 const CREATE = "create";
 
-type Found = Pick<NodeWithPath, "id" | "kind" | "title" | "icon" | "path">;
+type Found = Pick<NodeWithPath, "id" | "kb_id" | "kind" | "title" | "icon" | "path">;
 
 type Rows = {
   listId: string;
@@ -37,10 +37,10 @@ function Option({ rows, optionKey, onChoose, children }: { rows: Rows; optionKey
   );
 }
 
-function NodeRow({ rows, node, onOpen }: { rows: Rows; node: Found; onOpen: (id: string) => void }) {
+function NodeRow({ rows, node, onOpen }: { rows: Rows; node: Found; onOpen: (node: Found) => void }) {
   const parent = node.path.endsWith(`/${node.title}`) ? node.path.slice(0, -node.title.length - 1) : "";
   return (
-    <Option rows={rows} optionKey={node.id} onChoose={() => onOpen(node.id)}>
+    <Option rows={rows} optionKey={node.id} onChoose={() => onOpen(node)}>
       <NodeIcon icon={node.icon} kind={node.kind} className="text-text-2" />
       <NodeName node={node} pageExt={false} className="shrink-0 truncate text-13 text-text" />
       {parent && <span className="min-w-0 truncate text-12 text-text-3">{parent}</span>}
@@ -48,23 +48,30 @@ function NodeRow({ rows, node, onOpen }: { rows: Rows; node: Found; onOpen: (id:
   );
 }
 
-/** A recent node as it is now: renamed, it shows the new title; gone or trashed, it leaves the list. */
+/**
+ * A recent node as it is now: renamed, it shows the new title; gone or trashed, it leaves the list; moved to another
+ * base, it leaves this base's recents for good.
+ */
 function RecentRow({
   rows,
+  kbId,
   nodeId,
   onOpen,
   onGone,
 }: {
   rows: Rows;
+  kbId: string;
   nodeId: string;
-  onOpen: (id: string) => void;
+  onOpen: (node: Found) => void;
   onGone: (id: string) => void;
 }) {
   const { data: node, error } = useNode(nodeId);
-  const gone = Boolean(error || node?.deleted_at);
+  const moved = node !== undefined && node.kb_id !== kbId;
+  const gone = Boolean(error || node?.deleted_at || moved);
   useEffect(() => {
+    if (moved) forgetRecent(kbId, nodeId);
     if (gone) onGone(nodeId);
-  }, [gone, nodeId, onGone]);
+  }, [gone, moved, kbId, nodeId, onGone]);
   if (!node || gone) return null;
   return <NodeRow rows={rows} node={node} onOpen={onOpen} />;
 }
@@ -87,10 +94,14 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [searched, setSearched] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  // Enter pressed while the search for what is typed is on its way: it acts once that search answers.
+  const [waiting, setWaiting] = useState(false);
   const found = useSearch(kbId ?? "", searched).data;
   const create = useCreateNode(kbId ?? "");
   const title = query.trim();
   const results = title && searched ? found : undefined;
+  // What is shown may still be the answer to what was typed before.
+  const pending = Boolean(title) && (searched !== title || found === undefined);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearched(title), SEARCH_DELAY_MS);
@@ -105,14 +116,23 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   // Until the person picks a row, the first: new results take over from "Criar página" shown while they loaded.
   const active = selected && keys.includes(selected) ? selected : (keys[0] ?? null);
 
-  const open = (nodeId: string) => {
+  const open = (node: Pick<Found, "id" | "kb_id">) => {
     onClose();
-    navigate(`/kbs/${kbId}/n/${nodeId}`);
+    navigate(`/kbs/${node.kb_id}/n/${node.id}`);
   };
 
   const createPage = () => {
-    if (!create.isPending) create.mutate({ kind: "page", parent_id: null, title }, { onSuccess: (node) => open(node.id) });
+    if (!create.isPending) create.mutate({ kind: "page", parent_id: null, title }, { onSuccess: open });
   };
+
+  // Enter does what a click on the active row does: that row holds its node as it is now.
+  const choose = useCallback((key: string) => document.getElementById(`${listId}-${key}`)?.click(), [listId]);
+
+  useEffect(() => {
+    if (!waiting || pending) return;
+    setWaiting(false);
+    if (active) choose(active);
+  }, [waiting, pending, active, choose]);
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -122,10 +142,10 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
       if (!next) return;
       setSelected(next);
       document.getElementById(`${listId}-${next}`)?.scrollIntoView?.({ block: "nearest" });
-    } else if (event.key === "Enter" && !event.nativeEvent.isComposing && active) {
+    } else if (event.key === "Enter" && !event.nativeEvent.isComposing) {
       event.preventDefault();
-      if (active === CREATE) createPage();
-      else open(active);
+      if (pending) setWaiting(true);
+      else if (active) choose(active);
     }
   };
 
@@ -153,6 +173,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
               placeholder={t("search.placeholder")}
               onChange={(event) => {
                 setQuery(event.target.value);
+                setWaiting(false);
                 create.reset();
               }}
               onKeyDown={onKeyDown}
@@ -166,7 +187,7 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
                 <div className="px-4 pt-2.5 pb-1 text-12 text-text-3">{t("search.recent")}</div>
                 {keys.length === 0 && <p className="m-0 px-4 py-2 text-13 text-text-3">{t("search.recent.none")}</p>}
                 {recent.map((id) => (
-                  <RecentRow key={id} rows={rows} nodeId={id} onOpen={open} onGone={onGone} />
+                  kbId && <RecentRow key={id} rows={rows} kbId={kbId} nodeId={id} onOpen={open} onGone={onGone} />
                 ))}
               </>
             )}

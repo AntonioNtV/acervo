@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, apiHeaders } from "../api/client";
+import { api } from "../api/client";
 import type { components, paths } from "../api/schema.gen";
-import { ApiError, call, refreshTree } from "./request";
+import { call, refreshTree, samePath } from "./request";
+import { send } from "./upload";
 
 type NodeRead = components["schemas"]["NodeRead"];
 
@@ -27,22 +28,7 @@ export function coverBackground(cover: string): string {
 export function useUploadCover(nodeId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    // Multipart through XMLHttpRequest, as every upload of the app (`upload.ts`).
-    mutationFn: (file: File) =>
-      new Promise<NodeRead>((resolve, reject) => {
-        const form = new FormData();
-        form.append("file", file);
-        const request = new XMLHttpRequest();
-        request.open("POST", UPLOAD.replace("{node_id}", encodeURIComponent(nodeId)));
-        for (const [name, value] of Object.entries(apiHeaders)) request.setRequestHeader(name, value);
-        request.responseType = "json";
-        request.onload = () => {
-          if (request.status >= 200 && request.status < 300) return resolve(request.response as NodeRead);
-          reject(new ApiError(request.status, request.response, request.statusText));
-        };
-        request.onerror = () => reject(new ApiError(0, null, "network error"));
-        request.send(form);
-      }),
+    mutationFn: (file: File) => send<NodeRead>(UPLOAD.replace("{node_id}", encodeURIComponent(nodeId)), { file }),
     onSuccess: () => refreshTree(queryClient),
   });
 }
@@ -54,8 +40,7 @@ export function useCoverLink(nodeId: string, cover: string | null) {
     enabled: isImageCover(cover),
     queryFn: async () => {
       const link = await call(api.POST("/v1/nodes/{node_id}/cover/link", { params: { path: { node_id: nodeId } } }));
-      const signed = new URL(link.url);
-      return { src: signed.pathname + signed.search, usableUntil: Date.parse(link.expires_at) - EXPIRY_MARGIN_MS };
+      return { src: samePath(link.url), usableUntil: Date.parse(link.expires_at) - EXPIRY_MARGIN_MS };
     },
     staleTime: (query) => Math.max(0, (query.state.data?.usableUntil ?? 0) - Date.now()),
     refetchOnWindowFocus: false,

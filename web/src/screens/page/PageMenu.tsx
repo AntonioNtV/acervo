@@ -15,7 +15,7 @@ const NOTICE_MS = 2000;
 
 /**
  * The page's ⋯: favorite, duplicate, move, copy link, history, export, upload and trash. `flush` sends the text still
- * being typed, so a copy or an export has it.
+ * being typed, so a copy, a move or an export has it.
  */
 export function PageMenu({
   node,
@@ -50,6 +50,12 @@ export function PageMenu({
     setError(null);
     action().catch(setError);
   };
+
+  const movePage = () =>
+    run(async () => {
+      await flush();
+      setMoving(true);
+    });
 
   const duplicatePage = () =>
     run(async () => {
@@ -110,7 +116,7 @@ export function PageMenu({
           {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
         </MenuItem>
         <MenuItem onSelect={duplicatePage}>{t("page.duplicate")}</MenuItem>
-        <MenuItem onSelect={() => setMoving(true)}>{t("page.move")}</MenuItem>
+        <MenuItem onSelect={movePage}>{t("page.move")}</MenuItem>
         <MenuItem onSelect={copyLink}>{t("page.link.copy")}</MenuItem>
         <MenuSeparator />
         <MenuItem onSelect={onHistory}>{t("page.history")}</MenuItem>

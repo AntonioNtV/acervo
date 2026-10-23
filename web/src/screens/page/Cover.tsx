@@ -9,6 +9,7 @@ import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { EmojiPicker } from "../../ui/EmojiPicker";
+import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
 
 const IMAGE_TYPES = "image/png,image/jpeg,image/webp";
 
@@ -43,49 +44,39 @@ function useCoverUpload(nodeId: string) {
   };
 }
 
-/** The gallery's covers and "Enviar imagem", opened from "Adicionar capa" or "Trocar". */
+/**
+ * The gallery's covers and "Enviar imagem", below "Adicionar capa" or "Trocar": `align` keeps it on the side of its
+ * button that has room, so it never opens over the sidebar.
+ */
 function CoverMenu({
   trigger,
+  align,
   onPick,
   onUpload,
 }: {
   trigger: ReactNode;
+  align: "start" | "end";
   onPick: (cover: string) => void;
   onUpload: () => void;
 }) {
   const { t } = useI18n();
   return (
-    <RadixMenu.Root>
-      <RadixMenu.Trigger asChild>{trigger}</RadixMenu.Trigger>
-      <RadixMenu.Portal>
-        <RadixMenu.Content
-          align="end"
-          sideOffset={4}
-          aria-label={t("page.cover.gallery")}
-          className="flex w-[248px] flex-col rounded-[8px] border border-line-2 bg-bg p-1"
-        >
-          <RadixMenu.Label className="px-1.5 pt-1 pb-1.5 text-12 text-text-3">{t("page.cover.gallery")}</RadixMenu.Label>
-          <div className="grid grid-cols-4 gap-1.5 px-1.5 pb-1.5">
-            {GALLERY.map((slug) => (
-              <RadixMenu.Item
-                key={slug}
-                aria-label={t(`page.cover.${slug}`)}
-                onSelect={() => onPick(galleryCover(slug))}
-                style={{ background: coverBackground(galleryCover(slug)) }}
-                className="h-10 cursor-pointer rounded-[6px] border border-line-2 outline-none data-[highlighted]:border-ink data-[highlighted]:shadow-[0_0_0_3px_var(--accent-soft)]"
-              />
-            ))}
-          </div>
-          <RadixMenu.Separator className="my-1 h-px bg-line" />
+    <Menu trigger={trigger} align={align} width={248} label={t("page.cover.gallery")}>
+      <RadixMenu.Label className="px-1.5 pt-1 pb-1.5 text-12 text-text-3">{t("page.cover.gallery")}</RadixMenu.Label>
+      <div className="grid grid-cols-4 gap-1.5 px-1.5 pb-1.5">
+        {GALLERY.map((slug) => (
           <RadixMenu.Item
-            onSelect={onUpload}
-            className="flex h-[30px] cursor-pointer items-center rounded-[6px] px-2.5 text-13 text-text outline-none data-[highlighted]:bg-subtle"
-          >
-            {t("page.cover.upload")}
-          </RadixMenu.Item>
-        </RadixMenu.Content>
-      </RadixMenu.Portal>
-    </RadixMenu.Root>
+            key={slug}
+            aria-label={t(`page.cover.${slug}`)}
+            onSelect={() => onPick(galleryCover(slug))}
+            style={{ background: coverBackground(galleryCover(slug)) }}
+            className="h-10 cursor-pointer rounded-[6px] border border-line-2 outline-none data-[highlighted]:border-ink data-[highlighted]:shadow-[0_0_0_3px_var(--accent-soft)]"
+          />
+        ))}
+      </div>
+      <MenuSeparator />
+      <MenuItem onSelect={onUpload}>{t("page.cover.upload")}</MenuItem>
+    </Menu>
   );
 }
 
@@ -124,6 +115,7 @@ export function Cover({ node }: { node: NodeDetail }) {
       )}
       <div className="absolute right-4 bottom-3 flex gap-1.5 opacity-0 group-hover/cover:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
         <CoverMenu
+          align="end"
           onPick={setCover}
           onUpload={upload.choose}
           trigger={<Button size="sm">{t("page.cover.change")}</Button>}
@@ -189,6 +181,7 @@ export function HeaderDecor({ node }: { node: NodeDetail }) {
           )}
           {!node.cover && (
             <CoverMenu
+              align="start"
               onPick={(cover) => decorate.mutate({ nodeId: node.id, cover })}
               onUpload={upload.choose}
               trigger={
