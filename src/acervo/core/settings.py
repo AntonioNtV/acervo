@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import BaseModel, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -7,6 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Thresholds(BaseModel):
     """Every cut-off a probability from Jev is compared to (skill `jev-decisions`)."""
 
+    # Below, for the most likely understanding of a message: ask the person first, nothing runs before the choice.
+    route_min: float = 0.60
+    # Above, for "the message is about two things": split it and handle each part in the same reply.
+    route_split: float = 0.70
     # Below: do not choose a place; ask the person with the top 3 options.
     place_min: float = 0.60
     # Below: the proposal shows the 2nd option next to the 1st.
@@ -33,6 +38,18 @@ class NavigatorBudget(BaseModel):
     jev_questions: int = 30
 
 
+class LlmRoles(BaseModel):
+    """The model serving each role, as a PydanticAI model string `<provider>:<model>` (skill `llm-calls`)."""
+
+    card: str = "anthropic:claude-haiku-5-5"
+    patch: str = "anthropic:claude-opus-5-5"
+    split_message: str = "anthropic:claude-haiku-5-5"
+    describe: str = "anthropic:claude-haiku-5-5"
+    explain: str = "anthropic:claude-haiku-5-5"
+    # The LLM decider, until Jev's client exists: probabilities per option through structured output.
+    decide: str = "anthropic:claude-opus-5-5"
+
+
 class Settings(BaseSettings):
     """Configuration read from the environment and `.env`."""
 
@@ -48,6 +65,9 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     thresholds: Thresholds = Thresholds()
     navigator_budget: NavigatorBudget = NavigatorBudget()
+    llm_roles: LlmRoles = LlmRoles()
+    # Who answers decisions: Jev (refused as not configured until its client exists), the LLM, or the tests' fake.
+    decider: Literal["jev", "llm", "fake"] = "llm"
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024

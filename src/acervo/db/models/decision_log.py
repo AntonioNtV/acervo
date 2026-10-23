@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Float, Text
+from sqlalchemy import Float, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from acervo.db.base import Base, TimestampMixin, UUIDPkMixin
@@ -19,3 +19,4 @@ class DecisionLog(UUIDPkMixin, TimestampMixin, Base):
     action: Mapped[str] = mapped_column(Text)
     latency_ms: Mapped[int]
     cached: Mapped[bool] = mapped_column(server_default="false", default=False)
+    message_id: Mapped[UUID | None] = mapped_column(ForeignKey("message.id"), index=True)

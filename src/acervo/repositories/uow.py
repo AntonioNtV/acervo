@@ -3,14 +3,19 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from acervo.repositories.agent import AgentRepository
+from acervo.repositories.conversation import ConversationRepository
+from acervo.repositories.decision_log import DecisionLogRepository
 from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
 from acervo.repositories.kb import KbRepository
+from acervo.repositories.message import MessageRepository
 from acervo.repositories.node import NodeRepository
 from acervo.repositories.page_draft import PageDraftRepository
 from acervo.repositories.page_link import PageLinkRepository
 from acervo.repositories.page_version import PageVersionRepository
+from acervo.repositories.proposal import ProposalRepository
 
 
 class UnitOfWork:
@@ -24,6 +29,11 @@ class UnitOfWork:
     page_drafts: PageDraftRepository
     page_links: PageLinkRepository
     favorites: FavoriteRepository
+    agents: AgentRepository
+    conversations: ConversationRepository
+    messages: MessageRepository
+    proposals: ProposalRepository
+    decisions: DecisionLogRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -38,6 +48,11 @@ class UnitOfWork:
         self.page_drafts = PageDraftRepository(self._session)
         self.page_links = PageLinkRepository(self._session)
         self.favorites = FavoriteRepository(self._session)
+        self.agents = AgentRepository(self._session)
+        self.conversations = ConversationRepository(self._session)
+        self.messages = MessageRepository(self._session)
+        self.proposals = ProposalRepository(self._session)
+        self.decisions = DecisionLogRepository(self._session)
         return self
 
     async def __aexit__(
