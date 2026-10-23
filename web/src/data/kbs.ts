@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { call, invalidate } from "./request";
 
 function refreshKbs(queryClient: QueryClient) {
-  return invalidate(queryClient, ["kbs"], ["trash-kbs"]);
+  return invalidate(queryClient, ["kbs"], ["trash-kbs"], ["favorites"]);
 }
 
 export function useKbs(q = "") {
