@@ -6,9 +6,11 @@ import { useChildren, useDescribeNode, useRenameNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
 import { Icon } from "../../ui/Icon";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { NodeName, useCreateUntitledPage, useTreeErrorText } from "../base/names";
 import { FileDropZone, UploadGlyph, useStartUpload } from "../base/Upload";
 import { formatSize } from "../file/format";
+import { Cover, HeaderDecor } from "../page/Cover";
 import { TopBar } from "../shell/TopBar";
 
 /** A folder opened, as a page: its title, its description, its children as links, and how to add to it. */
@@ -47,6 +49,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
   return (
     <>
       <TopBar kbId={kbId} nodeId={folderId ?? undefined} />
+      {folder && <Cover node={folder} />}
       <FileDropZone
         kbId={kbId}
         parentId={folderId}
@@ -54,6 +57,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
         className="mx-auto box-border min-h-[calc(100%-44px)] w-full max-w-[720px] px-8 pt-10 pb-30"
       >
         <div className="group/header">
+          {folder && <HeaderDecor node={folder} />}
           {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
           {folder ? (
             <Description node={folder} />
@@ -214,7 +218,7 @@ function Row({ kbId, node }: { kbId: string; node: TreeNode }) {
       className="group -mx-1.5 flex min-h-9 items-center gap-2 rounded-[6px] px-1.5 text-15 text-text no-underline hover:bg-subtle"
     >
       <span className="text-text-3">
-        <Icon name={node.kind} />
+        <NodeIcon icon={node.icon} kind={node.kind} />
       </span>
       <NodeName node={node} pageExt={false} className="min-w-0 truncate" />
       <span className="ml-auto pl-4 text-13 whitespace-nowrap text-ghost">

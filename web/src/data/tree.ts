@@ -69,6 +69,16 @@ export function useDescribeNode() {
   });
 }
 
+/** The person's icon (an emoji) or gallery cover of a node; null removes it, a field left out keeps it. */
+export function useDecorateNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ nodeId, ...body }: { nodeId: string } & Pick<Schemas["NodeEdit"], "icon" | "cover">) =>
+      call(api.PATCH("/v1/nodes/{node_id}", { params: { path: { node_id: nodeId } }, body })),
+    onSuccess: () => refreshTree(queryClient),
+  });
+}
+
 export function useMoveNode() {
   const queryClient = useQueryClient();
   return useMutation({

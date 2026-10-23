@@ -130,4 +130,12 @@ describe("Sidebar", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("já existe");
     expect(screen.getByRole("textbox", { name: "Renomear" })).toHaveValue("Bradesco");
   });
+
+  it("a node's emoji shows in the tree in place of its kind's icon", async () => {
+    respond("GET", "/v1/kbs/kb-1/children", () => ({ body: [{ ...node("glossario", "page", "Glossário"), icon: "📒" }] }));
+    renderSidebar();
+
+    const glossario = await screen.findByRole("treeitem", { name: "Glossário" });
+    expect(within(glossario).getByText("📒")).toBeInTheDocument();
+  });
 });

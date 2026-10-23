@@ -3,9 +3,10 @@ import { useKbs } from "../../data/kbs";
 import { useNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { splitExt } from "../../ui/names";
 
-const linkClass = "rounded-[4px] px-1 py-0.5 text-text-2 no-underline hover:bg-subtle";
+const linkClass = "inline-flex items-center gap-1 rounded-[4px] px-1 py-0.5 text-text-2 no-underline hover:bg-subtle";
 
 function Sep() {
   return (
@@ -24,6 +25,7 @@ function Trail({ kbId, nodeId }: { kbId: string; nodeId: string }) {
       {node.parent_id && <Trail kbId={kbId} nodeId={node.parent_id} />}
       <Sep />
       <Link to={`/kbs/${kbId}/n/${node.id}`} className={linkClass}>
+        <NodeIcon icon={node.icon} size={14} />
         {node.title}
       </Link>
     </>
@@ -40,10 +42,12 @@ export function Breadcrumb({ kbId, nodeId }: { kbId: string; nodeId?: string }) 
     <nav aria-label={t("shell.path")} className="flex min-w-0 flex-wrap items-center gap-1 text-13 text-text-2">
       {nodeId ? (
         <Link to={`/kbs/${kbId}`} className={linkClass}>
+          <NodeIcon icon={kb?.icon} size={14} />
           {kb?.name}
         </Link>
       ) : (
-        <span aria-current="page" className="px-1 py-0.5 text-text">
+        <span aria-current="page" className="inline-flex items-center gap-1 px-1 py-0.5 text-text">
+          <NodeIcon icon={kb?.icon} size={14} />
           {kb?.name}
         </span>
       )}
@@ -51,8 +55,9 @@ export function Breadcrumb({ kbId, nodeId }: { kbId: string; nodeId?: string }) 
         <>
           {node.parent_id && <Trail kbId={kbId} nodeId={node.parent_id} />}
           <Sep />
-          <span aria-current="page" className="min-w-0 truncate px-1 py-0.5 text-text">
-            <FileName title={name} ext={ext} />
+          <span aria-current="page" className="flex min-w-0 items-center gap-1 px-1 py-0.5 text-text">
+            <NodeIcon icon={node.icon} size={14} />
+            <FileName title={name} ext={ext} className="truncate" />
           </span>
         </>
       )}
