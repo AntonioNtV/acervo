@@ -13,7 +13,7 @@ from pydantic_ai import BinaryContent, ModelRetry, ToolReturn
 from acervo.core.errors import AcervoError, NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
-from acervo.domain.index import SearchStep
+from acervo.domain.index import Block, SearchStep
 from acervo.model_clients.chat_agent import (
     ChatAgent,
     Chunk,
@@ -58,6 +58,7 @@ from acervo.services.agent_tools import AgentTools, Fetched, Folder
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.filing_service import Filing, FilingService, Origin
 from acervo.services.proposal_service import OPEN, ProposalService
+from acervo.services.search_service import Cited
 from acervo.services.storage import Storage
 
 # The earlier messages the chat reads, when the caller does not say (the worker passes `Settings.chat_history`).
@@ -78,17 +79,22 @@ KIND: dict[str, str] = {
 logger = logging.getLogger(__name__)
 
 
+class Excerpt(BaseModel):
+    """The part of a passage on one page of a PDF, or the whole passage of a page."""
+
+    cite: str = Field(description="The marker to write after each claim taken from this excerpt.")
+    page: int | None = Field(description="The PDF's page; null for a page.")
+    text: str
+
+
 class Found(BaseModel):
     """A passage the search kept, best first."""
 
-    cite: str = Field(description="The marker to write after each claim taken from this passage.")
     ref: str = Field(description="Opens the passage's section with `abrir`.")
     node_id: UUID = Field(description="The page or the PDF.")
     path: str = Field(description="Its path, joined by /.")
     section: str = Field(description="The section's title.")
-    page: int | None = Field(description="The PDF's first page of the passage; null for a page.")
-    end_page: int | None = Field(description="The PDF's last page of the passage; null for a page.")
-    text: str
+    excerpts: list[Excerpt] = Field(description="The passage, a page of the PDF at a time.")
 
 
 class Results(BaseModel):
@@ -396,16 +402,29 @@ class ChatService:
                 searched = await reader(uow).search(
                     pergunta, self._decider, run_id=run.run_id, message_id=run.reply.id, on_step=step
                 )
+                blocks: dict[str, Block] = {}
+                for node_id in {c.node_id for c in searched.evidence if c.kind == "file"}:
+                    found = await uow.indexes.get(node_id)
+                    blocks |= {f"{node_id}:{b.id}": b for b in found.parsed.blocks} if found and found.parsed else {}
+
+            def excerpts(c: Cited) -> list[Excerpt]:
+                """A passage across PDF pages is cited by the page a claim is on, at that page's first block."""
+                on = [b for b in (blocks.get(f"{c.node_id}:{id}") for id in c.block_ids) if b is not None]
+                pages = list(dict.fromkeys(b.page for b in on))
+                path = "/".join(c.path)
+                if len(pages) < 2:
+                    cite = run.cite(c.node_id, c.kind, path, c.anchor, c.page, c.block_id, c.highlight)
+                    return [Excerpt(cite=cite, page=c.page, text=c.text)]
+                split = []
+                for page in pages:
+                    here = [b for b in on if b.page == page]
+                    cite = run.cite(c.node_id, c.kind, path, None, page, here[0].id, here[0].bbox)
+                    split.append(Excerpt(cite=cite, page=page, text="\n".join(b.text for b in here)))
+                return split
+
             evidence = [
                 Found(
-                    cite=run.cite(c.node_id, c.kind, "/".join(c.path), c.anchor, c.page, c.block_id, c.highlight),
-                    ref=c.ref,
-                    node_id=c.node_id,
-                    path="/".join(c.path),
-                    section=c.section_title,
-                    page=c.page,
-                    end_page=c.end_page,
-                    text=c.text,
+                    ref=c.ref, node_id=c.node_id, path="/".join(c.path), section=c.section_title, excerpts=excerpts(c)
                 )
                 for c in searched.evidence
             ]

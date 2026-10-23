@@ -202,7 +202,8 @@ async def test_a_question_searches_the_base_and_cites_the_pdf_page_and_block(env
     )
 
     [found] = env.script.returned("buscar").evidence
-    assert (found.cite, found.node_id, found.page) == ("[1]", pdf.id, 2)
+    [excerpt] = found.excerpts
+    assert (excerpt.cite, found.node_id, excerpt.page) == ("[1]", pdf.id, 2)
     assert env.steps() == ["buscar"]
     [citation] = reply.citations
     assert (citation.node_id, citation.kind, citation.path, citation.page) == (pdf.id, "file", "CG 2026.pdf", 2)
