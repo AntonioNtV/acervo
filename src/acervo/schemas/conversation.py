@@ -23,6 +23,7 @@ class ConversationUpdate(BaseModel):
     """Fields to change on a conversation; omitted fields keep their value."""
 
     title: str | None = Field(default=None, description="New title.")
+    updated_at: datetime | None = Field(default=None, description="When it was last used, for the list's order.")
 
 
 class ConversationRead(ConversationCreate):

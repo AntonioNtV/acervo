@@ -38,6 +38,11 @@ class ArqJobQueue:
             self._pool = await create_pool(self._settings)
         await self._pool.enqueue_job(job, **kwargs)
 
+    async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.aclose()
+            self._pool = None
+
 
 class RedisEventBus:
     """One Redis channel per conversation; the API streams it, the worker publishes to it."""
@@ -54,6 +59,9 @@ class RedisEventBus:
             async for item in pubsub.listen():
                 if item["type"] == "message":
                     yield _EVENT.validate_json(item["data"])
+
+    async def close(self) -> None:
+        await self._redis.aclose()
 
 
 def _channel(conversation_id: UUID) -> str:
