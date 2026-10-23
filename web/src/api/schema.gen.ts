@@ -546,6 +546,11 @@ export interface components {
          */
         FileNodeRead: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -566,8 +571,18 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
             /** @description The current content. */
             file: components["schemas"]["FileResponse"];
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -738,6 +753,11 @@ export interface components {
              */
             description?: string | null;
             /**
+             * Icon
+             * @description An emoji; null removes it.
+             */
+            icon?: string | null;
+            /**
              * Name
              * @description New name; cannot be blank.
              */
@@ -764,6 +784,11 @@ export interface components {
              * @description What the base holds.
              */
             description: string;
+            /**
+             * Icon
+             * @description An emoji shown before the name; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -808,6 +833,11 @@ export interface components {
              * @description Live files in the base.
              */
             files: number;
+            /**
+             * Icon
+             * @description An emoji shown before the name; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -865,6 +895,11 @@ export interface components {
          */
         NodeDetail: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -885,8 +920,18 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
             /** @description Set for a file. */
             file: components["schemas"]["FileResponse"] | null;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -950,10 +995,20 @@ export interface components {
          */
         NodeEdit: {
             /**
+             * Cover
+             * @description `gallery:<slug>`, for folders and pages only; null removes it.
+             */
+            cover?: string | null;
+            /**
              * Description
              * @description New description; once the person edits it, agents keep it.
              */
             description?: string | null;
+            /**
+             * Icon
+             * @description An emoji; null removes it.
+             */
+            icon?: string | null;
             /**
              * Title
              * @description New title; no live sibling of the same kind may have it.
@@ -971,6 +1026,11 @@ export interface components {
              */
             before_id?: string | null;
             /**
+             * Kb Id
+             * @description Destination base; null for the node's own base.
+             */
+            kb_id?: string | null;
+            /**
              * Parent Id
              * @description Destination folder; null for the base's root.
              */
@@ -981,6 +1041,11 @@ export interface components {
          * @description A saved node of a base's tree.
          */
         NodeRead: {
+            /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1002,6 +1067,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1053,6 +1128,11 @@ export interface components {
          */
         NodeWithPath: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1073,6 +1153,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1247,6 +1337,11 @@ export interface components {
          */
         RestoredNode: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1267,6 +1362,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1344,6 +1449,11 @@ export interface components {
              */
             child_count: number;
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1364,6 +1474,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid

@@ -120,6 +120,18 @@
       "FileNodeRead": {
         "description": "A file node with its path and current content.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -149,9 +161,26 @@
             "title": "Description Locked",
             "type": "boolean"
           },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
           "file": {
             "$ref": "#/components/schemas/FileResponse",
             "description": "The current content."
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -239,6 +268,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path",
@@ -405,6 +437,18 @@
             "description": "New description.",
             "title": "Description"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji; null removes it.",
+            "title": "Icon"
+          },
           "name": {
             "anyOf": [
               {
@@ -449,6 +493,18 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the name; null for none.",
+            "title": "Icon"
+          },
           "id": {
             "description": "Base ID.",
             "format": "uuid",
@@ -471,6 +527,7 @@
           "id",
           "name",
           "description",
+          "icon",
           "deleted_at",
           "created_at",
           "updated_at"
@@ -510,6 +567,18 @@
             "title": "Files",
             "type": "integer"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the name; null for none.",
+            "title": "Icon"
+          },
           "id": {
             "description": "Base ID.",
             "format": "uuid",
@@ -543,6 +612,7 @@
           "id",
           "name",
           "description",
+          "icon",
           "deleted_at",
           "created_at",
           "updated_at",
@@ -594,6 +664,18 @@
       "NodeDetail": {
         "description": "A node opened: a page's text or a file's current content.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -623,6 +705,11 @@
             "title": "Description Locked",
             "type": "boolean"
           },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
           "file": {
             "anyOf": [
               {
@@ -633,6 +720,18 @@
               }
             ],
             "description": "Set for a file."
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -731,6 +830,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path",
@@ -744,6 +846,19 @@
       "NodeEdit": {
         "description": "What the person changes on a node; omitted fields keep their value.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "pattern": "^gallery:[a-z0-9-]{1,32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>`, for folders and pages only; null removes it.",
+            "title": "Cover"
+          },
           "description": {
             "anyOf": [
               {
@@ -756,6 +871,18 @@
             ],
             "description": "New description; once the person edits it, agents keep it.",
             "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji; null removes it.",
+            "title": "Icon"
           },
           "title": {
             "anyOf": [
@@ -789,6 +916,19 @@
             "description": "Sibling it goes just before; null to put it last.",
             "title": "Before Id"
           },
+          "kb_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Destination base; null for the node's own base.",
+            "title": "Kb Id"
+          },
           "parent_id": {
             "anyOf": [
               {
@@ -809,6 +949,18 @@
       "NodeRead": {
         "description": "A saved node of a base's tree.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -837,6 +989,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -914,6 +1083,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at"
         ],
@@ -923,6 +1095,18 @@
       "NodeWithPath": {
         "description": "A node found by the name search, or trashed on its own.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -951,6 +1135,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1033,6 +1234,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path"
@@ -1230,6 +1434,18 @@
       "RestoredNode": {
         "description": "A node back from the trash.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1258,6 +1474,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1340,6 +1573,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "to_root"
@@ -1376,6 +1612,18 @@
             "title": "Child Count",
             "type": "integer"
           },
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1404,6 +1652,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1510,6 +1775,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "protected",

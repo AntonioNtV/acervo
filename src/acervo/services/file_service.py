@@ -168,7 +168,7 @@ class FileService:
             await self._version(node.id, version_id)
         expires = int(time.time()) + signing.LINK_SECONDS
         query: dict[str, object] = {"version_id": version_id} if version_id is not None else {}
-        query |= {"expires": expires, "signature": signing.sign(secret, node.id, version_id, expires)}
+        query |= {"expires": expires, "signature": signing.sign(secret, "file", node.id, version_id, expires)}
         return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
 
     async def download(self, node_id: UUID, version_id: UUID | None, range_header: str | None) -> Download:

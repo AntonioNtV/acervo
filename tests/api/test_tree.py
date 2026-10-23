@@ -329,3 +329,66 @@ async def test_a_file_is_not_a_parent(client: httpx.AsyncClient, make_tree: Make
         (422, "validation", "um arquivo não guarda itens")
     ] * 3
     assert await _titles(client, tree.kb.id, tree["Bradesco"].id) == ["Renovação", "CG 2026.pdf"]
+
+
+async def test_icon_and_gallery_cover_are_set_and_cleared(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": ["Emissão.md"]})
+    page = tree["Bradesco/Emissão.md"].id
+    before = (await client.get(f"/v1/nodes/{page}")).json()["page"]["markdown"]
+
+    set_ = await client.patch(f"/v1/nodes/{page}", json={"icon": "📄", "cover": "gallery:moss"})
+    folder = await client.patch(f"/v1/nodes/{tree['Bradesco'].id}", json={"icon": "👩🏽‍💻", "cover": "gallery:sand"})
+    title_only = await client.patch(f"/v1/nodes/{page}", json={"title": "Emissão de apólice"})
+    cleared = await client.patch(f"/v1/nodes/{page}", json={"icon": None})
+
+    assert (set_.status_code, set_.json()["icon"], set_.json()["cover"], set_.json()["favorite"]) == (
+        200,
+        "📄",
+        "gallery:moss",
+        False,
+    )
+    assert (folder.json()["icon"], folder.json()["cover"]) == ("👩🏽‍💻", "gallery:sand")
+    assert (title_only.json()["icon"], title_only.json()["cover"]) == ("📄", "gallery:moss")
+    assert (cleared.json()["icon"], cleared.json()["cover"]) == (None, "gallery:moss")
+    opened = (await client.get(f"/v1/nodes/{page}")).json()
+    assert (opened["icon"], opened["cover"], opened["page"]["markdown"]) == (None, "gallery:moss", before)
+    listed = await _children(client, tree.kb.id, tree["Bradesco"].id)
+    assert (listed[0]["cover"], listed[0]["favorite"]) == ("gallery:moss", False)
+    row = await session.get(Node, page, populate_existing=True)
+    assert row is not None and (row.icon, row.cover) == (None, "gallery:moss")
+
+
+async def test_cover_is_refused_on_a_file(
+    client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
+    tree = await make_tree({"Bradesco": ["CG 2026.pdf"]})
+    file = tree["Bradesco/CG 2026.pdf"].id
+
+    response = await client.patch(f"/v1/nodes/{file}", json={"cover": "gallery:moss"})
+
+    assert (response.status_code, response.json()["error"]) == (422, "validation")
+    row = await session.get(Node, file, populate_existing=True)
+    assert row is not None and row.cover is None
+
+
+async def test_an_invalid_icon_or_cover_is_422(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Emissão.md": None})
+    page = tree["Emissão.md"].id
+
+    bodies: list[dict[str, Any]] = [
+        {"icon": ""},
+        {"icon": "A"},
+        {"icon": "1️⃣"},
+        {"icon": "📄" * 17},
+        {"cover": "image:" + "a" * 64},
+        {"cover": "gallery:Moss"},
+        {"cover": "gallery:"},
+        {"cover": "gallery:" + "a" * 33},
+    ]
+    responses = [await client.patch(f"/v1/nodes/{page}", json=body) for body in bodies]
+
+    assert [(r.status_code, r.json()["error"]) for r in responses] == [(422, "validation")] * len(bodies)
+    opened = (await client.get(f"/v1/nodes/{page}")).json()
+    assert (opened["icon"], opened["cover"]) == (None, None)
