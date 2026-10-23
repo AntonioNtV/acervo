@@ -298,6 +298,21 @@ describe("PageScreen", () => {
     );
   });
 
+  it("leaving the title for another page renames the node at once, and only once", async () => {
+    respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), title: "Emissão da apólice" } });
+    const { unmount } = await openPage();
+    const title = screen.getByRole("textbox", { name: "Título da página" });
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    await user.clear(title);
+    await user.type(title, "Emissão da apólice");
+    act(() => title.blur());
+    unmount();
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+
+    expect(nodePatches().map((call) => call.body)).toEqual([{ title: "Emissão da apólice" }]);
+  });
+
   it("an emoji picked in the header is sent as the node's icon", async () => {
     respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), icon: "🏠" } });
     await openPage();
