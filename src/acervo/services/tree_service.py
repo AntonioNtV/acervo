@@ -22,8 +22,8 @@ from acervo.services.page_service import PageService
 
 
 def _title(title: str) -> str:
-    # Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar".
-    title = " ".join(title.split())
+    # Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar"; Postgres refuses NUL.
+    title = " ".join(title.replace("\x00", "").split())
     if not title:
         raise ValidationError("a title cannot be empty", {"title": title})
     return title
