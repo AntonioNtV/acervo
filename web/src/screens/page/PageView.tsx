@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
@@ -10,13 +10,16 @@ import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
-import { Menu, MenuItem } from "../../ui/Menu";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { splitExt } from "../../ui/names";
 import { useCreateUntitledPage, useTreeErrorText } from "../base/names";
-import { FileDropZone, useStartUpload } from "../base/Upload";
+import { FileDropZone } from "../base/Upload";
 import { TopBar } from "../shell/TopBar";
+import { Cover, HeaderDecor } from "./Cover";
 import { dateOf, dayLabel, timeOf, versionsText } from "./format";
 import { History, VersionText } from "./History";
+import { Mentions } from "./Mentions";
+import { PageMenu } from "./PageMenu";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
@@ -75,8 +78,6 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const children = useChildren(kbId, node.id).data ?? [];
   const untitled = useCreateUntitledPage(kbId, node.id);
   const errorText = useTreeErrorText();
-  const startUpload = useStartUpload(kbId);
-  const fileInput = useRef<HTMLInputElement>(null);
   const [pageQuery, setPageQuery] = useState<string | null>(null);
   const [searched, setSearched] = useState("");
   const found = useSearch(kbId, searched).data;
@@ -178,43 +179,24 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
             </IconButton>
           )
         }
-        menu={
-          <>
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              hidden
-              aria-label={t("page.upload")}
-              onChange={(event) => {
-                startUpload(Array.from(event.target.files ?? []), node.id);
-                event.target.value = "";
-              }}
-            />
-            <Menu
-              trigger={
-                <IconButton aria-label={t("page.more")}>
-                  <Icon name="more" />
-                </IconButton>
-              }
-            >
-              <MenuItem onSelect={() => fileInput.current?.click()}>{t("page.upload")}</MenuItem>
-            </Menu>
-          </>
-        }
+        menu={<PageMenu node={node} flush={autosave.flush} onHistory={() => void openHistory()} />}
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
+          <Cover node={node} />
           <FileDropZone
             kbId={kbId}
             parentId={node.id}
             name={node.title}
             className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30"
           >
-            <div className="mb-1 text-13 text-ghost">
-              {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
+            <div className="group/header">
+              <HeaderDecor node={node} />
+              <div className="mb-1 text-13 text-ghost">
+                {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
+              </div>
+              <Title node={node} />
             </div>
-            <Title node={node} />
             {autosave.reloaded && (
               <div role="status" className="mt-4 flex items-start gap-2 border-y border-line py-2 text-13 text-text-2">
                 <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-warn" />
@@ -257,7 +239,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                             className="-mx-1.5 flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-15 text-text no-underline hover:bg-subtle"
                           >
                             <span className="text-text-3">
-                              <Icon name={child.kind} />
+                              <NodeIcon icon={child.icon} kind={child.kind} />
                             </span>
                             <FileName title={name} ext={ext} />
                           </Link>
@@ -267,6 +249,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                   </ul>
                 </nav>
               )}
+              <Mentions nodeId={node.id} />
             </div>
           </FileDropZone>
         </div>

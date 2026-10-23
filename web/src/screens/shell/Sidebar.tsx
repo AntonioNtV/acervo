@@ -10,6 +10,7 @@ import { IconButton } from "../../ui/IconButton";
 import { Kbd } from "../../ui/Kbd";
 import { BaseDialog, type BaseEdit } from "../bases/BaseDialog";
 import { BaseSection } from "./BaseSection";
+import { Favorites } from "./Favorites";
 import { useShell } from "./shell";
 
 const rowClass =
@@ -52,8 +53,8 @@ function Switch<T extends string>({
   );
 }
 
-/** Every base as a section with its tree, the places phase B fills, and "Nova base" and "Lixeira" at the bottom. */
-export function Sidebar() {
+/** The favorites, every base as a section with its tree, and "Nova base" and "Lixeira" at the bottom. */
+export function Sidebar({ onSearch }: { onSearch?: () => void }) {
   const { t, lang, setLang } = useI18n();
   const { theme, setTheme } = useTheme();
   const { setSidebarOpen } = useShell();
@@ -74,14 +75,11 @@ export function Sidebar() {
       <NavLink to="/bases" className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}>
         <Row icon="bases">{t("bases.title")}</Row>
       </NavLink>
-      {/* Phase B: ⌘K and recents. Shown so the layout is the final one. */}
-      <button type="button" disabled className={cx(rowClass, "cursor-default")}>
+      <button type="button" onClick={onSearch} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
         <Row icon="search">{t("shell.search")}</Row>
         <Kbd>⌘K</Kbd>
       </button>
-      <button type="button" disabled className={cx(rowClass, "cursor-default")}>
-        <Row icon="recent">{t("shell.recent")}</Row>
-      </button>
+      <Favorites />
 
       {kbs.isError && <p className="m-0 px-2 py-1 text-12 text-err">{t("bases.error.load")}</p>}
       {kbs.data?.map((kb) => <BaseSection key={kb.id} kb={kb} onEdit={setEdit} />)}

@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { KbSummary } from "../../api/client";
-import { useKbs, useTrashKb } from "../../data/kbs";
+import { useKbIcon, useKbs, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
+import { EmojiPicker } from "../../ui/EmojiPicker";
+import { Icon } from "../../ui/Icon";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { TopBar } from "../shell/TopBar";
 import { BaseDialog, type BaseEdit } from "./BaseDialog";
 import { fullDate, relativeTime } from "./when";
@@ -19,20 +22,25 @@ function fold(text: string): string {
 function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => void }) {
   const { t, lang } = useI18n();
   const trash = useTrashKb();
+  const icon = useKbIcon(kb);
   const count = (key: string, n: number) => t(`bases.${key}.${n === 1 ? "one" : "other"}`, { n });
 
   return (
     <article className={cx(card, "relative hover:border-text-3")}>
       <div className="flex items-start justify-between gap-3">
-        <Link
-          to={`/kbs/${kb.id}`}
-          className={cx(
-            "text-15 font-medium tracking-[-0.01em] text-text no-underline",
-            "after:absolute after:inset-0 after:rounded-[10px]",
-          )}
-        >
-          {kb.name}
-        </Link>
+        <div>
+          <Link
+            to={`/kbs/${kb.id}`}
+            className={cx(
+              "inline-flex items-center gap-2 text-15 font-medium tracking-[-0.01em] text-text no-underline",
+              "after:absolute after:inset-0 after:rounded-[10px]",
+            )}
+          >
+            <NodeIcon icon={kb.icon} size={18} />
+            {kb.name}
+          </Link>
+          {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
+        </div>
         <Menu
           trigger={
             <Button
@@ -42,16 +50,13 @@ function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => v
               aria-label={t("bases.actions", { name: kb.name })}
               className="relative -mt-1 -mr-2"
             >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[15px] fill-current">
-                <circle cx="5" cy="12" r="1.5" />
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="19" cy="12" r="1.5" />
-              </svg>
+              <Icon name="more" />
             </Button>
           }
         >
           <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
           <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
+          <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
           <MenuSeparator />
           <MenuItem onSelect={() => trash.mutate(kb.id)}>{t("bases.trash")}</MenuItem>
         </Menu>

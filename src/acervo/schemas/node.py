@@ -1,10 +1,21 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 NodeKind = Literal["folder", "page", "file"]
+
+
+def _emoji(icon: str) -> str:
+    # One emoji, sequences such as flags, skin tones and families included; never a word or a number.
+    if not icon or len(icon) > 16 or any(char.isascii() and char.isalnum() for char in icon):
+        raise ValueError("an icon is one emoji")
+    return icon
+
+
+Icon = Annotated[str, AfterValidator(_emoji)]
+GalleryCover = Annotated[str, Field(pattern=r"^gallery:[a-z0-9-]{1,32}$")]
 
 
 class NodeCreate(BaseModel):
@@ -28,6 +39,9 @@ class NodeUpdate(BaseModel):
     description_locked: bool | None = Field(default=None, description="Whether agents may rewrite the description.")
     deleted_at: datetime | None = Field(default=None, description="When the node went to the trash; null restores it.")
     trashed_with: UUID | None = Field(default=None, description="Node whose trashing hid this one.")
+    icon: str | None = Field(default=None, description="An emoji; null removes it.")
+    cover: str | None = Field(default=None, description="`gallery:<slug>` or `image:<sha256>`; null removes it.")
+    favorite_sort: str | None = Field(default=None, description="Sort key among the favorites; null unfavorites.")
 
 
 class NodeRead(BaseModel):
@@ -45,6 +59,11 @@ class NodeRead(BaseModel):
     sort: str = Field(description="Fractional sort key among its siblings.")
     deleted_at: datetime | None = Field(description="When the node went to the trash; null while it is live.")
     trashed_with: UUID | None = Field(description="Node whose trashing hid this one.")
+    icon: str | None = Field(description="An emoji shown before the title; null for none.")
+    cover: str | None = Field(
+        description="`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none."
+    )
+    favorite: bool = Field(description="Whether it is in the person's favorites.")
     created_at: datetime = Field(description="When the node was created.")
     updated_at: datetime = Field(description="When the node last changed.")
 
@@ -64,11 +83,16 @@ class NodeEdit(BaseModel):
     description: str | None = Field(
         default=None, max_length=200, description="New description; once the person edits it, agents keep it."
     )
+    icon: Icon | None = Field(default=None, description="An emoji; null removes it.")
+    cover: GalleryCover | None = Field(
+        default=None, description="`gallery:<slug>`, for folders and pages only; null removes it."
+    )
 
 
 class NodeMove(BaseModel):
     """Where to put a node."""
 
+    kb_id: UUID | None = Field(default=None, description="Destination base; null for the node's own base.")
     parent_id: UUID | None = Field(default=None, description="Destination folder; null for the base's root.")
     before_id: UUID | None = Field(default=None, description="Sibling it goes just before; null to put it last.")
 

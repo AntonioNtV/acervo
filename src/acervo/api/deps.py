@@ -1,13 +1,20 @@
 import hmac
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, Query, Request
 
+from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.base_service import BaseService
+from acervo.services.cover_service import CoverService
+from acervo.services.duplicate_service import DuplicateService
+from acervo.services.export_service import ExportService
+from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
@@ -33,6 +40,33 @@ async def require_api_key(
         raise AuthError("Missing or invalid X-API-Key header.")
 
 
+KEY = [Depends(require_api_key)]
+
+
+def key_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:
+    """The key, or a link signed for `purpose` of exactly this content of the node and not yet expired."""
+
+    async def dependency(
+        node_id: UUID,
+        settings: Annotated[Settings, Depends(get_settings)],
+        # Out of the schema: only the file route takes a version, and it declares the parameter itself.
+        version_id: Annotated[UUID | None, Query(include_in_schema=False)] = None,
+        expires: int | None = None,
+        signature: str | None = None,
+        x_api_key: Annotated[str | None, Header()] = None,
+    ) -> None:
+        secret = settings.api_key.get_secret_value()
+        if (
+            expires is not None
+            and signature is not None
+            and signing.verify(secret, purpose, node_id, version_id, expires, signature, time.time())
+        ):
+            return
+        await require_api_key(settings, x_api_key)
+
+    return dependency
+
+
 async def get_uow(request: Request) -> AsyncIterator[UnitOfWork]:
     async with UnitOfWork(request.app.state.session_factory) as uow:
         yield uow
@@ -54,3 +88,25 @@ def get_file_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> FileService:
     return FileService(uow, storage)
+
+
+def get_favorite_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> FavoriteService:
+    return FavoriteService(uow)
+
+
+def get_duplicate_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> DuplicateService:
+    return DuplicateService(uow)
+
+
+def get_cover_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> CoverService:
+    return CoverService(uow, storage, settings.cover_max_bytes)
+
+
+def get_export_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
+) -> ExportService:
+    return ExportService(uow, storage)

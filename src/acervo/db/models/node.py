@@ -41,3 +41,12 @@ class Node(UUIDPkMixin, TimestampMixin, Base):
     deleted_at: Mapped[datetime | None]
     # The node whose trashing hid this one; restore unmarks every node carrying that id.
     trashed_with: Mapped[UUID | None] = mapped_column(ForeignKey("node.id"), index=True)
+    icon: Mapped[str | None] = mapped_column(Text)
+    # `gallery:<slug>` or `image:<sha256>`; folders and pages only.
+    cover: Mapped[str | None] = mapped_column(Text)
+    # Fractional index among the favorites of every base, as `sort`; null when not a favorite.
+    favorite_sort: Mapped[str | None] = mapped_column(Text)
+
+    @property
+    def favorite(self) -> bool:
+        return self.favorite_sort is not None

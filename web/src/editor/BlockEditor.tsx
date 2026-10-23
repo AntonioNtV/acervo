@@ -178,7 +178,8 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     <ResolveLink.Provider value={resolveLink}>
       <div
         ref={wrapper}
-        className="relative"
+        // The gutter is part of the hover area, so the pointer reaches the handle without leaving it.
+        className="relative -ml-14 pl-14"
         onMouseMove={(event) => {
           if (!editor || !wrapper.current) return;
           const hovered = blockAt(editor, wrapper.current, event.target);

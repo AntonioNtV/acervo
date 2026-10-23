@@ -15,6 +15,20 @@
         "title": "Body_replace_file_v1_nodes__node_id__file_post",
         "type": "object"
       },
+      "Body_upload_cover_v1_nodes__node_id__cover_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_cover_v1_nodes__node_id__cover_post",
+        "type": "object"
+      },
       "Body_upload_file_v1_kbs__kb_id__files_post": {
         "properties": {
           "file": {
@@ -95,6 +109,26 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "FavoritePlace": {
+        "description": "Where a node goes among the person's favorites.",
+        "properties": {
+          "before_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Favorite it goes just before; null to put it last.",
+            "title": "Before Id"
+          }
+        },
+        "title": "FavoritePlace",
+        "type": "object"
+      },
       "FileLink": {
         "description": "A short-lived URL of a file's bytes that needs no X-API-Key header.",
         "properties": {
@@ -120,6 +154,18 @@
       "FileNodeRead": {
         "description": "A file node with its path and current content.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -149,9 +195,26 @@
             "title": "Description Locked",
             "type": "boolean"
           },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
           "file": {
             "$ref": "#/components/schemas/FileResponse",
             "description": "The current content."
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -239,6 +302,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path",
@@ -405,6 +471,18 @@
             "description": "New description.",
             "title": "Description"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji; null removes it.",
+            "title": "Icon"
+          },
           "name": {
             "anyOf": [
               {
@@ -449,6 +527,18 @@
             "title": "Description",
             "type": "string"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the name; null for none.",
+            "title": "Icon"
+          },
           "id": {
             "description": "Base ID.",
             "format": "uuid",
@@ -471,6 +561,7 @@
           "id",
           "name",
           "description",
+          "icon",
           "deleted_at",
           "created_at",
           "updated_at"
@@ -510,6 +601,18 @@
             "title": "Files",
             "type": "integer"
           },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the name; null for none.",
+            "title": "Icon"
+          },
           "id": {
             "description": "Base ID.",
             "format": "uuid",
@@ -543,6 +646,7 @@
           "id",
           "name",
           "description",
+          "icon",
           "deleted_at",
           "created_at",
           "updated_at",
@@ -551,6 +655,26 @@
           "last_edit"
         ],
         "title": "KbSummary",
+        "type": "object"
+      },
+      "Mention": {
+        "description": "A page of the base whose `[[\u2026]]` link opens this page.",
+        "properties": {
+          "line": {
+            "description": "The first line of its text holding the link, trimmed to 200 characters.",
+            "title": "Line",
+            "type": "string"
+          },
+          "node": {
+            "$ref": "#/components/schemas/NodeWithPath",
+            "description": "The linking page."
+          }
+        },
+        "required": [
+          "node",
+          "line"
+        ],
+        "title": "Mention",
         "type": "object"
       },
       "NodeAdd": {
@@ -594,6 +718,18 @@
       "NodeDetail": {
         "description": "A node opened: a page's text or a file's current content.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -623,6 +759,11 @@
             "title": "Description Locked",
             "type": "boolean"
           },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
           "file": {
             "anyOf": [
               {
@@ -633,6 +774,18 @@
               }
             ],
             "description": "Set for a file."
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -731,6 +884,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path",
@@ -744,6 +900,19 @@
       "NodeEdit": {
         "description": "What the person changes on a node; omitted fields keep their value.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "pattern": "^gallery:[a-z0-9-]{1,32}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>`, for folders and pages only; null removes it.",
+            "title": "Cover"
+          },
           "description": {
             "anyOf": [
               {
@@ -756,6 +925,18 @@
             ],
             "description": "New description; once the person edits it, agents keep it.",
             "title": "Description"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji; null removes it.",
+            "title": "Icon"
           },
           "title": {
             "anyOf": [
@@ -789,6 +970,19 @@
             "description": "Sibling it goes just before; null to put it last.",
             "title": "Before Id"
           },
+          "kb_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Destination base; null for the node's own base.",
+            "title": "Kb Id"
+          },
           "parent_id": {
             "anyOf": [
               {
@@ -809,6 +1003,18 @@
       "NodeRead": {
         "description": "A saved node of a base's tree.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -837,6 +1043,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -914,6 +1137,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at"
         ],
@@ -923,6 +1149,18 @@
       "NodeWithPath": {
         "description": "A node found by the name search, or trashed on its own.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -951,6 +1189,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1033,6 +1288,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "path"
@@ -1230,6 +1488,18 @@
       "RestoredNode": {
         "description": "A node back from the trash.",
         "properties": {
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1258,6 +1528,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1340,6 +1627,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "to_root"
@@ -1376,6 +1666,18 @@
             "title": "Child Count",
             "type": "integer"
           },
+          "cover": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.",
+            "title": "Cover"
+          },
           "created_at": {
             "description": "When the node was created.",
             "format": "date-time",
@@ -1404,6 +1706,23 @@
             "description": "Whether agents may rewrite the description.",
             "title": "Description Locked",
             "type": "boolean"
+          },
+          "favorite": {
+            "description": "Whether it is in the person's favorites.",
+            "title": "Favorite",
+            "type": "boolean"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An emoji shown before the title; null for none.",
+            "title": "Icon"
           },
           "id": {
             "description": "Node ID.",
@@ -1510,6 +1829,9 @@
           "sort",
           "deleted_at",
           "trashed_with",
+          "icon",
+          "cover",
+          "favorite",
           "created_at",
           "updated_at",
           "protected",
@@ -1528,6 +1850,70 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/favorites": {
+      "get": {
+        "description": "Live favorites of live bases, across bases, in the person's order.",
+        "operationId": "list_favorites_v1_favorites_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeWithPath"
+                  },
+                  "title": "Response List Favorites V1 Favorites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Favorites",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
     "/v1/files/{node_id}/link": {
       "post": {
         "description": "A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.",
@@ -3142,6 +3528,719 @@
         ]
       }
     },
+    "/v1/nodes/{node_id}/cover": {
+      "post": {
+        "description": "A PNG, JPEG or WebP image of at most 10 MB becomes the cover of a folder or page.",
+        "operationId": "upload_cover_v1_nodes__node_id__cover_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_cover_v1_nodes__node_id__cover_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Upload Cover",
+        "tags": [
+          "covers"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/cover/link": {
+      "post": {
+        "description": "A link to the node's uploaded cover image that opens without the key for 60 seconds.",
+        "operationId": "cover_link_v1_nodes__node_id__cover_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Cover Link",
+        "tags": [
+          "covers"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/cover/raw": {
+      "get": {
+        "description": "The node's uploaded cover image.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/cover/link`.",
+        "operationId": "raw_cover_v1_nodes__node_id__cover_raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expires",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires"
+            }
+          },
+          {
+            "in": "query",
+            "name": "signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Signature"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/*": {}
+            },
+            "description": "The image as uploaded."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Raw Cover",
+        "tags": [
+          "covers"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/duplicate": {
+      "post": {
+        "description": "A copy of the page, \"<t\u00edtulo> (c\u00f3pia)\" right after it, with its text and its sub-pages; files are not copied.",
+        "operationId": "duplicate_node_v1_nodes__node_id__duplicate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Duplicate Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/export": {
+      "get": {
+        "description": "A page or folder and everything live under it as a zip: pages as their Markdown text, files as stored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/export/link`.\nA storage error breaks the download off instead of ending it as a shorter zip.",
+        "operationId": "export_node_v1_nodes__node_id__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expires",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires"
+            }
+          },
+          {
+            "in": "query",
+            "name": "signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Signature"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {}
+            },
+            "description": "The zip, made as it is sent."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Export Node",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/export/link": {
+      "post": {
+        "description": "A link to the zip of a page or folder that opens without the key for 60 seconds.",
+        "operationId": "export_link_v1_nodes__node_id__export_link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Export Link",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
+    "/v1/nodes/{node_id}/favorite": {
+      "delete": {
+        "operationId": "remove_favorite_v1_nodes__node_id__favorite_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Favorite",
+        "tags": [
+          "favorites"
+        ]
+      },
+      "put": {
+        "description": "Adds a page or folder to the favorites, last or just before `before_id`; a favorite already there moves.",
+        "operationId": "place_favorite_v1_nodes__node_id__favorite_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoritePlace"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Place Favorite",
+        "tags": [
+          "favorites"
+        ]
+      }
+    },
     "/v1/nodes/{node_id}/file": {
       "post": {
         "operationId": "replace_file_v1_nodes__node_id__file_post",
@@ -3576,6 +4675,90 @@
           }
         },
         "summary": "Leave Page",
+        "tags": [
+          "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/mentions": {
+      "get": {
+        "description": "The pages of the base with a `[[\u2026]]` link to this one, ordered by path, each with the line holding it.",
+        "operationId": "list_page_mentions_v1_pages__node_id__mentions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Mention"
+                  },
+                  "title": "Response List Page Mentions V1 Pages  Node Id  Mentions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Page Mentions",
         "tags": [
           "pages"
         ]

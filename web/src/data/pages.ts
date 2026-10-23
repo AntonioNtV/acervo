@@ -59,6 +59,14 @@ export function usePageVersionDiff(nodeId: string, versionId: string | null) {
   });
 }
 
+/** The pages of the base with a `[[…]]` link to this one, each with the line holding it. */
+export function usePageMentions(nodeId: string) {
+  return useQuery({
+    queryKey: ["mentions", nodeId],
+    queryFn: () => call(api.GET("/v1/pages/{node_id}/mentions", { params: { path: { node_id: nodeId } } })),
+  });
+}
+
 /** Resolves to the page as it is after the restore: its text and the revision to save from. */
 export function useRestorePageVersion(nodeId: string) {
   const queryClient = useQueryClient();

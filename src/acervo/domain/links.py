@@ -49,3 +49,8 @@ def rewrite(markdown: str, old_title: str, new_title: str) -> str:
     """Every `[[…]]` link to `old_title`, whatever its case and spacing, pointed at `new_title`."""
     pattern = re.compile(r"\[\[\s*" + r"\s+".join(map(re.escape, old_title.split())) + r"\s*\]\]", re.IGNORECASE)
     return pattern.sub(lambda _: f"[[{new_title}]]", markdown)
+
+
+def unlink(markdown: str, wanted: set[str]) -> str:
+    """Every `[[…]]` link whose normalized target is in `wanted` turned into its text, as the person wrote it."""
+    return _LINK.sub(lambda m: m[1].strip() if normalize(m[1]) in wanted else m[0], markdown)

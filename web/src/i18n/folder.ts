@@ -1,12 +1,6 @@
 export const ptBR = {
-  filters: "Mostrar",
-  all: "Tudo {n}",
-  pages: "Páginas {n}",
-  files: "Arquivos {n}",
-  name: "Nome",
-  edited: "Editado",
-  inside: "Dentro",
   upload: "Enviar arquivos",
+  more: "Mais opções da pasta",
   "new.page": "Nova página",
   drop: "Solte arquivos aqui para guardar em {name}",
   empty: "Nada aqui ainda.",
@@ -19,14 +13,8 @@ export const ptBR = {
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
-  filters: "Show",
-  all: "All {n}",
-  pages: "Pages {n}",
-  files: "Files {n}",
-  name: "Name",
-  edited: "Edited",
-  inside: "Inside",
   upload: "Upload files",
+  more: "More folder options",
   "new.page": "New page",
   drop: "Drop files here to keep them in {name}",
   empty: "Nothing here yet.",

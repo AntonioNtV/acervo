@@ -28,6 +28,10 @@ beforeEach(() => {
   });
 });
 
+function favorite(id: string, title: string, kbId: string) {
+  return { ...node(id, "page", title), kb_id: kbId, path: title };
+}
+
 function renderSidebar() {
   return renderWithApi(
     <ThemeProvider>
@@ -129,5 +133,59 @@ describe("Sidebar", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("já existe");
     expect(screen.getByRole("textbox", { name: "Renomear" })).toHaveValue("Bradesco");
+  });
+
+  it("a node's emoji shows in the tree in place of its kind's icon", async () => {
+    respond("GET", "/v1/kbs/kb-1/children", () => ({ body: [{ ...node("glossario", "page", "Glossário"), icon: "📒" }] }));
+    renderSidebar();
+
+    const glossario = await screen.findByRole("treeitem", { name: "Glossário" });
+    expect(within(glossario).getByText("📒")).toBeInTheDocument();
+  });
+
+  it("shows the favorites on top, each with its base", async () => {
+    respond("GET", "/v1/favorites", { body: [favorite("glossario", "Glossário", "kb-1"), favorite("receitas", "Receitas", "kb-2")] });
+    renderSidebar();
+
+    const favorites = await screen.findByRole("region", { name: "Favoritos" });
+    const first = await screen.findByRole("region", { name: "Seguros · Operação" });
+    expect(favorites.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const receitas = await within(favorites).findByRole("link", { name: /Receitas/ });
+    expect(receitas).toHaveAttribute("href", "/kbs/kb-2/n/receitas");
+    expect(await within(receitas).findByText("Pessoal")).toBeInTheDocument();
+  });
+
+  it("dragging a favorite onto another puts it before that one", async () => {
+    respond("GET", "/v1/favorites", { body: [favorite("glossario", "Glossário", "kb-1"), favorite("receitas", "Receitas", "kb-2")] });
+    respond("PUT", "/v1/nodes/receitas/favorite", { body: node("receitas", "page", "Receitas") });
+    renderSidebar();
+    const favorites = await screen.findByRole("region", { name: "Favoritos" });
+    const [glossario, receitas] = within(favorites).getAllByRole("listitem");
+    const data = new Map<string, string>();
+    const dataTransfer = {
+      files: [],
+      types: [] as string[],
+      setData: (type: string, value: string) => data.set(type, value),
+      getData: (type: string) => data.get(type) ?? "",
+    };
+
+    fireEvent.dragStart(receitas!, { dataTransfer });
+    fireEvent.drop(glossario!, { dataTransfer });
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === "PUT")).toMatchObject({
+        path: "/v1/nodes/receitas/favorite",
+        body: { before_id: "glossario" },
+      }),
+    );
+  });
+
+  it("hides the favorites when there are none", async () => {
+    respond("GET", "/v1/favorites", { body: [] });
+    renderSidebar();
+
+    await screen.findByRole("region", { name: "Seguros · Operação" });
+    await waitFor(() => expect(calls.some((call) => call.path === "/v1/favorites")).toBe(true));
+    expect(screen.queryByRole("region", { name: "Favoritos" })).not.toBeInTheDocument();
   });
 });

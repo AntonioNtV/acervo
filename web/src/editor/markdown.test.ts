@@ -97,6 +97,19 @@ describe("Markdown round-trip", () => {
     expect(fastest(10_000)).toBeLessThan(fastest(1_000) * 30);
   });
 
+  it("opens a 10,000-block page in under a second", () => {
+    const blocks = fixtures["./fixtures/blocks.md"]!;
+    const perCopy = parseMarkdown(blocks).source.chunks.length;
+    const markdown = Array.from({ length: Math.ceil(10_000 / perCopy) }, () => blocks).join("\n");
+    const start = performance.now();
+    const { node, source } = open(markdown);
+    const elapsed = performance.now() - start;
+    expect(source.chunks.length).toBeGreaterThanOrEqual(10_000);
+    // About 130 ms locally (4 s before the tokenizers stopped reading the whole rest); coarse for slower machines.
+    expect(elapsed).toBeLessThan(1000);
+    expect(serializeMarkdown(node, source)).toBe(markdown);
+  });
+
   it("normalizes only line endings of a page nobody edited", () => {
     const { node, source } = open("## A\r\n\r\nTexto\r\n");
     expect(serializeMarkdown(node, source)).toBe("## A\n\nTexto\n");

@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { KbSummary } from "../../api/client";
 import { forgetBase } from "../../app/lastPage";
-import { useTrashKb } from "../../data/kbs";
+import { useKbIcon, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
+import { EmojiPicker } from "../../ui/EmojiPicker";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
+import { NodeIcon } from "../../ui/NodeIcon";
 import type { BaseEdit } from "../bases/BaseDialog";
 import { UploadList } from "../base/Upload";
 import { useCurrent } from "./shell";
@@ -40,6 +42,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
   const [open, setOpenState] = useState(() => here || readOpen().includes(kb.id));
   const [draft, setDraft] = useState<Draft | null>(null);
   const trash = useTrashKb();
+  const icon = useKbIcon(kb);
 
   const setOpen = (next: boolean) => {
     setOpenState(next);
@@ -63,10 +66,12 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent p-0 text-left font-medium text-text-3 hover:text-text"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-left font-medium text-text-3 hover:text-text"
         >
-          {kb.name}
+          <NodeIcon icon={kb.icon} size={14} />
+          <span className="truncate">{kb.name}</span>
         </button>
+        {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
         <span className="flex opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
           <Menu
             trigger={
@@ -77,6 +82,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
           >
             <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
             <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
+            <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
             <MenuItem onSelect={() => startDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
             <MenuSeparator />
             <MenuItem

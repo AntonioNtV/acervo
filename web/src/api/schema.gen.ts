@@ -4,6 +4,26 @@
  */
 
 export interface paths {
+    "/v1/favorites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Favorites
+         * @description Live favorites of live bases, across bases, in the person's order.
+         */
+        get: operations["list_favorites_v1_favorites_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/files/{node_id}/link": {
         parameters: {
             query?: never;
@@ -301,6 +321,152 @@ export interface paths {
         patch: operations["edit_node_v1_nodes__node_id__patch"];
         trace?: never;
     };
+    "/v1/nodes/{node_id}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Cover
+         * @description A PNG, JPEG or WebP image of at most 10 MB becomes the cover of a folder or page.
+         */
+        post: operations["upload_cover_v1_nodes__node_id__cover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/cover/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cover Link
+         * @description A link to the node's uploaded cover image that opens without the key for 60 seconds.
+         */
+        post: operations["cover_link_v1_nodes__node_id__cover_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/cover/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Raw Cover
+         * @description The node's uploaded cover image.
+         *
+         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/cover/link`.
+         */
+        get: operations["raw_cover_v1_nodes__node_id__cover_raw_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate Node
+         * @description A copy of the page, "<título> (cópia)" right after it, with its text and its sub-pages; files are not copied.
+         */
+        post: operations["duplicate_node_v1_nodes__node_id__duplicate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Node
+         * @description A page or folder and everything live under it as a zip: pages as their Markdown text, files as stored.
+         *
+         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/export/link`.
+         *     A storage error breaks the download off instead of ending it as a shorter zip.
+         */
+        get: operations["export_node_v1_nodes__node_id__export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/export/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export Link
+         * @description A link to the zip of a page or folder that opens without the key for 60 seconds.
+         */
+        post: operations["export_link_v1_nodes__node_id__export_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{node_id}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Place Favorite
+         * @description Adds a page or folder to the favorites, last or just before `before_id`; a favorite already there moves.
+         */
+        put: operations["place_favorite_v1_nodes__node_id__favorite_put"];
+        post?: never;
+        /** Remove Favorite */
+        delete: operations["remove_favorite_v1_nodes__node_id__favorite_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/nodes/{node_id}/file": {
         parameters: {
             query?: never;
@@ -383,6 +549,26 @@ export interface paths {
          * @description The person left the page: the working text becomes a version, unless it already is one.
          */
         post: operations["leave_page_v1_pages__node_id__leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/mentions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Page Mentions
+         * @description The pages of the base with a `[[…]]` link to this one, ordered by path, each with the line holding it.
+         */
+        get: operations["list_page_mentions_v1_pages__node_id__mentions_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -473,6 +659,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_upload_cover_v1_nodes__node_id__cover_post */
+        Body_upload_cover_v1_nodes__node_id__cover_post: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_file_v1_kbs__kb_id__files_post */
         Body_upload_file_v1_kbs__kb_id__files_post: {
             /** File */
@@ -524,6 +715,17 @@ export interface components {
             message: string;
         };
         /**
+         * FavoritePlace
+         * @description Where a node goes among the person's favorites.
+         */
+        FavoritePlace: {
+            /**
+             * Before Id
+             * @description Favorite it goes just before; null to put it last.
+             */
+            before_id?: string | null;
+        };
+        /**
          * FileLink
          * @description A short-lived URL of a file's bytes that needs no X-API-Key header.
          */
@@ -546,6 +748,11 @@ export interface components {
          */
         FileNodeRead: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -566,8 +773,18 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
             /** @description The current content. */
             file: components["schemas"]["FileResponse"];
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -738,6 +955,11 @@ export interface components {
              */
             description?: string | null;
             /**
+             * Icon
+             * @description An emoji; null removes it.
+             */
+            icon?: string | null;
+            /**
              * Name
              * @description New name; cannot be blank.
              */
@@ -764,6 +986,11 @@ export interface components {
              * @description What the base holds.
              */
             description: string;
+            /**
+             * Icon
+             * @description An emoji shown before the name; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -809,6 +1036,11 @@ export interface components {
              */
             files: number;
             /**
+             * Icon
+             * @description An emoji shown before the name; null for none.
+             */
+            icon: string | null;
+            /**
              * Id
              * Format: uuid
              * @description Base ID.
@@ -838,6 +1070,19 @@ export interface components {
             updated_at: string;
         };
         /**
+         * Mention
+         * @description A page of the base whose `[[…]]` link opens this page.
+         */
+        Mention: {
+            /**
+             * Line
+             * @description The first line of its text holding the link, trimmed to 200 characters.
+             */
+            line: string;
+            /** @description The linking page. */
+            node: components["schemas"]["NodeWithPath"];
+        };
+        /**
          * NodeAdd
          * @description A new folder or page; files come from an upload.
          */
@@ -865,6 +1110,11 @@ export interface components {
          */
         NodeDetail: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -885,8 +1135,18 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
             /** @description Set for a file. */
             file: components["schemas"]["FileResponse"] | null;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -950,10 +1210,20 @@ export interface components {
          */
         NodeEdit: {
             /**
+             * Cover
+             * @description `gallery:<slug>`, for folders and pages only; null removes it.
+             */
+            cover?: string | null;
+            /**
              * Description
              * @description New description; once the person edits it, agents keep it.
              */
             description?: string | null;
+            /**
+             * Icon
+             * @description An emoji; null removes it.
+             */
+            icon?: string | null;
             /**
              * Title
              * @description New title; no live sibling of the same kind may have it.
@@ -971,6 +1241,11 @@ export interface components {
              */
             before_id?: string | null;
             /**
+             * Kb Id
+             * @description Destination base; null for the node's own base.
+             */
+            kb_id?: string | null;
+            /**
              * Parent Id
              * @description Destination folder; null for the base's root.
              */
@@ -981,6 +1256,11 @@ export interface components {
          * @description A saved node of a base's tree.
          */
         NodeRead: {
+            /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
             /**
              * Created At
              * Format: date-time
@@ -1002,6 +1282,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1053,6 +1343,11 @@ export interface components {
          */
         NodeWithPath: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1073,6 +1368,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1247,6 +1552,11 @@ export interface components {
          */
         RestoredNode: {
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1267,6 +1577,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1344,6 +1664,11 @@ export interface components {
              */
             child_count: number;
             /**
+             * Cover
+             * @description `gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none.
+             */
+            cover: string | null;
+            /**
              * Created At
              * Format: date-time
              * @description When the node was created.
@@ -1364,6 +1689,16 @@ export interface components {
              * @description Whether agents may rewrite the description.
              */
             description_locked: boolean;
+            /**
+             * Favorite
+             * @description Whether it is in the person's favorites.
+             */
+            favorite: boolean;
+            /**
+             * Icon
+             * @description An emoji shown before the title; null for none.
+             */
+            icon: string | null;
             /**
              * Id
              * Format: uuid
@@ -1433,6 +1768,46 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_favorites_v1_favorites_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeWithPath"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     file_link_v1_files__node_id__link_post: {
         parameters: {
             query?: {
@@ -2406,6 +2781,428 @@ export interface operations {
             };
         };
     };
+    upload_cover_v1_nodes__node_id__cover_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_cover_v1_nodes__node_id__cover_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    cover_link_v1_nodes__node_id__cover_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    raw_cover_v1_nodes__node_id__cover_raw_get: {
+        parameters: {
+            query?: {
+                expires?: number | null;
+                signature?: string | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image as uploaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    duplicate_node_v1_nodes__node_id__duplicate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_node_v1_nodes__node_id__export_get: {
+        parameters: {
+            query?: {
+                expires?: number | null;
+                signature?: string | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The zip, made as it is sent. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/zip": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    export_link_v1_nodes__node_id__export_link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    place_favorite_v1_nodes__node_id__favorite_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FavoritePlace"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_favorite_v1_nodes__node_id__favorite_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     replace_file_v1_nodes__node_id__file_post: {
         parameters: {
             query?: never;
@@ -2664,6 +3461,57 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_page_mentions_v1_pages__node_id__mentions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mention"][];
+                };
             };
             /** @description Unauthorized */
             401: {

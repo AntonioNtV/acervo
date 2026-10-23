@@ -57,3 +57,20 @@ async def test_name_filter_ignores_case_and_accents(client: httpx.AsyncClient) -
     assert [kb["id"] for kb in (await client.get("/v1/kbs", params={"q": "JURIDICO"})).json()] == [juridico["id"]]
     assert [kb["id"] for kb in (await client.get("/v1/kbs", params={"q": "operacao"})).json()] == [seguros["id"]]
     assert (await client.get("/v1/kbs", params={"q": "100%"})).json() == []
+
+
+async def test_base_icon_is_set_and_cleared(client: httpx.AsyncClient) -> None:
+    created = await _create(client, name="Seguros")
+    assert created["icon"] is None
+
+    set_ = await client.patch(f"/v1/kbs/{created['id']}", json={"icon": "🛡️"})
+    renamed = await client.patch(f"/v1/kbs/{created['id']}", json={"name": "Seguros · Operação"})
+    invalid = await client.patch(f"/v1/kbs/{created['id']}", json={"icon": "ab"})
+    listed = (await client.get("/v1/kbs")).json()
+    cleared = await client.patch(f"/v1/kbs/{created['id']}", json={"icon": None})
+
+    assert (set_.status_code, set_.json()["icon"]) == (200, "🛡️")
+    assert renamed.json()["icon"] == "🛡️"
+    assert (invalid.status_code, invalid.json()["error"]) == (422, "validation")
+    assert [kb["icon"] for kb in listed] == ["🛡️"]
+    assert (cleared.status_code, cleared.json()["icon"]) == (200, None)

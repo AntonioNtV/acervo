@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from acervo.schemas.file import FileResponse
-from acervo.schemas.node import NodeRead
+from acervo.schemas.node import NodeRead, NodeWithPath
 
 Author = Literal["user", "agent"]
 
@@ -131,3 +131,10 @@ class NodeDetail(NodeRead):
     page: PageRead | None = Field(description="Set for a page.")
     file: FileResponse | None = Field(description="Set for a file.")
     versions: int = Field(description="How many versions it has, the current one included; 0 for a folder.")
+
+
+class Mention(BaseModel):
+    """A page of the base whose `[[…]]` link opens this page."""
+
+    node: NodeWithPath = Field(description="The linking page.")
+    line: str = Field(description="The first line of its text holding the link, trimmed to 200 characters.")

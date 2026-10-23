@@ -18,11 +18,20 @@ export function blockAt(editor: Editor, wrapper: HTMLElement, target: EventTarge
   return measureBlock(editor, wrapper, $pos.depth > 0 ? $pos.before(1) : $pos.pos);
 }
 
-/** The top-level block starting at `pos`, where it sits now in the wrapper; null when none starts there. */
+const HANDLE_HEIGHT = 24;
+
+/**
+ * The top-level block starting at `pos`, where it sits now in the wrapper; null when none starts there. `top` places
+ * the handle on the middle of the block's first line, whatever the block's padding and line height.
+ */
 export function measureBlock(editor: Editor, wrapper: HTMLElement, pos: number): HoveredBlock | null {
   const dom = editor.view.nodeDOM(pos);
   if (!(dom instanceof HTMLElement)) return null;
-  return { pos, top: dom.getBoundingClientRect().top - wrapper.getBoundingClientRect().top };
+  const style = getComputedStyle(dom);
+  const line = parseFloat(style.lineHeight) || HANDLE_HEIGHT;
+  const firstLine = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0);
+  const top = dom.getBoundingClientRect().top - wrapper.getBoundingClientRect().top;
+  return { pos, top: top + firstLine + (line - HANDLE_HEIGHT) / 2 };
 }
 
 const itemClass =
@@ -105,7 +114,7 @@ export function BlockHandle({ editor, block, onClose }: { editor: Editor; block:
   };
 
   return (
-    <div className="absolute left-[-52px] flex gap-0.5 text-ghost" style={{ top: block.top }}>
+    <div className="absolute left-1 flex gap-0.5 text-ghost" style={{ top: block.top }}>
       <button
         type="button"
         aria-label={t("editor.handle.add")}

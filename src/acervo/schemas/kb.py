@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from acervo.schemas.node import Icon
+
 
 class KbCreate(BaseModel):
     """A knowledge base to create."""
@@ -16,6 +18,7 @@ class KbUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, description="New name.")
     description: str | None = Field(default=None, description="New description.")
+    icon: str | None = Field(default=None, description="An emoji; null removes it.")
     deleted_at: datetime | None = Field(default=None, description="When the base went to the trash; null restores it.")
 
 
@@ -27,6 +30,7 @@ class KbRead(BaseModel):
     id: UUID = Field(description="Base ID.")
     name: str = Field(description="Name of the base.")
     description: str = Field(description="What the base holds.")
+    icon: str | None = Field(description="An emoji shown before the name; null for none.")
     deleted_at: datetime | None = Field(description="When the base went to the trash; null while it is live.")
     created_at: datetime = Field(description="When the base was created.")
     updated_at: datetime = Field(description="When the base last changed.")
@@ -37,6 +41,7 @@ class KbEdit(BaseModel):
 
     name: str | None = Field(default=None, min_length=1, description="New name; cannot be blank.")
     description: str | None = Field(default=None, description="New description.")
+    icon: Icon | None = Field(default=None, description="An emoji; null removes it.")
 
 
 class KbSummary(KbRead):

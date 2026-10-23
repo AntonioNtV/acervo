@@ -169,6 +169,16 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             .execution_options(synchronize_session=False)
         )
 
+    async def subtree(self, node_id: UUID) -> list[NodeRead]:
+        """The node and every node under it, trashed ones included."""
+        down = select(Node.id).where(Node.id == node_id).cte("down", recursive=True)
+        down = down.union_all(select(Node.id).join(down, Node.parent_id == down.c.id))
+        query = select(Node).where(Node.id.in_(select(down.c.id))).execution_options(populate_existing=True)
+        return [self._to_read(node) for node in await self._session.scalars(query)]
+
+    async def set_base(self, node_ids: list[UUID], kb_id: UUID) -> None:
+        await self._session.execute(update(Node).where(Node.id.in_(node_ids)).values(kb_id=kb_id))
+
     async def restore_trashed_with(self, node_id: UUID) -> None:
         """Brings back every node the trashing of `node_id` hid."""
         await self._session.execute(

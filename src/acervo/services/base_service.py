@@ -35,6 +35,8 @@ class BaseService:
             change.name = _name(data.name)
         if data.description is not None:
             change.description = data.description.strip()
+        if "icon" in data.model_fields_set:
+            change.icon = data.icon
         kb = await self._uow.kbs.update(kb_id, change)
         await self._uow.commit()
         return kb

@@ -22,6 +22,15 @@
   --add: rgba(24, 160, 88, 0.1);
   --del: rgba(229, 72, 77, 0.08);
   --desk: #ededeb;
+  /* The cover gallery (`gallery:<slug>`): soft, so the buttons over a cover read in both themes. */
+  --cover-sage: #e4ece7;
+  --cover-sand: #efe9df;
+  --cover-stone: #e9e9e6;
+  --cover-sky: #e3eaf0;
+  --cover-clay: #f0e5e3;
+  --cover-moss: linear-gradient(135deg, #e4ece7 0%, #c9dccf 100%);
+  --cover-dawn: linear-gradient(135deg, #efe9df 0%, #f0e5e3 100%);
+  --cover-dusk: linear-gradient(135deg, #e3eaf0 0%, #e4ece7 100%);
 }
 
 :root.dark {
@@ -48,4 +57,12 @@
   --add: rgba(61, 214, 140, 0.12);
   --del: rgba(255, 99, 105, 0.12);
   --desk: #151516;
+  --cover-sage: #18221d;
+  --cover-sand: #221f19;
+  --cover-stone: #1a1a1b;
+  --cover-sky: #161d24;
+  --cover-clay: #241a19;
+  --cover-moss: linear-gradient(135deg, #18221d 0%, #0f1a14 100%);
+  --cover-dawn: linear-gradient(135deg, #221f19 0%, #241a19 100%);
+  --cover-dusk: linear-gradient(135deg, #161d24 0%, #18221d 100%);
 }

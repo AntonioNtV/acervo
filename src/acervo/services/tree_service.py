@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from acervo.core.errors import TitleTaken, ValidationError
+from acervo.core.errors import ConflictError, TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileResponse
@@ -69,21 +69,28 @@ class TreeService:
         return node
 
     async def edit(self, node_id: UUID, data: NodeEdit) -> NodeRead:
-        """The person's change of title and/or description; their description is locked against agents."""
+        """The person's change of title, description, icon or cover; their description is locked against agents.
+        An icon or cover sent as null is removed; one left out is kept."""
         node = await self._uow.nodes.live(node_id)
+        if data.cover is not None and node.kind == "file":
+            raise ValidationError("um arquivo não tem capa", {"cover": data.cover})
         if data.title is not None:
             node = await self._rename(node, data.title)
+        change = NodeUpdate(**data.model_dump(include={"icon", "cover"} & data.model_fields_set))
         if data.description is not None:
             description = data.description.strip()
-            node = await self._uow.nodes.update(
-                node_id, NodeUpdate(description=description, description_locked=bool(description))
-            )
-            await self._uow.commit()
+            change.description = description
+            change.description_locked = bool(description)
+        if change.model_fields_set:
+            node = await self._uow.nodes.update(node_id, change)
+        await self._uow.commit()
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:
         """A page's rename also fixes the links that resolve to it, in the same transaction."""
-        return await self._rename(await self._uow.nodes.live(node_id), title)
+        renamed = await self._rename(await self._uow.nodes.live(node_id), title)
+        await self._uow.commit()
+        return renamed
 
     async def _rename(self, node: NodeRead, title: str) -> NodeRead:
         node_id = node.id
@@ -93,36 +100,51 @@ class TreeService:
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
         if node.kind == "page" and title != node.title:
             await self._pages.fix_links(node, title)
-        renamed = await self._uow.nodes.update(node_id, NodeUpdate(title=title))
-        await self._uow.commit()
-        return renamed
+        return await self._uow.nodes.update(node_id, NodeUpdate(title=title))
 
     async def move(self, node_id: UUID, data: NodeMove) -> NodeRead:
-        """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None."""
+        """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None. Into another
+        base, its whole subtree goes along."""
         nodes = self._uow.nodes
         node = await nodes.live(node_id)
-        await self._uow.kbs.lock(node.kb_id)
-        await nodes.live_parent(node.kb_id, data.parent_id)
+        kb_id = data.kb_id or node.kb_id
+        for locked in sorted({node.kb_id, kb_id}):
+            await self._uow.kbs.lock(locked)
+        await nodes.live_parent(kb_id, data.parent_id)
         if data.parent_id is not None and node.id in await nodes.ancestors(data.parent_id):
             raise ValidationError(
                 "a node cannot move into itself or into a node inside it", {"parent_id": str(data.parent_id)}
             )
-        if data.parent_id != node.parent_id:
-            await self._ensure_title_free(node.kb_id, data.parent_id, node.kind, node.title)
+        if data.parent_id != node.parent_id or kb_id != node.kb_id:
+            await self._ensure_title_free(kb_id, data.parent_id, node.kind, node.title)
 
         if data.before_id is None:
-            sort = key_between(await nodes.last_sort(node.kb_id, data.parent_id, excluding=node.id), None)
+            sort = key_between(await nodes.last_sort(kb_id, data.parent_id, excluding=node.id), None)
         else:
             before = await nodes.live(data.before_id)
-            if before.id == node.id or before.kb_id != node.kb_id or before.parent_id != data.parent_id:
+            if before.id == node.id or before.kb_id != kb_id or before.parent_id != data.parent_id:
                 raise ValidationError(
                     f"node {data.before_id} is not a sibling at the destination", {"before_id": str(data.before_id)}
                 )
-            previous = await nodes.last_sort(node.kb_id, data.parent_id, below=before.sort, excluding=node.id)
+            previous = await nodes.last_sort(kb_id, data.parent_id, below=before.sort, excluding=node.id)
             sort = key_between(previous, before.sort)
+        if kb_id != node.kb_id:
+            await self._change_base(node, kb_id)
         moved = await nodes.update(node_id, NodeUpdate(parent_id=data.parent_id, sort=sort))
         await self._uow.commit()
         return moved
+
+    async def _change_base(self, node: NodeRead, kb_id: UUID) -> None:
+        """The node's subtree, trashed nodes included, into base `kb_id`; refused when one of its files is already
+        there. The links the move would break become text first."""
+        subtree = await self._uow.nodes.subtree(node.id)
+        ids = [moved.id for moved in subtree]
+        held = await self._uow.files.held_in(kb_id, ids)
+        if held:
+            raise ConflictError("já está na base de destino", {"files": held})
+        await self._pages.unlink_moved(subtree)
+        await self._uow.nodes.set_base(ids, kb_id)
+        await self._uow.page_links.set_base(ids, kb_id)
 
     async def trash(self, node_id: UUID) -> NodeRead:
         await self._uow.nodes.live(node_id)

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from acervo.api.deps import get_page_service, get_settings, require_api_key
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
-from acervo.schemas.page import PageDiff, PageRead, PageTextPut, PageTextSaved, PageVersionSummary
+from acervo.schemas.page import Mention, PageDiff, PageRead, PageTextPut, PageTextSaved, PageVersionSummary
 from acervo.services.page_service import PageService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -38,6 +38,12 @@ async def put_page_text(node_id: UUID, body: PageTextPut, service: Service, sett
 async def leave_page(node_id: UUID, service: Service) -> None:
     """The person left the page: the working text becomes a version, unless it already is one."""
     await service.cut(node_id)
+
+
+@router.get("/{node_id}/mentions", response_model=list[Mention], responses={404: ERROR})
+async def list_page_mentions(node_id: UUID, service: Service) -> list[Mention]:
+    """The pages of the base with a `[[…]]` link to this one, ordered by path, each with the line holding it."""
+    return await service.mentions(node_id)
 
 
 @router.get("/{node_id}/versions", response_model=list[PageVersionSummary], responses={404: ERROR})

@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calls, resetApi, respond } from "../../api/testing";
 import { pageNode, renderPage, typeInPage } from "./testing";
@@ -8,7 +8,9 @@ vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mock
 
 const textPuts = () => calls.filter((call) => call.method === "PUT" && call.path === "/v1/pages/page-1/text");
 const leaves = () => calls.filter((call) => call.path === "/v1/pages/page-1/leave");
-const pagePaths = () => calls.map((call) => call.path).filter((path) => path.startsWith("/v1/pages/"));
+const nodePatches = () => calls.filter((call) => call.method === "PATCH" && call.path === "/v1/nodes/page-1");
+const pagePaths = () =>
+  calls.filter((call) => call.method !== "GET" && call.path.startsWith("/v1/pages/")).map((call) => call.path);
 
 const saved = (body: unknown) => ({
   body: { revision: (body as { revision: number }).revision + 1, saved_at: "2026-10-22T10:00:00Z" },
@@ -294,5 +296,84 @@ describe("PageScreen", () => {
         expect.objectContaining({ body: { title: "Emissão da apólice" } }),
       ]),
     );
+  });
+
+  it("an emoji picked in the header is sent as the node's icon", async () => {
+    respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), icon: "🏠" } });
+    await openPage();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: "Adicionar ícone" }));
+    const picker = screen.getByRole("dialog", { name: "Escolher ícone" });
+    await user.type(within(picker).getByRole("searchbox", { name: "Buscar emoji" }), "casa");
+    await user.click(within(picker).getByRole("button", { name: "casa" }));
+
+    await waitFor(() => expect(nodePatches().map((call) => call.body)).toEqual([{ icon: "🏠" }]));
+  });
+
+  it("a cover from the gallery is sent as the node's cover", async () => {
+    respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), cover: "gallery:sand" } });
+    await openPage();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: "Adicionar capa" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Areia" }));
+
+    await waitFor(() => expect(nodePatches().map((call) => call.body)).toEqual([{ cover: "gallery:sand" }]));
+  });
+
+  it("an uploaded image goes to the cover route and shows through its signed link", async () => {
+    const sent: Array<{ path: string; form: FormData }> = [];
+    vi.stubGlobal(
+      "XMLHttpRequest",
+      class {
+        upload = {};
+        path = "";
+        status = 0;
+        response: unknown = null;
+        onload = () => {};
+        open(_method: string, path: string) {
+          this.path = path;
+        }
+        setRequestHeader() {}
+        send(form: FormData) {
+          sent.push({ path: this.path, form });
+          respond("GET", "/v1/nodes/page-1", { body: { ...pageNode(), cover: "image:abc" } });
+          this.status = 200;
+          this.response = { ...pageNode(), cover: "image:abc" };
+          this.onload();
+        }
+      },
+    );
+    respond("POST", "/v1/nodes/page-1/cover/link", {
+      body: {
+        url: "http://api.test/v1/nodes/page-1/cover/raw?expires=1&signature=s",
+        expires_at: new Date(Date.now() + 60_000).toISOString(),
+      },
+    });
+    await openPage();
+
+    const image = new File(["\x89PNG"], "capa.png", { type: "image/png" });
+    await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).upload(screen.getByLabelText("Enviar imagem"), image);
+
+    expect(sent.map((request) => request.path)).toEqual(["/v1/nodes/page-1/cover"]);
+    expect(sent[0]!.form.get("file")).toBeInstanceOf(File);
+    expect(await screen.findByRole("img", { name: "Capa" })).toHaveAttribute(
+      "src",
+      "/v1/nodes/page-1/cover/raw?expires=1&signature=s",
+    );
+  });
+
+  it("Remover clears the cover and the icon", async () => {
+    respond("GET", "/v1/nodes/page-1", { body: { ...pageNode(), icon: "🏠", cover: "gallery:sky" } });
+    respond("PATCH", "/v1/nodes/page-1", { body: pageNode() });
+    await openPage();
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+
+    await user.click(screen.getByRole("button", { name: "Remover" }));
+    await user.click(screen.getByRole("button", { name: "Trocar ícone" }));
+    await user.click(within(screen.getByRole("dialog", { name: "Escolher ícone" })).getByRole("button", { name: "Remover" }));
+
+    await waitFor(() => expect(nodePatches().map((call) => call.body)).toEqual([{ cover: null }, { icon: null }]));
   });
 });
