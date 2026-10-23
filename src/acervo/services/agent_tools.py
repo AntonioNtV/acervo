@@ -35,7 +35,7 @@ from acervo.services.agent_service import AgentService
 from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
-from acervo.services.proposal_service import ProposalService
+from acervo.services.proposal_service import ProposalService, enqueue_refresh
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -130,6 +130,7 @@ class AgentTools:
     ) -> None:
         self._uow = uow
         self._storage = storage
+        self._jobs = jobs
         self._agent = agent
         self._wait_seconds = wait_seconds
         self._pages = PageService(uow)
@@ -266,9 +267,11 @@ class AgentTools:
         return node
 
     async def _propose(self, payload: ProposalPayload) -> ProposalRead:
-        return await self._proposals.create(
+        proposal = await self._proposals.create(
             ProposalCreate(kb_id=self._agent.kb_id, agent_id=self._agent.id, payload=payload)
         )
+        await enqueue_refresh(self._jobs, proposal)
+        return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:
         """Posted to the agent's latest conversation, or a new one; its job runs as a chat message's does."""

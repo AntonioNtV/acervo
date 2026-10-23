@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,9 +19,10 @@ from acervo.schemas.agent import AgentCreate, AgentUpdate
 from acervo.schemas.conversation import MessageRead
 from acervo.schemas.events import ChatEvent, DoneEvent, ErrorEvent
 from acervo.schemas.proposal import ProposalRead
-from acervo.services.chat_service import NOT_YET, ChatService
+from acervo.services.chat_service import INTERRUPTED, NOT_YET, ChatService
 from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 
 MakeTree = Callable[..., Awaitable[Any]]
@@ -258,3 +260,62 @@ async def test_a_failure_leaves_nothing_applied(env: Env) -> None:
     assert await env.markdown() == TEXT
     error = env.bus.events[-1]
     assert isinstance(error, ErrorEvent) and error.error == "decision_unavailable"
+
+
+async def test_a_failing_accept_leaves_the_rest_and_logs_once(env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
+    await env.auto()
+    env.decider.table["two_subjects"] = 0.9
+    env.writer.split_output = ["O prazo é de 5 dias.", "A vistoria é feita em 2 dias."]
+    accept, accepts = ProposalService.accept, iter([False, True])
+
+    async def first_fails(service: ProposalService, id: UUID, by: Any = "person") -> ProposalRead:
+        if not next(accepts):
+            raise RuntimeError("o armazenamento caiu")
+        return await accept(service, id, by)
+
+    monkeypatch.setattr(ProposalService, "accept", first_fails)
+
+    reply = await env.send("O prazo é de 5 dias. A vistoria é feita em 2 dias.")
+
+    assert reply.status == "done"
+    first, second = await env.proposals(reply)
+    assert (first.status, second.status) == ("pending", "applied")
+    assert "não foi aplicada (o armazenamento caiu); esperando aprovação" in reply.text.splitlines()[0]
+    assert reply.run_id is not None
+    logged = await env.uow.decisions.of_run(reply.run_id)
+    assert [d.step for d in logged] == ["route"] * 4 + (["descent"] * 3 + ["page_check"] * 4) * 2
+
+
+async def test_a_cancelled_job_marks_the_reply_failed(env: Env) -> None:
+    async def card(source: Any) -> Any:
+        raise asyncio.CancelledError
+
+    env.writer.card = card  # type: ignore[method-assign]
+
+    with pytest.raises(asyncio.CancelledError):
+        await env.send("O prazo é de 5 dias.")
+
+    [_, reply] = await env.uow.messages.of_conversation(env.conversation_id)
+    assert (reply.status, reply.error) == ("failed", INTERRUPTED)
+    assert await env.proposals(reply) == []
+    assert isinstance(env.bus.events[-1], ErrorEvent)
+
+
+async def test_organize_below_organize_min_asks(env: Env) -> None:
+    env.decider.table.update({"intent": [0.05, 0.05, 0.85, 0.05], "organize": [0.5, 0.3, 0.2]})
+
+    reply = await env.send("dá um jeito na tabela do auto")
+
+    assert await env.proposals(reply) == []
+    assert (reply.text, reply.understood_as) == (
+        "Mover um item, renomear um item ou desfazer a última mudança?",
+        "organizar",
+    )
+    assert reply.ask == ["move", "rename", "undo"]
+    asked = len(env.decider.calls)
+    # The person's pick is taken as said: no organize question again.
+    redo = await env.conversations.reroute(reply.id, "undo")
+    message = (await env.uow.messages.of_conversation(env.conversation_id))[0]
+    undone = await env.chat.handle(message.id, redo.id, "undo")
+    assert (undone.text, undone.understood_as) == ("Não há mudança aplicada para desfazer.", "organizar")
+    assert len(env.decider.calls) == asked

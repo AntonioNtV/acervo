@@ -8,9 +8,8 @@ from acervo.api.deps import get_job_queue, get_proposal_service, get_settings, r
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.proposal import AcceptedBy, ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
-from acervo.services.chat_service import REFRESH_DESCRIPTIONS, changed_parent
 from acervo.services.events import JobQueue
-from acervo.services.proposal_service import ProposalService
+from acervo.services.proposal_service import ProposalService, enqueue_refresh
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
@@ -53,9 +52,7 @@ async def accept_proposal(
     """Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
     gone it comes back `stale` and nothing changes."""
     proposal = await service.accept(proposal_id)
-    parent = changed_parent(proposal.edited_payload or proposal.payload)
-    if proposal.status == "applied" and parent is not None:
-        await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
+    await enqueue_refresh(jobs, proposal)
     return proposal
 
 

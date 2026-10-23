@@ -39,3 +39,6 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
+    job_timeout = get_settings().job_timeout_seconds
+    # A retry would make the message's proposals again.
+    max_tries = 1

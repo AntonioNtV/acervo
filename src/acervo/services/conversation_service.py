@@ -10,7 +10,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from acervo.core.errors import ConflictError, NotFoundError, ValidationError
-from acervo.domain.cards import Route
+from acervo.domain.cards import Reading, Route
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
 from acervo.schemas.conversation import (
@@ -57,7 +57,7 @@ class MessagePosted(BaseModel):
 class Reroute(BaseModel):
     """How a message is to be understood instead ("era uma pergunta")."""
 
-    route: Route = Field(description="The understanding to redo the message with.")
+    route: Reading = Field(description="The understanding to redo the message with, or which change it asks.")
 
 
 def staged_key(kb_id: UUID, sha256: str) -> str:
@@ -121,7 +121,7 @@ class ConversationService:
         await self._run(conversation.id, message, reply, route, (message, reply))
         return MessagePosted(message=message, reply=reply)
 
-    async def reroute(self, reply_id: UUID, route: Route) -> MessageRead:
+    async def reroute(self, reply_id: UUID, route: Reading) -> MessageRead:
         """A new reply that redoes the message as `route`; the job drops what the replaced reply produced."""
         replaced = await self._uow.messages.get(reply_id)
         if replaced.role != "acervo" or replaced.status == "working":
@@ -148,7 +148,7 @@ class ConversationService:
         conversation_id: UUID,
         message: MessageRead,
         reply: MessageRead,
-        route: Route | None,
+        route: Reading | None,
         new: Sequence[MessageRead],
     ) -> None:
         await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id), route=route)

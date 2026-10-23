@@ -6,16 +6,16 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from acervo.core.settings import Thresholds
+from acervo.domain.cards import ORGANIZE_KINDS, OrganizeKind
 from acervo.domain.decisions import Choice
 from acervo.model_clients.decider import Decider
 from acervo.pipeline.curator.descent import descend
-from acervo.pipeline.curator.log import Decision, best, record
+from acervo.pipeline.curator.log import Decision, record
 from acervo.pipeline.curator.options import Option, Options, label, level
 from acervo.pipeline.curator.policy import NotSure, Propose, place
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
 from acervo.schemas.proposal import MovePayload, RenamePayload, UndoPayload
 
-KINDS = ("move", "rename", "undo")
 KIND = Choice(
     id="organize",
     question="O que a pessoa pede para fazer na base?",
@@ -50,7 +50,13 @@ class NothingToUndo(BaseModel):
     """No applied proposal to undo."""
 
 
-Organized = Propose | NotSure | NeedsTitle | NothingToUndo
+class AskKind(BaseModel):
+    """Not clear which change is asked: the person picks one before anything is proposed."""
+
+    options: tuple[OrganizeKind, ...]
+
+
+Organized = Propose | NotSure | NeedsTitle | NothingToUndo | AskKind
 
 
 def target_options(tree: TreeSnapshot, at: SnapshotNode | None) -> list[Option]:
@@ -89,10 +95,20 @@ async def organize(
     decider: Decider,
     thresholds: Thresholds,
     log: list[Decision],
+    kind: OrganizeKind | None = None,
 ) -> Organized:
-    answers = await decider.ask(message, [KIND])
-    kind = KINDS[best(answers, KIND.id)[0]]
-    log.append(record(answers, KIND.id, "organize", kind))
+    """`kind` is the change the person picked when asked; else it is decided, and below `organize_min` asked."""
+    if kind is None:
+        answers = await decider.ask(message, [KIND])
+        probs = answers.probs[KIND.id]
+        order = sorted(range(len(ORGANIZE_KINDS)), key=lambda i: (-probs[i], i))
+        ranked = tuple(ORGANIZE_KINDS[i] for i in order)
+        unsure = probs[order[0]] < thresholds.organize_min
+        action = f"ask {' or '.join(ranked)}" if unsure else ranked[0]
+        log.append(record(answers, KIND.id, "organize", action, thresholds.organize_min))
+        if unsure:
+            return AskKind(options=ranked)
+        kind = ranked[0]
     if kind == "undo":
         if last_applied is None:
             return NothingToUndo()
