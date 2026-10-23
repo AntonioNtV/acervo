@@ -72,9 +72,14 @@ async def test_below_place_min_asks_with_the_top_3(
             Placement(node_id=snap["Bradesco"].id, path="Bradesco", landing="new_page", probability=0.4),
             Placement(node_id=snap["Itaú"].id, path="Itaú", landing="new_page", probability=0.35),
             Placement(node_id=None, path="", landing="new_page", probability=0.25),
-        ]
+        ],
+        # What waits in "Sem lugar definido", under the likeliest place, from the one card written.
+        payload=CreatePagePayload(
+            parent_id=snap["Bradesco"].id, parent_path="Bradesco", title="Nota", markdown="# Nota\n\n- Uma nota\n"
+        ),
     )
     assert (log[-1].threshold, log[-1].action) == (thresholds.place_min, "ask_top_3")
+    assert fake_writer.inputs["card"] == [FACT]
 
 
 async def test_covered_is_already_written(

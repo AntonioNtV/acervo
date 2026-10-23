@@ -1,9 +1,7 @@
 import asyncio
 import logging
-import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 from uuid import UUID
 
 from acervo.core.errors import AcervoError, NotFoundError, ValidationError
@@ -22,7 +20,7 @@ from acervo.domain.cards import (
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.pipeline import router
-from acervo.pipeline.curator import build, organize, policy
+from acervo.pipeline.curator import organize, policy
 from acervo.pipeline.curator.log import Decision
 from acervo.pipeline.curator.tree import PageText, SnapshotNode, TreeSnapshot
 from acervo.pipeline.pdf import reader
@@ -311,33 +309,23 @@ class ChatService:
             where = f"{filed.path} › {filed.heading}" if filed.heading else filed.path
             return [_Outcome(line=f"Já está escrito em {where}.")]
         if isinstance(filed, policy.NotSure):
-            # The policy keeps the card to itself; an input with no place still needs its page written.
-            card = await self._writer.card(source)
-            first = filed.options[0] if filed.options else None
-            parent = tree.node(first.node_id) if first and first.node_id else None
-            payload = await build.create_page(self._writer, card, tree, parent)
-            return [self._proposal(run, payload, filed.options, placed=False)]
-        return [self._proposal(run, filed.payload, filed.alternatives)]
+            # A filing's NotSure always carries what waits in "Sem lugar definido".
+            assert filed.payload is not None
+            return [self._outcome(run, filed.payload, filed.options, placed=False)]
+        return [self._outcome(run, filed.payload, filed.alternatives)]
 
     async def _file_pdf(self, run: _Run, attachment: Attachment, tree: TreeSnapshot) -> _Outcome:
         await self._step(run, "reading_file", attachment.name)
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "staged.pdf"
-            with path.open("wb") as target:
-                async for chunk in self._storage.stream(attachment.storage_key):
-                    target.write(chunk)
+        async with self._storage.download(attachment.storage_key) as path:
             text, outline = await asyncio.to_thread(reader.first_pages, path)
         await self._step(run, "choosing_place", attachment.name)
         source = CardInput(text=text, file_name=attachment.name, outline=outline)
         filed = await policy.file_pdf(source, tree, self._decider, self._writer, self._thresholds, run.log)
         staged = StagedFile(**attachment.model_dump(exclude={"mime"}))
         if isinstance(filed, policy.Propose):
-            return self._proposal(run, filed.payload, filed.alternatives, staged=staged)
-        options = filed.options if isinstance(filed, policy.NotSure) else []
-        first = options[0] if options else None
-        parent = tree.node(first.node_id) if first and first.node_id else None
-        payload = build.save_pdf(tree, parent, attachment.name)
-        return self._proposal(run, payload, options, staged=staged, placed=False)
+            return self._outcome(run, filed.payload, filed.alternatives, staged=staged)
+        assert filed.payload is not None
+        return self._outcome(run, filed.payload, filed.options, staged=staged, placed=False)
 
     async def _organize(self, run: _Run, text: str, tree: TreeSnapshot, kind: OrganizeKind | None) -> _Outcome:
         await self._step(run, "organizing")
@@ -350,10 +338,8 @@ class ChatService:
         match result:
             case organize.AskKind():
                 return _Outcome(line=_either([ASK_KIND[option] for option in result.options]), ask=result.options)
-            case policy.Propose(payload=UndoPayload() as payload):
-                return _Outcome(proposal=self._create(run, payload, undo_of=payload.proposal_id))
             case policy.Propose():
-                return self._proposal(run, result.payload, result.alternatives)
+                return self._outcome(run, result.payload, result.alternatives)
             case organize.NeedsTitle():
                 return _Outcome(line=f"Qual é o novo nome de {result.path}?")
             case organize.NothingToUndo():
@@ -364,7 +350,7 @@ class ChatService:
                     return _Outcome(line="Não encontrei o que mudar; diga o caminho.")
                 return _Outcome(line=f"Não tenho certeza: {', '.join(paths)}? Diga qual.")
 
-    def _proposal(
+    def _outcome(
         self,
         run: _Run,
         payload: ProposalPayload,
@@ -372,17 +358,7 @@ class ChatService:
         staged: StagedFile | None = None,
         placed: bool = True,
     ) -> _Outcome:
-        return _Outcome(proposal=self._create(run, payload, alternatives, staged), placed=placed)
-
-    def _create(
-        self,
-        run: _Run,
-        payload: ProposalPayload,
-        alternatives: list[Placement] | None = None,
-        staged: StagedFile | None = None,
-        undo_of: UUID | None = None,
-    ) -> ProposalCreate:
-        return ProposalCreate(
+        proposal = ProposalCreate(
             kb_id=run.conversation.kb_id,
             agent_id=run.agent.id,
             conversation_id=run.conversation.id,
@@ -391,8 +367,9 @@ class ChatService:
             payload=payload,
             alternatives=alternatives or None,
             staged=staged,
-            undo_of=undo_of,
+            undo_of=payload.proposal_id if isinstance(payload, UndoPayload) else None,
         )
+        return _Outcome(proposal=proposal, placed=placed)
 
     async def _store(self, run: _Run, outcomes: list[_Outcome]) -> list[ProposalRead | None]:
         """The run's decisions and every part's proposal, pending, in one transaction: a failure before it leaves

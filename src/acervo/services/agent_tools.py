@@ -6,10 +6,8 @@ import base64
 import binascii
 import io
 import mimetypes
-import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -181,11 +179,7 @@ class AgentTools:
         path = await self._uow.nodes.path(node.id)
         # The bytes come from the bucket; the database is not held meanwhile.
         await self._uow.rollback()
-        with tempfile.TemporaryDirectory() as directory:
-            local = Path(directory) / "file.pdf"
-            with local.open("wb") as target:
-                async for chunk in self._storage.stream(content.storage_key):
-                    target.write(chunk)
+        async with self._storage.download(content.storage_key) as local:
             texts, page_count = await asyncio.to_thread(
                 reader.page_text, local, first, first + min(last - first, MAX_PDF_PAGES - 1)
             )

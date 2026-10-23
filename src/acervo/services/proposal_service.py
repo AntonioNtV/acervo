@@ -1,4 +1,3 @@
-import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -289,11 +288,9 @@ class ProposalService:
 
     @asynccontextmanager
     async def _download(self, staged: StagedFile | None) -> AsyncIterator[BinaryIO]:
-        """The staged bytes in a local temporary file, so the file service reads them as it reads an upload."""
+        """The staged bytes from a local file, so the file service reads them as it reads an upload."""
         if staged is None:
             raise ValidationError("a proposta não tem arquivo", {})
-        with tempfile.TemporaryFile() as target:
-            async for chunk in self._storage.stream(staged.storage_key):
-                target.write(chunk)
-            target.seek(0)
-            yield target
+        async with self._storage.download(staged.storage_key) as path:
+            with path.open("rb") as source:
+                yield source
