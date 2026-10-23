@@ -91,9 +91,15 @@ class ConversationService:
         return await self._uow.messages.of_conversation(conversation_id)
 
     async def post(
-        self, conversation_id: UUID, text: str, uploads: Sequence[Upload], context: MessageContext | None
+        self,
+        conversation_id: UUID,
+        text: str,
+        uploads: Sequence[Upload],
+        context: MessageContext | None,
+        route: Route | None = None,
     ) -> MessagePosted:
-        """Stores the message with its files staged outside the base, and a working reply whose job is enqueued."""
+        """Stores the message with its files staged outside the base, and a working reply whose job is enqueued;
+        `route`, when given, is how the job must take it (an agent's "remember" is always filed)."""
         conversation = await self._uow.conversations.get(conversation_id)
         text = text.strip()
         if not text and not uploads:
@@ -112,7 +118,7 @@ class ConversationService:
             change.title = (text.splitlines()[0] if text else attachments[0].name)[:TITLE_LENGTH]
         await self._uow.conversations.update(conversation.id, change)
         await self._uow.commit()
-        await self._run(conversation.id, message, reply, None)
+        await self._run(conversation.id, message, reply, route, (message, reply))
         return MessagePosted(message=message, reply=reply)
 
     async def reroute(self, reply_id: UUID, route: Route) -> MessageRead:
@@ -128,7 +134,7 @@ class ConversationService:
             )
         )
         await self._uow.commit()
-        await self._run(replaced.conversation_id, message, reply, route)
+        await self._run(replaced.conversation_id, message, reply, route, (reply,))
         return reply
 
     async def events(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
@@ -137,9 +143,16 @@ class ConversationService:
         await self._uow.rollback()
         return self._events.subscribe(conversation_id)
 
-    async def _run(self, conversation_id: UUID, message: MessageRead, reply: MessageRead, route: Route | None) -> None:
+    async def _run(
+        self,
+        conversation_id: UUID,
+        message: MessageRead,
+        reply: MessageRead,
+        route: Route | None,
+        new: Sequence[MessageRead],
+    ) -> None:
         await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id), route=route)
-        for stored in (message, reply) if route is None else (reply,):
+        for stored in new:
             await self._events.publish(conversation_id, MessageEvent(message=stored))
 
     async def _agent(self, kb_id: UUID, agent_id: UUID | None) -> AgentRead:

@@ -109,6 +109,7 @@ async def test_an_agent_lists_the_tools(app: FastAPI, client: httpx.AsyncClient)
         "edit_section",
         "move",
         "rename",
+        "get_reply",
         "get_proposal",
     }
 

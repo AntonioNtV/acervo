@@ -139,6 +139,15 @@ async def rename(
 
 
 @server.tool
+async def get_reply(
+    reply_id: Annotated[UUID, Field(description="The reply_id a remember or save_file returned.")],
+) -> Filed:
+    """Where a remember or save_file stands now: still working, done with its proposals, or failed."""
+    async with _tools() as tools:
+        return await tools.get_reply(reply_id)
+
+
+@server.tool
 async def get_proposal(proposal_id: Annotated[UUID, Field(description="The proposal.")]) -> ProposalRead:
     """How a proposal stands: pending, applied, rejected or stale."""
     async with _tools() as tools:

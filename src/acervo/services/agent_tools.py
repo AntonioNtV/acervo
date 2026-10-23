@@ -277,8 +277,18 @@ class AgentTools:
         conversation = conversations[0] if conversations else None
         if conversation is None:
             conversation = await self._conversations.create(kb_id, ConversationStart(agent_id=agent_id))
-        posted = await self._conversations.post(conversation.id, text, uploads, None)
-        reply = await self._wait(posted.reply)
+        posted = await self._conversations.post(conversation.id, text, uploads, None, route="guardar")
+        return await self._filed(await self._wait(posted.reply))
+
+    async def get_reply(self, reply_id: UUID) -> Filed:
+        """Where a filing stands now, for an agent whose wait ended while the job was still working."""
+        reply = await self._uow.messages.get(reply_id)
+        conversation = await self._uow.conversations.get(reply.conversation_id)
+        if conversation.agent_id != self._agent.id or reply.role != "acervo":
+            raise NotFoundError(f"reply {reply_id} not found", {"id": str(reply_id)})
+        return await self._filed(reply)
+
+    async def _filed(self, reply: MessageRead) -> Filed:
         return Filed(
             reply_id=reply.id,
             status=reply.status,
