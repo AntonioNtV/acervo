@@ -34,7 +34,7 @@ async def require_key_or_signature(
     if (
         expires is not None
         and signature is not None
-        and signing.verify(secret, node_id, version_id, expires, signature, time.time())
+        and signing.verify(secret, "file", node_id, version_id, expires, signature, time.time())
     ):
         return
     await require_api_key(settings, x_api_key)

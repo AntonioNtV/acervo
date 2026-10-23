@@ -69,15 +69,20 @@ class TreeService:
         return node
 
     async def edit(self, node_id: UUID, data: NodeEdit) -> NodeRead:
-        """The person's change of title and/or description; their description is locked against agents."""
+        """The person's change of title, description, icon or cover; their description is locked against agents.
+        An icon or cover sent as null is removed; one left out is kept."""
         node = await self._uow.nodes.live(node_id)
+        if data.cover is not None and node.kind == "file":
+            raise ValidationError("um arquivo não tem capa", {"cover": data.cover})
         if data.title is not None:
             node = await self._rename(node, data.title)
+        change = NodeUpdate(**data.model_dump(include={"icon", "cover"} & data.model_fields_set))
         if data.description is not None:
             description = data.description.strip()
-            node = await self._uow.nodes.update(
-                node_id, NodeUpdate(description=description, description_locked=bool(description))
-            )
+            change.description = description
+            change.description_locked = bool(description)
+        if change.model_fields_set:
+            node = await self._uow.nodes.update(node_id, change)
             await self._uow.commit()
         return node
 

@@ -12,3 +12,4 @@ class Kb(UUIDPkMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text, server_default="", default="")
     deleted_at: Mapped[datetime | None]
+    icon: Mapped[str | None] = mapped_column(Text)
