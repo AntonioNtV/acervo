@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { KbSummary } from "../../api/client";
 import { forgetBase } from "../../app/lastPage";
-import { useTrashKb, useUpdateKb } from "../../data/kbs";
+import { useKbIcon, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { EmojiPicker } from "../../ui/EmojiPicker";
 import { Icon } from "../../ui/Icon";
@@ -42,13 +42,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
   const [open, setOpenState] = useState(() => here || readOpen().includes(kb.id));
   const [draft, setDraft] = useState<Draft | null>(null);
   const trash = useTrashKb();
-  const update = useUpdateKb();
-  const [picking, setPicking] = useState(false);
-  const closePicker = useCallback(() => setPicking(false), []);
-  const setIcon = (icon: string | null) => {
-    setPicking(false);
-    update.mutate({ kbId: kb.id, icon });
-  };
+  const icon = useKbIcon(kb);
 
   const setOpen = (next: boolean) => {
     setOpenState(next);
@@ -77,9 +71,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
           <NodeIcon icon={kb.icon} size={14} />
           <span className="truncate">{kb.name}</span>
         </button>
-        {picking && (
-          <EmojiPicker onPick={setIcon} onRemove={kb.icon ? () => setIcon(null) : undefined} onClose={closePicker} />
-        )}
+        {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
         <span className="flex opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
           <Menu
             trigger={
@@ -90,7 +82,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
           >
             <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
             <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
-            <MenuItem onSelect={() => setPicking(true)}>{t("bases.icon")}</MenuItem>
+            <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
             <MenuItem onSelect={() => startDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
             <MenuSeparator />
             <MenuItem

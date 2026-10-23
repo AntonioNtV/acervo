@@ -3,7 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calls, resetApi, respond } from "../../api/testing";
 import { fakeBases, summary } from "../bases/testing";
-import { pageNode, renderPage } from "./testing";
+import { pageNode, renderPage, typeInPage } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
@@ -75,6 +75,25 @@ describe("PageMenu", () => {
       parent_id: null,
       before_id: null,
     });
+  });
+
+  it("moving sends the text still being typed first", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros · Operação" }), summary({ id: "kb-2", name: "Pessoal" })]);
+    respond("PUT", "/v1/pages/page-1/text", { body: { revision: 5, saved_at: "2026-10-22T10:00:00Z" } });
+    respond("POST", "/v1/nodes/page-1/move", { body: { ...pageNode(), kb_id: "kb-2" } });
+    renderPage();
+    await screen.findByRole("textbox", { name: "Texto da página" });
+
+    typeInPage("Prazo de 5 dias.");
+    await choose("Mover para…");
+    const picker = await screen.findByRole("dialog", { name: "Mover Emissão de apólice para" });
+    await userEvent.click(await within(picker).findByRole("button", { name: "Pessoal" }));
+
+    await waitFor(() => expect(calls.some((call) => call.path === "/v1/nodes/page-1/move")).toBe(true));
+    const save = calls.findIndex((call) => call.method === "PUT" && call.path === "/v1/pages/page-1/text");
+    expect(save).toBeGreaterThan(-1);
+    expect(save).toBeLessThan(calls.findIndex((call) => call.path === "/v1/nodes/page-1/move"));
+    expect((calls[save]!.body as { markdown: string }).markdown).toContain("Prazo de 5 dias.");
   });
 
   it("copying the link writes the page's address", async () => {

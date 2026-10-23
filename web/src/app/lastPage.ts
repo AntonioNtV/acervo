@@ -32,6 +32,15 @@ export function rememberPage(kbId: string, nodeId: string) {
   }
 }
 
+/** After a recent node turned out to live in another base now. */
+export function forgetRecent(kbId: string, nodeId: string) {
+  try {
+    localStorage.setItem(recentKey(kbId), JSON.stringify(readRecentPages(kbId).filter((id) => id !== nodeId)));
+  } catch {
+    // Nothing was stored.
+  }
+}
+
 /** After a base goes to the Lixeira, so `/` does not land inside it. */
 export function forgetBase(kbId: string) {
   try {

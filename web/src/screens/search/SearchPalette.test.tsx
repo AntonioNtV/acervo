@@ -96,6 +96,43 @@ describe("SearchPalette", () => {
     expect(screen.queryByRole("dialog", { name: "Buscar" })).not.toBeInTheDocument();
   });
 
+  it("Enter pressed before the search answers opens the match once it lands, and creates nothing", async () => {
+    const router = renderShell();
+    await openWithShortcut();
+
+    await userEvent.keyboard("emis{Enter}");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/emissao"));
+    expect(calls.some((call) => call.method === "POST")).toBe(false);
+  });
+
+  it("Enter after typing more never opens the previous query's first result", async () => {
+    const router = renderShell();
+    const visited: string[] = [];
+    router.subscribe((state) => visited.push(state.location.pathname));
+    await openWithShortcut();
+    await userEvent.keyboard("emis");
+    await screen.findByRole("option", { name: /Emissão de apólice/ });
+
+    await userEvent.keyboard("{Backspace>4/}cg{Enter}");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/cg"));
+    expect(visited).not.toContain("/kbs/kb-1/n/emissao");
+  });
+
+  it("a recent page that moved to another base leaves this base's recents", async () => {
+    respond("GET", "/v1/nodes/movida", { body: { ...node("movida", "page", "Movida"), kb_id: "kb-2", path: "Movida" } });
+    localStorage.setItem("acervo.recent.kb-1", JSON.stringify(["movida", "glossario"]));
+    renderShell();
+
+    const dialog = await openWithShortcut();
+
+    await waitFor(() =>
+      expect(within(dialog).getAllByRole("option").map((option) => option.textContent)).toEqual(["Glossário"]),
+    );
+    expect(JSON.parse(localStorage.getItem("acervo.recent.kb-1") ?? "[]")).not.toContain("movida");
+  });
+
   it("arrows move the selection, and the last item creates a page", async () => {
     await renderAndType("d");
     const [bradesco, emissao, , createRow] = await waitFor(() => {

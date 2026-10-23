@@ -35,6 +35,12 @@ export async function call<T>(request: Promise<{ data?: T; error?: unknown; resp
   return data as T;
 }
 
+/** A signed URL's path and query, so the browser asks the same origin (the dev proxy, or the API behind it). */
+export function samePath(url: string): string {
+  const signed = new URL(url);
+  return signed.pathname + signed.search;
+}
+
 export function invalidate(queryClient: QueryClient, ...prefixes: string[][]) {
   return Promise.all(prefixes.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
 }

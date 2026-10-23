@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { components } from "../api/schema.gen";
-import { call, invalidate, refreshTree } from "./request";
+import { call, invalidate, refreshTree, samePath } from "./request";
 
 type Schemas = components["schemas"];
 
@@ -116,8 +116,7 @@ export function useExportNode() {
   return useMutation({
     mutationFn: async (nodeId: string) => {
       const link = await call(api.POST("/v1/nodes/{node_id}/export/link", { params: { path: { node_id: nodeId } } }));
-      const signed = new URL(link.url);
-      return signed.pathname + signed.search;
+      return samePath(link.url);
     },
   });
 }
