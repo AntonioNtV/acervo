@@ -2,7 +2,7 @@ import { InputRule, Node, type AnyExtension, type JSONContent, type MarkdownToke
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
-import { TableKit } from "@tiptap/extension-table";
+import { Table, TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
 
 declare module "@tiptap/core" {
@@ -79,6 +79,19 @@ export const RawInline = Node.create({
   renderMarkdown: (node) => node.attrs?.markdown ?? "",
 });
 
+/**
+ * A block tokenizer's `start`: where `pattern` (one line) first matches before the next blank line, else that blank
+ * line. marked asks it before each paragraph to stop the paragraph there, and no paragraph runs past a blank line;
+ * searching the whole rest of the page each time made opening a long page quadratic. Answering the blank line, not
+ * -1, keeps the paragraph marked as cut, which is how a line the tokenizers then reject is joined back to it.
+ */
+const startBefore = (pattern: RegExp) => (src: string) => {
+  const blank = src.indexOf("\n\n");
+  if (blank < 0) return src.search(pattern);
+  const found = src.slice(0, blank).search(pattern);
+  return found < 0 ? blank + 1 : found;
+};
+
 // Link reference and footnote definitions: marked would otherwise take them out of the token stream.
 const DEFINITION = /^ {0,3}\[[^\]\n]+\]:[^\n]*(?:\n(?: {4}|\t)[^\n]*)*(?:\n|$)/;
 
@@ -98,7 +111,7 @@ export const RawBlock = Node.create({
     level: "block",
     // Without `start`, @tiptap/markdown probes with a new lexer, which takes marked's shared tokenizer from the one
     // running and leaves every paragraph without its inline tokens.
-    start: (src) => src.search(/^ {0,3}\[[^\]\n]+\]:/m),
+    start: startBefore(/^ {0,3}\[[^\]\n]+\]:/m),
     tokenize: (src) => {
       const match = DEFINITION.exec(src);
       return match ? { type: "html", raw: match[0], text: match[0], block: true } : undefined;
@@ -136,7 +149,7 @@ export const Callout = Node.create({
   markdownTokenizer: {
     name: "callout",
     level: "block",
-    start: (src) => src.search(/^ {0,3}> ?\[!/m),
+    start: startBefore(/^ {0,3}> ?\[!/m),
     tokenize: (src, _tokens, lexer) => {
       const match = CALLOUT.exec(src);
       if (!match) return undefined;
@@ -177,7 +190,7 @@ export const Toggle = Details.extend({
   markdownTokenizer: {
     name: "details",
     level: "block",
-    start: (src: string) => src.search(/^<details>/m),
+    start: startBefore(/^<details>/m),
     tokenize: (src: string, _tokens: MarkdownToken[], lexer: Lexer) => {
       const open = DETAILS_OPEN.exec(src);
       if (!open) return undefined;
@@ -247,13 +260,41 @@ const TodoItem = TaskItem.extend({
   },
 });
 
+// TaskList's tokenizer and Table's `start` split the whole rest of the page on every call, which made opening a long
+// page quadratic. Each now gets the source only as far as it reads.
+const taskListTokenizer = TaskList.config.markdownTokenizer!;
+const BoundedTaskList = TaskList.extend({
+  markdownTokenizer: {
+    ...taskListTokenizer,
+    // A task list ends before a line that is neither indented nor a list item.
+    tokenize: (src, tokens, lexer) => {
+      const end = src.search(/\n[^\s*+-]/);
+      return taskListTokenizer.tokenize(end < 0 ? src : src.slice(0, end + 1), tokens, lexer);
+    },
+  },
+});
+
+const tableStart = Table.config.markdownTokenizer!.start as (src: string) => number;
+const BoundedTable = Table.extend({
+  markdownTokenizer: {
+    ...Table.config.markdownTokenizer!,
+    // It reads the first two lines.
+    start: (src) => {
+      const second = src.indexOf("\n");
+      const end = second < 0 ? -1 : src.indexOf("\n", second + 1);
+      return tableStart(end < 0 ? src : src.slice(0, end));
+    },
+  },
+});
+
 /** The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. */
 export const blockExtensions: AnyExtension[] = [
   TextParagraph,
   StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
-  TaskList,
+  BoundedTaskList,
   TodoItem.configure({ nested: true }),
-  TableKit.configure({ table: { resizable: false } }),
+  TableKit.configure({ table: false }),
+  BoundedTable.configure({ resizable: false }),
   Toggle,
   DetailsSummary.extend(noMarkdown),
   DetailsContent.extend(noMarkdown),

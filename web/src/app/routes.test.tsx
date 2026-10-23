@@ -41,8 +41,7 @@ describe("routes", () => {
 
     const router = renderHome();
 
-    // The app retries a failed read once, a second later.
-    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/bradesco"), { timeout: 3000 });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/bradesco"));
     expect(localStorage.getItem("acervo.lastPage")).not.toBe("/kbs/kb-1/n/apagada");
   });
 
