@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, FastAPI, Request
@@ -15,6 +15,7 @@ from fastmcp.server.dependencies import get_http_request
 from fastmcp.server.http import StarletteWithLifespan
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from starlette.datastructures import State
 from starlette.routing import Route
 from starlette.types import Receive, Scope, Send
 
@@ -24,17 +25,19 @@ from acervo.schemas.agent import AgentRead
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.proposal import ProposalRead
 from acervo.services import agent_tools
-from acervo.services.agent_tools import AgentTools, Filed, Folder, PageContent, PdfPages
+from acervo.services.agent_tools import AgentTools, Fetched, Filed, Folder, PageContent, PdfPages
 from acervo.services.events import EventBus, JobQueue
+from acervo.services.search_service import Searched
 from acervo.services.storage import Storage
 
 CALLER = "acervo.caller"
 
 server = FastMCP(
     "Acervo",
-    instructions="A knowledge base of folders, Markdown pages and PDFs. Read with list_folder, read_page and "
-    "read_pdf_pages. Every change is a proposal: the person approves it, unless this agent is set to approve "
-    "automatically; each write tool answers whether its proposals were applied or wait.",
+    instructions="A knowledge base of folders, Markdown pages and PDFs. Ask it with search, then fetch a document's "
+    "outline, section or pages; or walk it with list_folder, read_page and read_pdf_pages. Every change is a "
+    "proposal: the person approves it, unless this agent is set to approve automatically; each write tool answers "
+    "whether its proposals were applied or wait.",
     mask_error_details=True,
 )
 
@@ -46,6 +49,8 @@ class _Caller:
     storage: Storage
     jobs: JobQueue
     events: EventBus
+    # The app's, where the decider is kept once built.
+    state: State
 
 
 @asynccontextmanager
@@ -88,6 +93,39 @@ async def read_pdf_pages(
     """The text of a range of pages of a PDF, read from the original file."""
     async with _tools() as tools:
         return await tools.read_pdf_pages(node_id, first, last)
+
+
+def _decider() -> Any:
+    state = get_http_request().scope[CALLER].state
+    # Built on the first search, so the app starts without Jev, and a test can put its fake in first.
+    if not hasattr(state, "decider"):
+        state.decider = agent_tools.build_decider(state.settings)
+    return state.decider
+
+
+@server.tool
+async def search(
+    query: Annotated[str, Field(description="A self-contained question, its subject named in it.")],
+) -> Searched:
+    """Searches the base the way its own chat does: up to 12 passages that answer, each with its path, section and
+    page and where a citation points; `looked_in` says where it searched when nothing answers."""
+    async with _tools() as tools:
+        return await tools.search(query, _decider())
+
+
+@server.tool
+async def fetch(
+    ref: Annotated[str, Field(description="A page's or a PDF's ID, or the `ref` of a search's evidence.")],
+    section: Annotated[str | None, Field(description="A section's ID, anchor or heading to read.")] = None,
+    first: Annotated[int | None, Field(description="A PDF's first page to read, counted from 1.")] = None,
+    last: Annotated[
+        int | None, Field(description=f"The last page; at most {agent_tools.FETCH_PAGES} pages a call.")
+    ] = None,
+    offset: Annotated[int, Field(description="Where the outline starts, for its next entries.", ge=0)] = 0,
+) -> Fetched:
+    """A document's outline; or one section's text (an evidence's `ref` reads its section); or pages of a PDF."""
+    async with _tools() as tools:
+        return await tools.fetch(ref, section, first, last, offset)
 
 
 @server.tool
@@ -175,6 +213,7 @@ class _Door:
             get_storage(request),
             get_job_queue(request),
             get_event_bus(request),
+            request.app.state,
         )
         await request.app.state.mcp(scope, receive, send)
 

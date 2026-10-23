@@ -11,11 +11,14 @@ from fastmcp.exceptions import ToolError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from acervo.core.settings import Thresholds
+from acervo.core.settings import RetrievalLimits, Thresholds
 from acervo.db.models import PageVersion
+from acervo.domain.decisions import Choice, Question
 from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.fakes import FakeDecider, FakeProbs, FakeWriter
+from acervo.pipeline.index.markdown import index_markdown
 from acervo.repositories.uow import UnitOfWork
+from acervo.services.agent_tools import AgentTools
 from acervo.services.chat_service import ChatService
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 
@@ -102,6 +105,8 @@ async def test_an_agent_lists_the_tools(app: FastAPI, client: httpx.AsyncClient)
         tools = {tool.name for tool in await mcp.list_tools()}
 
     assert tools == {
+        "search",
+        "fetch",
         "list_folder",
         "read_page",
         "read_pdf_pages",
@@ -188,3 +193,42 @@ async def test_read_page_cuts_the_working_text_first(
     assert [section["anchor"] for section in read["sections"]] == ["documentos", "prazos", "vistoria"]
     versions = (await client.get(f"/v1/pages/{tree[PAGE].id}/versions")).json()
     assert versions[0]["id"] == read["version_id"] and len(versions) == 2
+
+
+def _every_branch_finds_the_deadline(state: str, question: Question) -> FakeProbs:
+    if isinstance(question, Choice):
+        return [1.0] * (len(question.options) - 1) + [0.0]
+    return 3.0 if "Cinco dias." in question.question else 0.0
+
+
+async def test_search_gives_what_the_tools_give_and_fetch_reads_the_evidence_section(
+    app: FastAPI, client: httpx.AsyncClient, make_tree: MakeTree, session: AsyncSession, fake_decider: FakeDecider
+) -> None:
+    tree = await _tree(make_tree, session)
+    agent = await _agent(client, tree.kb.id)
+    fake_decider.answer = _every_branch_finds_the_deadline
+    app.state.decider = fake_decider
+    query = "Qual o prazo de emissão de apólice?"
+    async with UnitOfWork(app.state.session_factory) as uow:
+        await uow.indexes.start(tree[PAGE].id, "v1")
+        await uow.indexes.finish(tree[PAGE].id, "v1", index_markdown(TEXT, RetrievalLimits()))
+        await uow.commit()
+        tools = AgentTools(
+            uow, app.state.storage, RecordingJobQueue(), InMemoryEventBus(), await uow.agents.get(UUID(agent["id"]))
+        )
+        direct = await tools.search(query, fake_decider)
+
+    async with _mcp(app, agent["token"]) as mcp:
+        searched = (await mcp.call_tool("search", {"query": query})).structured_content
+        assert searched is not None
+        [evidence] = searched["evidence"]
+        fetched = (await mcp.call_tool("fetch", {"ref": evidence["ref"]})).structured_content
+
+    assert searched["evidence"] == [found.model_dump(mode="json") for found in direct.evidence]
+    assert (evidence["path"], evidence["anchor"], evidence["kind"]) == (
+        [*PAGE.removesuffix(".md").split("/")],
+        "prazos",
+        "page",
+    )
+    assert fetched is not None
+    assert (fetched["section"], fetched["text"]) == ("prazos", "## Prazos\nCinco dias.\n")

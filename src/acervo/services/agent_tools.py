@@ -8,18 +8,29 @@ import io
 import mimetypes
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Literal
 from uuid import UUID
 
+import pymupdf
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.errors import NotFoundError, ValidationError
+from acervo.core.ids import uuid7
+from acervo.core.settings import RetrievalLimits
+from acervo.domain.index import DocIndex
+from acervo.domain.index import Section as IndexSection
 from acervo.domain.patch import span
 from acervo.domain.sections import sections
+from acervo.model_clients.decider import Decider
+from acervo.model_clients.factory import build_decider as build_decider
 from acervo.pipeline.pdf import reader
+from acervo.pipeline.search.engine import OnStep
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
 from acervo.schemas.conversation import ConversationStart, MessageRead, MessageStatus
+from acervo.schemas.file import FileRead
 from acervo.schemas.node import NodeKind, NodeRead
 from acervo.schemas.page import Section
 from acervo.schemas.proposal import (
@@ -35,11 +46,18 @@ from acervo.services.conversation_service import ConversationService, Upload, to
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
 from acervo.services.proposal_service import ProposalService
+from acervo.services.search_service import Searched, SearchService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
 # The most pages of a PDF one call reads: an agent moves through a large PDF a range at a time, never all of it.
 MAX_PDF_PAGES = 10
+# What `fetch` reads of a PDF at once, how many outline entries it lists, and what `view_pages` renders.
+FETCH_PAGES = 5
+OUTLINE_ENTRIES = 100
+IMAGE_PAGES = 2
+IMAGE_DPI = 144
+NOT_INDEXED = "Ainda sem índice: o documento é achado pelo título; leia suas páginas."
 # How long `remember` and `save_file` wait for their message's job before answering with what it has so far.
 WAIT_SECONDS = 60.0
 POLL_SECONDS = 0.5
@@ -84,6 +102,42 @@ class PdfPages(BaseModel):
     last: int = Field(description="The last page read; at most MAX_PDF_PAGES after `first`.")
     page_count: int = Field(description="How many pages the PDF has.")
     pages: list[str] = Field(description="Each page's text, from `first` to `last`.")
+
+
+class OutlineEntry(BaseModel):
+    """A section of a document's index."""
+
+    section: str = Field(description="Its ID in the index, which `fetch` reads: a page's anchor, a PDF's section.")
+    title: str = Field(description="Its heading.")
+    level: int = Field(description="1 for the top level.")
+    page: int | None = Field(description="A PDF's first page of it; null for a page.")
+    end_page: int | None = Field(description="A PDF's last page of it; null for a page.")
+
+
+class Fetched(BaseModel):
+    """A document's outline, one of its sections, or some pages of a PDF."""
+
+    node_id: UUID = Field(description="The page or the file.")
+    path: str = Field(description="Its path, joined by /.")
+    kind: Literal["page", "file"] = Field(description="A page, or a PDF.")
+    section: str | None = Field(default=None, description="The section read; null for the outline or pages.")
+    first: int | None = Field(default=None, description="A PDF's first page read; null for a page or the outline.")
+    last: int | None = Field(default=None, description="A PDF's last page read.")
+    text: str = Field(default="", description="What was read; empty for the outline.")
+    outline: list[OutlineEntry] = Field(default=[], description="The outline from `offset`, every level in order.")
+    remaining: int = Field(default=0, description="Outline entries after these: fetch again with a larger offset.")
+    note: str | None = Field(default=None, description="Why the outline is empty or partial; null when it is whole.")
+
+
+class PageImages(BaseModel):
+    """Some pages of a PDF as images, for what their text does not show: charts, scans."""
+
+    node_id: UUID = Field(description="The file.")
+    path: str = Field(description="Its path, joined by /.")
+    first: int = Field(description="The first page, counted from 1.")
+    last: int = Field(description="The last page; at most IMAGE_PAGES after `first`.")
+    page_count: int = Field(description="How many pages the PDF has.")
+    images: list[bytes] = Field(description="Each page as a PNG, from `first` to `last`.")
 
 
 class Filed(BaseModel):
@@ -169,17 +223,7 @@ class AgentTools:
 
     async def read_pdf_pages(self, node_id: UUID, first: int, last: int) -> PdfPages:
         """Pages `first` to `last`, counted from 1; at most MAX_PDF_PAGES of them."""
-        node = await self._node(node_id, "file")
-        if first < 1 or last < first:
-            raise ValidationError("as páginas vão de 1 em diante, a primeira antes da última", {"first": first})
-        content = await self._uow.files.of_node(node.id)
-        if content.mime != "application/pdf":
-            raise ValidationError("o arquivo não é um PDF", {"id": str(node_id)})
-        if content.protected:
-            raise ValidationError("o PDF pede senha para abrir", {"id": str(node_id)})
-        path = await self._uow.nodes.path(node.id)
-        # The bytes come from the bucket; the database is not held meanwhile.
-        await self._uow.rollback()
+        node, path, content = await self._pdf(node_id, first, last)
         async with self._storage.download(content.storage_key) as local:
             texts, page_count = await asyncio.to_thread(
                 reader.page_text, local, first, first + min(last - first, MAX_PDF_PAGES - 1)
@@ -188,6 +232,87 @@ class AgentTools:
             raise ValidationError(f"o PDF tem {page_count} páginas", {"page_count": page_count})
         return PdfPages(
             node_id=node.id, path=path, first=first, last=first + len(texts) - 1, page_count=page_count, pages=texts
+        )
+
+    async def view_pages(self, node_id: UUID, first: int, last: int | None = None) -> PageImages:
+        """Pages `first` to `last` of a PDF as PNG images; at most IMAGE_PAGES of them."""
+        last = first if last is None else last
+        node, path, content = await self._pdf(node_id, first, last)
+        async with self._storage.download(content.storage_key) as local:
+            images, page_count = await asyncio.to_thread(_render, local, first, min(last, first + IMAGE_PAGES - 1))
+        if not images:
+            raise ValidationError(f"o PDF tem {page_count} páginas", {"page_count": page_count})
+        return PageImages(
+            node_id=node.id, path=path, first=first, last=first + len(images) - 1, page_count=page_count, images=images
+        )
+
+    async def search(
+        self,
+        query: str,
+        decider: Decider,
+        *,
+        run_id: UUID | None = None,
+        message_id: UUID | None = None,
+        on_step: OnStep | None = None,
+    ) -> Searched:
+        """`query` is a self-contained question. Its decisions are logged under `run_id`, else a run of its own."""
+        settings = self._storage.settings
+        service = SearchService(self._uow, decider, settings.retrieval_limits, settings.thresholds)
+        return await service.search(
+            self._agent.kb_id, query, run_id=run_id or uuid7(), message_id=message_id, on_step=on_step
+        )
+
+    async def fetch(
+        self,
+        ref: str,
+        section: str | None = None,
+        first: int | None = None,
+        last: int | None = None,
+        offset: int = 0,
+    ) -> Fetched:
+        """`ref` is a page's or a file's ID, or an evidence's ref, which reads the evidence's section. With `first`,
+        up to FETCH_PAGES pages of a PDF; with `section`, that section's text; else the outline from `offset`."""
+        node_part, _, passage_id = ref.partition(":")
+        try:
+            node_id = UUID(node_part)
+        except ValueError as exc:
+            raise ValidationError(
+                "ref é o ID de uma página ou arquivo, ou a ref de uma evidência", {"ref": ref}
+            ) from exc
+        node = await self._node(node_id)
+        if node.kind == "folder":
+            raise ValidationError("uma pasta não tem texto; use list_folder", {"ref": ref})
+        kind: Literal["page", "file"] = "page" if node.kind == "page" else "file"
+        if first is not None:
+            last = min(first if last is None else last, first + FETCH_PAGES - 1)
+            pages = await self.read_pdf_pages(node.id, first, last)
+            text = "\n\n".join(f"[p. {number}]\n{page}" for number, page in enumerate(pages.pages, start=pages.first))
+            return Fetched(node_id=node.id, path=pages.path, kind=kind, first=pages.first, last=pages.last, text=text)
+        found = await self._uow.indexes.get(node.id)
+        index = found.parsed if found else None
+        if passage_id:
+            passage = next((p for p in index.passages if p.id == passage_id), None) if index else None
+            if passage is None:
+                raise NotFoundError(f"evidence {ref} not found", {"ref": ref})
+            section = passage.section_id
+        if section is not None and kind == "page":
+            # What the person typed, not the index, which may be a version behind.
+            read = await self.read_page(node.id, section or None)
+            return Fetched(node_id=node.id, path=read.path, kind=kind, section=read.section, text=read.markdown)
+        path = await self._uow.nodes.path(node.id)
+        entries = _flat(index.sections) if index else []
+        if section is not None:
+            return _section_text(node.id, path, index, entries, section, self._storage.settings.retrieval_limits)
+        return Fetched(
+            node_id=node.id,
+            path=path,
+            kind=kind,
+            outline=[
+                OutlineEntry(section=s.id, title=s.title, level=s.level, page=s.page, end_page=s.end_page)
+                for s in entries[offset : offset + OUTLINE_ENTRIES]
+            ],
+            remaining=max(0, len(entries) - offset - OUTLINE_ENTRIES),
+            note=index.note if index else NOT_INDEXED,
         )
 
     async def remember(self, text: str) -> Filed:
@@ -268,6 +393,21 @@ class AgentTools:
             raise NotFoundError(f"proposal {proposal_id} not found", {"id": str(proposal_id)})
         return proposal
 
+    async def _pdf(self, node_id: UUID, first: int, last: int) -> tuple[NodeRead, str, FileRead]:
+        """The PDF to read pages `first` to `last` of, with its path. The transaction ends: the database is not held
+        while the bytes come from the bucket."""
+        node = await self._node(node_id, "file")
+        if first < 1 or last < first:
+            raise ValidationError("as páginas vão de 1 em diante, a primeira antes da última", {"first": first})
+        content = await self._uow.files.of_node(node.id)
+        if content.mime != "application/pdf":
+            raise ValidationError("o arquivo não é um PDF", {"id": str(node_id)})
+        if content.protected:
+            raise ValidationError("o PDF pede senha para abrir", {"id": str(node_id)})
+        path = await self._uow.nodes.path(node.id)
+        await self._uow.rollback()
+        return node, path, content
+
     async def _node(self, node_id: UUID, kind: NodeKind | None = None) -> NodeRead:
         node = await self._uow.nodes.live(node_id)
         if node.kb_id != self._agent.kb_id or (kind is not None and node.kind != kind):
@@ -329,3 +469,36 @@ def _section(markdown: str, wanted: str) -> tuple[Section, int, int]:
         raise NotFoundError(f"section {wanted!r} not in the page", {"section": wanted})
     start, end = span(markdown.splitlines(), found.anchor)
     return Section(anchor=found.anchor, heading=found.heading), start, end
+
+
+def _flat(sections: list[IndexSection]) -> list[IndexSection]:
+    return [found for section in sections for found in (section, *_flat(section.children))]
+
+
+def _section_text(
+    node_id: UUID, path: str, index: DocIndex | None, entries: list[IndexSection], wanted: str, limits: RetrievalLimits
+) -> Fetched:
+    """A PDF section's text from its index, with the sections under it."""
+    found = next((section for section in entries if wanted in (section.id, section.title)), None)
+    if index is None or found is None:
+        raise NotFoundError(f"section {wanted!r} not in the document", {"section": wanted})
+    ids = {block_id for section in _flat([found]) for block_id in section.block_ids}
+    text = "\n\n".join(block.text for block in index.blocks if block.id in ids)
+    # shortcut: a long section is cut at `result_chars` and its pages read the rest; upgrade if agents keep paging.
+    return Fetched(
+        node_id=node_id,
+        path=path,
+        kind="file",
+        section=found.id,
+        first=found.page,
+        last=found.end_page,
+        text=text[: limits.result_chars],
+    )
+
+
+def _render(path: Path, first: int, last: int) -> tuple[list[bytes], int]:
+    """Each page from `first` to `last` as a PNG, up to the PDF's last page; and how many pages it has."""
+    with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
+        last = min(last, document.page_count)
+        pages = [document[number - 1].get_pixmap(dpi=IMAGE_DPI).tobytes("png") for number in range(first, last + 1)]
+        return pages, document.page_count
