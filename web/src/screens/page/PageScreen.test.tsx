@@ -9,7 +9,8 @@ vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mock
 const textPuts = () => calls.filter((call) => call.method === "PUT" && call.path === "/v1/pages/page-1/text");
 const leaves = () => calls.filter((call) => call.path === "/v1/pages/page-1/leave");
 const nodePatches = () => calls.filter((call) => call.method === "PATCH" && call.path === "/v1/nodes/page-1");
-const pagePaths = () => calls.map((call) => call.path).filter((path) => path.startsWith("/v1/pages/"));
+const pagePaths = () =>
+  calls.filter((call) => call.method !== "GET" && call.path.startsWith("/v1/pages/")).map((call) => call.path);
 
 const saved = (body: unknown) => ({
   body: { revision: (body as { revision: number }).revision + 1, saved_at: "2026-10-22T10:00:00Z" },

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { TreeNode } from "../../api/client";
+import { useFavorite } from "../../data/favorites";
 import { useChildren, useCreateNode, useMoveNode, useNode, useRenameNode, useTrashNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
@@ -31,6 +32,7 @@ type TreeState = {
   rename: ReturnType<typeof useRenameNode>;
   trash: ReturnType<typeof useTrashNode>;
   move: ReturnType<typeof useMoveNode>;
+  favorite: ReturnType<typeof useFavorite>;
   startUpload: ReturnType<typeof useStartUpload>;
 };
 
@@ -88,6 +90,7 @@ export function TreeRows({
   const rename = useRenameNode();
   const trash = useTrashNode();
   const move = useMoveNode();
+  const favorite = useFavorite();
   const startUpload = useStartUpload(kbId);
   const errorText = useTreeErrorText();
 
@@ -119,6 +122,7 @@ export function TreeRows({
     rename,
     trash,
     move,
+    favorite,
     startUpload,
   };
 
@@ -258,7 +262,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useI18n();
   const tree = useTree();
   const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, draft, setDraft, setNotice } = tree;
-  const { errorText, rename, trash, move, startUpload } = tree;
+  const { errorText, rename, trash, move, favorite, startUpload } = tree;
   const [renameError, setRenameError] = useState<string | null>(null);
   const [drop, setDrop] = useState<Zone | null>(null);
   const folder = node.kind === "folder";
@@ -372,6 +376,15 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
           <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("base.new.page")}</MenuItem>
           {folder && (
             <MenuItem onSelect={() => setDraft({ parentId: node.id, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+          )}
+          {(folder || page) && (
+            <MenuItem
+              onSelect={() =>
+                favorite.mutate({ nodeId: node.id, favorite: !node.favorite }, { onError: (e) => setNotice(errorText(e)) })
+              }
+            >
+              {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
+            </MenuItem>
           )}
           <MenuSeparator />
           <MenuItem onSelect={() => setEditingId(node.id)}>{t("base.rename")}</MenuItem>

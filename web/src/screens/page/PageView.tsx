@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
@@ -10,15 +10,16 @@ import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
-import { Menu, MenuItem } from "../../ui/Menu";
 import { NodeIcon } from "../../ui/NodeIcon";
 import { splitExt } from "../../ui/names";
 import { useCreateUntitledPage, useTreeErrorText } from "../base/names";
-import { FileDropZone, useStartUpload } from "../base/Upload";
+import { FileDropZone } from "../base/Upload";
 import { TopBar } from "../shell/TopBar";
 import { Cover, HeaderDecor } from "./Cover";
 import { dateOf, dayLabel, timeOf, versionsText } from "./format";
 import { History, VersionText } from "./History";
+import { Mentions } from "./Mentions";
+import { PageMenu } from "./PageMenu";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
@@ -77,8 +78,6 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const children = useChildren(kbId, node.id).data ?? [];
   const untitled = useCreateUntitledPage(kbId, node.id);
   const errorText = useTreeErrorText();
-  const startUpload = useStartUpload(kbId);
-  const fileInput = useRef<HTMLInputElement>(null);
   const [pageQuery, setPageQuery] = useState<string | null>(null);
   const [searched, setSearched] = useState("");
   const found = useSearch(kbId, searched).data;
@@ -180,30 +179,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
             </IconButton>
           )
         }
-        menu={
-          <>
-            <input
-              ref={fileInput}
-              type="file"
-              multiple
-              hidden
-              aria-label={t("page.upload")}
-              onChange={(event) => {
-                startUpload(Array.from(event.target.files ?? []), node.id);
-                event.target.value = "";
-              }}
-            />
-            <Menu
-              trigger={
-                <IconButton aria-label={t("page.more")}>
-                  <Icon name="more" />
-                </IconButton>
-              }
-            >
-              <MenuItem onSelect={() => fileInput.current?.click()}>{t("page.upload")}</MenuItem>
-            </Menu>
-          </>
-        }
+        menu={<PageMenu node={node} flush={autosave.flush} onHistory={() => void openHistory()} />}
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
@@ -273,6 +249,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                   </ul>
                 </nav>
               )}
+              <Mentions nodeId={node.id} />
             </div>
           </FileDropZone>
         </div>

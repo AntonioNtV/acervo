@@ -7,6 +7,7 @@ import { useKbs } from "../../data/kbs";
 import { useCreateNode, useNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../ui/Icon";
+import { NodeIcon } from "../../ui/NodeIcon";
 import { NodeName, useTreeErrorText } from "../base/names";
 import { useCurrent } from "../shell/shell";
 
@@ -40,13 +41,7 @@ function NodeRow({ rows, node, onOpen }: { rows: Rows; node: Found; onOpen: (id:
   const parent = node.path.endsWith(`/${node.title}`) ? node.path.slice(0, -node.title.length - 1) : "";
   return (
     <Option rows={rows} optionKey={node.id} onChoose={() => onOpen(node.id)}>
-      {node.icon ? (
-        <span aria-hidden="true" className="w-4 shrink-0 text-center text-13">
-          {node.icon}
-        </span>
-      ) : (
-        <Icon name={node.kind} className="text-text-2" />
-      )}
+      <NodeIcon icon={node.icon} kind={node.kind} className="text-text-2" />
       <NodeName node={node} pageExt={false} className="shrink-0 truncate text-13 text-text" />
       {parent && <span className="min-w-0 truncate text-12 text-text-3">{parent}</span>}
     </Option>
