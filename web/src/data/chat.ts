@@ -8,16 +8,14 @@ import { ApiError, call } from "./request";
 type Schemas = components["schemas"];
 export type Conversation = Schemas["ConversationRead"];
 export type Message = Schemas["MessageRead"];
-export type Route = Schemas["Reroute"]["route"];
 export type StepEvent = Schemas["StepEvent"];
 export type ChatEvent =
   | Schemas["StepEvent"]
+  | Schemas["DeltaEvent"]
   | Schemas["ProposalEvent"]
   | Schemas["MessageEvent"]
   | Schemas["DoneEvent"]
   | Schemas["ErrorEvent"];
-
-export const ROUTES: Route[] = ["guardar", "perguntar", "organizar", "conversar"];
 
 const POST_MESSAGE = "/v1/conversations/{conversation_id}/messages" satisfies keyof paths;
 // After the stream ends or drops, so a restarting API is not asked in a loop.
@@ -103,12 +101,12 @@ export function useSendMessage(kbId: string) {
   });
 }
 
-/** "Mudar", an ask-first choice or "Tentar de novo": a new reply redoing the message as `route`. */
-export function useReroute() {
+/** "Tentar de novo": a new reply running the message again. */
+export function useRetry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ replyId, route }: { replyId: string; route: Route }) =>
-      call(api.POST("/v1/messages/{message_id}/reroute", { params: { path: { message_id: replyId } }, body: { route } })),
+    mutationFn: (replyId: string) =>
+      call(api.POST("/v1/messages/{message_id}/retry", { params: { path: { message_id: replyId } } })),
     onSuccess: (reply) => upsertMessage(queryClient, reply),
   });
 }

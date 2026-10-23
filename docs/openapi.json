@@ -402,6 +402,68 @@
         "title": "Body_upload_file_v1_kbs__kb_id__files_post",
         "type": "object"
       },
+      "Citation": {
+        "description": "Where a claim of a reply came from: a page, one of its sections, or a page of a PDF.",
+        "properties": {
+          "anchor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The section of the page; null for the whole page.",
+            "title": "Anchor"
+          },
+          "kind": {
+            "description": "A page, or a PDF.",
+            "enum": [
+              "page",
+              "file"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "marker": {
+            "description": "The number the reply's text writes as [n] after the claim.",
+            "title": "Marker",
+            "type": "integer"
+          },
+          "node_id": {
+            "description": "The page or the PDF.",
+            "format": "uuid",
+            "title": "Node Id",
+            "type": "string"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The PDF's page, counted from 1; null for a page.",
+            "title": "Page"
+          },
+          "path": {
+            "description": "Its path, joined by /.",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "marker",
+          "node_id",
+          "kind",
+          "path"
+        ],
+        "title": "Citation",
+        "type": "object"
+      },
       "ConflictPayload": {
         "description": "A fact that contradicts a page: both texts, for the person to choose.",
         "properties": {
@@ -475,6 +537,19 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "deleted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the person deleted it: out of the list, its messages no longer served.",
+            "title": "Deleted At"
           },
           "id": {
             "description": "Conversation ID.",
@@ -582,6 +657,34 @@
           "markdown"
         ],
         "title": "CreatePagePayload",
+        "type": "object"
+      },
+      "DeltaEvent": {
+        "description": "More of a reply's text as the chat writes it; the `message` event at the end carries the whole text.",
+        "properties": {
+          "message_id": {
+            "description": "The reply being written.",
+            "format": "uuid",
+            "title": "Message Id",
+            "type": "string"
+          },
+          "text": {
+            "description": "The text to add after what came before.",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "delta",
+            "default": "delta",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message_id",
+          "text"
+        ],
+        "title": "DeltaEvent",
         "type": "object"
       },
       "DiffLine": {
@@ -1332,45 +1435,20 @@
       "MessageRead": {
         "description": "A stored message.",
         "properties": {
-          "ask": {
-            "anyOf": [
-              {
-                "items": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "perguntar",
-                        "guardar",
-                        "organizar",
-                        "conversar"
-                      ],
-                      "type": "string"
-                    },
-                    {
-                      "enum": [
-                        "move",
-                        "rename",
-                        "undo"
-                      ],
-                      "type": "string"
-                    }
-                  ]
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an organizar is, likeliest first; null otherwise.",
-            "title": "Ask"
-          },
           "attachments": {
             "description": "Files sent with it.",
             "items": {
               "$ref": "#/components/schemas/Attachment"
             },
             "title": "Attachments",
+            "type": "array"
+          },
+          "citations": {
+            "description": "A reply's sources, one per marker [n] its text writes, in order.",
+            "items": {
+              "$ref": "#/components/schemas/Citation"
+            },
+            "title": "Citations",
             "type": "array"
           },
           "context": {
@@ -1408,6 +1486,12 @@
             "description": "Why it failed; null unless status is failed.",
             "title": "Error"
           },
+          "grounded": {
+            "default": false,
+            "description": "A reply that used the base: it cites it or filed or organized; else general.",
+            "title": "Grounded",
+            "type": "boolean"
+          },
           "id": {
             "description": "Message ID.",
             "format": "uuid",
@@ -1424,7 +1508,7 @@
                 "type": "null"
               }
             ],
-            "description": "The reply this one redoes another way.",
+            "description": "The reply this one runs again.",
             "title": "Replaces Id"
           },
           "role": {
@@ -1465,31 +1549,12 @@
             "description": "The message's text.",
             "title": "Text",
             "type": "string"
-          },
-          "understood_as": {
-            "anyOf": [
-              {
-                "enum": [
-                  "perguntar",
-                  "guardar",
-                  "organizar",
-                  "conversar"
-                ],
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "How the message was understood, shown with a one-click change; null until it is.",
-            "title": "Understood As"
           }
         },
         "required": [
           "conversation_id",
           "role",
           "id",
-          "understood_as",
           "error",
           "created_at"
         ],
@@ -3200,39 +3265,6 @@
         "title": "ReplacePdfPayload",
         "type": "object"
       },
-      "Reroute": {
-        "description": "How a message is to be understood instead (\"era uma pergunta\").",
-        "properties": {
-          "route": {
-            "anyOf": [
-              {
-                "enum": [
-                  "perguntar",
-                  "guardar",
-                  "organizar",
-                  "conversar"
-                ],
-                "type": "string"
-              },
-              {
-                "enum": [
-                  "move",
-                  "rename",
-                  "undo"
-                ],
-                "type": "string"
-              }
-            ],
-            "description": "The understanding to redo the message with, or which change it asks.",
-            "title": "Route"
-          }
-        },
-        "required": [
-          "route"
-        ],
-        "title": "Reroute",
-        "type": "object"
-      },
       "RestoredNode": {
         "description": "A node back from the trash.",
         "properties": {
@@ -3481,7 +3513,7 @@
         "type": "object"
       },
       "StepEvent": {
-        "description": "A step of the job working on a reply, shown live in the thread.",
+        "description": "A tool the chat calls while working on a reply, shown live in the thread.",
         "properties": {
           "detail": {
             "anyOf": [
@@ -3492,7 +3524,7 @@
                 "type": "null"
               }
             ],
-            "description": "What it is done to: a file's name, a folder's path.",
+            "description": "What it is done to: a path, a file's name, a fact.",
             "title": "Detail"
           },
           "message_id": {
@@ -3502,16 +3534,16 @@
             "type": "string"
           },
           "step": {
-            "description": "What the job is doing; the app shows its own text for it.",
+            "description": "The tool called; the app shows its own text for it.",
             "enum": [
-              "understanding",
-              "splitting",
-              "reading_file",
-              "choosing_place",
-              "checking_page",
-              "checking_pdf",
-              "writing",
-              "organizing"
+              "list_folder",
+              "read_page",
+              "read_pdf_pages",
+              "file_fact",
+              "file_attachment",
+              "move",
+              "rename",
+              "undo_last"
             ],
             "title": "Step",
             "type": "string"
@@ -3927,6 +3959,96 @@
         ]
       }
     },
+    "/v1/conversations/{conversation_id}": {
+      "delete": {
+        "description": "Leaves the list and its messages are no longer served; what it proposed stays, pending or in the history. A\nconversation still working: 409.",
+        "operationId": "delete_conversation_v1_conversations__conversation_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Conversation",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
     "/v1/conversations/{conversation_id}/events": {
       "get": {
         "description": "The conversation's live events, each a JSON `data:` line, for as long as the connection stays open.",
@@ -3970,6 +4092,7 @@
                       "contentSchema": {
                         "discriminator": {
                           "mapping": {
+                            "delta": "#/components/schemas/DeltaEvent",
                             "done": "#/components/schemas/DoneEvent",
                             "error": "#/components/schemas/ErrorEvent",
                             "message": "#/components/schemas/MessageEvent",
@@ -3981,6 +4104,9 @@
                         "oneOf": [
                           {
                             "$ref": "#/components/schemas/StepEvent"
+                          },
+                          {
+                            "$ref": "#/components/schemas/DeltaEvent"
                           },
                           {
                             "$ref": "#/components/schemas/MessageEvent"
@@ -6127,10 +6253,10 @@
         ]
       }
     },
-    "/v1/messages/{message_id}/reroute": {
+    "/v1/messages/{message_id}/retry": {
       "post": {
-        "description": "A new reply that redoes a finished reply's message understood as `route`.",
-        "operationId": "reroute_message_v1_messages__message_id__reroute_post",
+        "description": "A new reply that runs a finished reply's message again (\"Tentar de novo\"); what the old one left waiting is\ndropped.",
+        "operationId": "retry_message_v1_messages__message_id__retry_post",
         "parameters": [
           {
             "in": "path",
@@ -6159,16 +6285,6 @@
             }
           }
         ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/Reroute"
-              }
-            }
-          },
-          "required": true
-        },
         "responses": {
           "201": {
             "content": {
@@ -6221,7 +6337,7 @@
             "description": "Unprocessable Entity"
           }
         },
-        "summary": "Reroute Message",
+        "summary": "Retry Message",
         "tags": [
           "conversations"
         ]
@@ -8480,7 +8596,7 @@
     },
     "/v1/proposals/{proposal_id}/redo": {
       "post": {
-        "description": "A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;\nthe stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.",
+        "description": "A stale proposal's message run again into a new reply, whose events arrive on the conversation's stream;\nthe stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.",
         "operationId": "redo_proposal_v1_proposals__proposal_id__redo_post",
         "parameters": [
           {
