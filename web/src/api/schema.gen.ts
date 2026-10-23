@@ -46,26 +46,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/conversations/{conversation_id}/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Conversation Events
-         * @description The conversation's live events, each a JSON `data:` line, for as long as the connection stays open.
-         */
-        get: operations["conversation_events_v1_conversations__conversation_id__events_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/conversations/{conversation_id}/messages": {
         parameters: {
             query?: never;
@@ -81,9 +61,29 @@ export interface paths {
         put?: never;
         /**
          * Post Message
-         * @description Stores the message and a working reply; the reply's steps and result arrive on the events stream.
+         * @description Stores the message and a working reply; the reply streams from `/v1/messages/{reply_id}/stream`.
          */
         post: operations["post_message_v1_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/ui-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ui Messages
+         * @description The conversation as the AI SDK's UI messages (v6): text, proposals as they stand now, citations as sources.
+         */
+        get: operations["list_ui_messages_v1_conversations__conversation_id__ui_messages_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -461,6 +461,27 @@ export interface paths {
          *     dropped.
          */
         post: operations["retry_message_v1_messages__message_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{reply_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Reply
+         * @description A reply as the AI SDK's UI message stream (v6), a `data:` line per chunk and `data: [DONE]` last: what it
+         *     streamed so far, then live until it ends; a reply already finished replays and ends.
+         */
+        get: operations["stream_reply_v1_messages__reply_id__stream_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1354,28 +1375,6 @@ export interface components {
             title: string;
         };
         /**
-         * DeltaEvent
-         * @description More of a reply's text as the chat writes it; the `message` event at the end carries the whole text.
-         */
-        DeltaEvent: {
-            /**
-             * Message Id
-             * Format: uuid
-             * @description The reply being written.
-             */
-            message_id: string;
-            /**
-             * Text
-             * @description The text to add after what came before.
-             */
-            text: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "delta";
-        };
-        /**
          * DiffLine
          * @description One line of a difference between two texts, in reading order.
          */
@@ -1391,50 +1390,6 @@ export interface components {
              * @description The line, without its line break.
              */
             text: string;
-        };
-        /**
-         * DoneEvent
-         * @description The job of a reply ended; its message and proposals are final.
-         */
-        DoneEvent: {
-            /**
-             * Message Id
-             * Format: uuid
-             * @description The reply.
-             */
-            message_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "done";
-        };
-        /**
-         * ErrorEvent
-         * @description The job of a reply failed; nothing it did was applied.
-         */
-        ErrorEvent: {
-            /**
-             * Error
-             * @description Error code, as in ErrorResponse.
-             */
-            error: string;
-            /**
-             * Message
-             * @description Human-readable explanation; the app shows the code's own text instead.
-             */
-            message: string;
-            /**
-             * Message Id
-             * Format: uuid
-             * @description The reply.
-             */
-            message_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "error";
         };
         /**
          * ErrorResponse
@@ -1842,18 +1797,6 @@ export interface components {
              * @description The text selected on that page.
              */
             selection?: string | null;
-        };
-        /**
-         * MessageEvent
-         * @description A message stored or changed: the person's, or Acervo's reply.
-         */
-        MessageEvent: {
-            message: components["schemas"]["MessageRead"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "message";
         };
         /**
          * MessagePosted
@@ -2517,18 +2460,6 @@ export interface components {
             probability: number;
         };
         /**
-         * ProposalEvent
-         * @description A proposal created or changed by a reply.
-         */
-        ProposalEvent: {
-            proposal: components["schemas"]["ProposalRead"];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "proposal";
-        };
-        /**
          * ProposalRead
          * @description A stored proposal: the only way an agent's change gets into a base.
          */
@@ -2959,34 +2890,6 @@ export interface components {
             storage_key: string;
         };
         /**
-         * StepEvent
-         * @description A tool the chat calls while working on a reply, shown live in the thread.
-         */
-        StepEvent: {
-            /**
-             * Detail
-             * @description What it is done to: a path, a file's name, a fact.
-             */
-            detail?: string | null;
-            /**
-             * Message Id
-             * Format: uuid
-             * @description The reply being worked on.
-             */
-            message_id: string;
-            /**
-             * Step
-             * @description The tool called; the app shows its own text for it.
-             * @enum {string}
-             */
-            step: "list_folder" | "read_page" | "read_pdf_pages" | "file_fact" | "file_attachment" | "move" | "rename" | "undo_last";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "step";
-        };
-        /**
          * TreeNode
          * @description A node as the tree shows it.
          */
@@ -3091,6 +2994,134 @@ export interface components {
              * @description When the node last changed.
              */
             updated_at: string;
+        };
+        /**
+         * UiMessage
+         * @description A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them.
+         */
+        UiMessage: {
+            /**
+             * Id
+             * Format: uuid
+             * @description Message ID; a reply's is also its stream's messageId.
+             */
+            id: string;
+            metadata: components["schemas"]["UiMetadata"];
+            /** Parts */
+            parts: (components["schemas"]["UiTextPart"] | components["schemas"]["UiProposalPart"] | components["schemas"]["UiSourcePart"])[];
+            /**
+             * Role
+             * @description user: the person; assistant: Acervo.
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /**
+         * UiMetadata
+         * @description What the app needs of a stored message besides its parts; a reply's stream sends it before `finish`.
+         */
+        UiMetadata: {
+            /**
+             * Attachments
+             * @description Files sent with the message.
+             */
+            attachments?: components["schemas"]["Attachment"][];
+            /**
+             * Created At
+             * @description When it was sent; only in the stored thread.
+             */
+            created_at?: string | null;
+            /**
+             * Error
+             * @description Why it failed; null unless status is failed.
+             */
+            error?: string | null;
+            /**
+             * Grounded
+             * @description A reply that used the base; else a general answer.
+             * @default false
+             */
+            grounded: boolean;
+            /**
+             * Replaces Id
+             * @description The reply this one runs again.
+             */
+            replaces_id?: string | null;
+            /**
+             * Status
+             * @description A reply is working until its job ends.
+             * @enum {string}
+             */
+            status: "done" | "working" | "failed";
+        };
+        /**
+         * UiProposalPart
+         * @description A proposal of a reply, in its current state; a later part with the same id replaces it.
+         */
+        UiProposalPart: {
+            data: components["schemas"]["ProposalRead"];
+            /**
+             * Id
+             * Format: uuid
+             * @description The proposal's ID.
+             */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "data-proposal";
+        };
+        /**
+         * UiSourceMetadata
+         * @description Acervo's own fields of a source.
+         */
+        UiSourceMetadata: {
+            acervo: components["schemas"]["Citation"];
+        };
+        /**
+         * UiSourcePart
+         * @description A source a reply cites, as the AI SDK's `source-document` part.
+         */
+        UiSourcePart: {
+            /**
+             * Mediatype
+             * @description text/markdown for a page, application/pdf for a PDF.
+             */
+            mediaType: string;
+            /** @description The citation: node, section or PDF page. */
+            providerMetadata: components["schemas"]["UiSourceMetadata"];
+            /**
+             * Sourceid
+             * @description The marker the text writes: [n].
+             */
+            sourceId: string;
+            /**
+             * Title
+             * @description Its path.
+             */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "source-document";
+        };
+        /**
+         * UiTextPart
+         * @description Text of a message, as the AI SDK's `text` part.
+         */
+        UiTextPart: {
+            /**
+             * Text
+             * @description Markdown; a reply writes [n] after a claim taken from its source n.
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
         };
         /**
          * UndoPayload
@@ -3298,57 +3329,6 @@ export interface operations {
             };
         };
     };
-    conversation_events_v1_conversations__conversation_id__events_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
-            path: {
-                conversation_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": unknown;
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     list_messages_v1_conversations__conversation_id__messages_get: {
         parameters: {
             query?: never;
@@ -3424,6 +3404,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MessagePosted"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_ui_messages_v1_conversations__conversation_id__ui_messages_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiMessage"][];
                 };
             };
             /** @description Unauthorized */
@@ -4612,6 +4643,57 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    stream_reply_v1_messages__reply_id__stream_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                reply_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -8,14 +8,17 @@ import { ApiError, call } from "./request";
 type Schemas = components["schemas"];
 export type Conversation = Schemas["ConversationRead"];
 export type Message = Schemas["MessageRead"];
-export type StepEvent = Schemas["StepEvent"];
+// The API no longer serves these events (a reply streams as AI SDK UI message parts); kept here only until the chat
+// moves to `useChat`.
+export type StepEvent = { type: "step"; message_id: string; step: string; detail?: string | null };
 export type ChatEvent =
-  | Schemas["StepEvent"]
-  | Schemas["DeltaEvent"]
-  | Schemas["ProposalEvent"]
-  | Schemas["MessageEvent"]
-  | Schemas["DoneEvent"]
-  | Schemas["ErrorEvent"];
+  | StepEvent
+  | { type: "delta"; message_id: string; text: string }
+  | { type: "proposal"; proposal: Schemas["ProposalRead"] }
+  | { type: "message"; message: Message }
+  | { type: "done"; message_id: string }
+  | { type: "error"; message_id: string; error: string; message: string };
+const OLD_EVENTS = "/v1/conversations/{conversation_id}/events" as "/v1/conversations/{conversation_id}/messages";
 
 const POST_MESSAGE = "/v1/conversations/{conversation_id}/messages" satisfies keyof paths;
 // After the stream ends or drops, so a restarting API is not asked in a loop.
@@ -159,7 +162,7 @@ export function useConversationEvents(conversationId: string | null, onEvent: (e
 
     const connect = async () => {
       try {
-        const { data, response } = await api.GET("/v1/conversations/{conversation_id}/events", {
+        const { data, response } = await api.GET(OLD_EVENTS, {
           params: { path: { conversation_id: conversationId } },
           parseAs: "stream",
           signal: abort.signal,
