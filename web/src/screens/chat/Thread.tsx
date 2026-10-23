@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { AiMark } from "../../app/AiMark";
 import { useErrorText } from "../../app/errors";
-import { ROUTES, useReroute, type Message, type Route, type StepEvent } from "../../data/chat";
+import { useRetry, type Message, type StepEvent } from "../../data/chat";
 import type { Proposal, ProposalSummary } from "../../data/proposals";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
-import { Menu, MenuItem } from "../../ui/Menu";
 import { splitExt } from "../../ui/names";
 import { cx } from "../../ui/cx";
 import { formatSize } from "../file/format";
@@ -40,38 +39,6 @@ function PersonMessage({ message }: { message: Message }) {
   );
 }
 
-/** "Entendi como algo para guardar · mudar": the other readings, each redoing the message that way. */
-function Understood({ reply }: { reply: Message }) {
-  const { t } = useI18n();
-  const reroute = useReroute();
-  const route = reply.understood_as;
-  if (!route) return null;
-  return (
-    <span className="flex flex-wrap items-center gap-1.5 text-12 text-text-3">
-      {t(`chat.understood.${route}`)}
-      <span aria-hidden="true">·</span>
-      <Menu
-        label={t("chat.change")}
-        trigger={
-          <button
-            type="button"
-            disabled={reroute.isPending}
-            className="cursor-pointer border-0 bg-transparent p-0 text-12 text-text-2 underline decoration-line-2 underline-offset-[3px]"
-          >
-            {t("chat.change")}
-          </button>
-        }
-      >
-        {ROUTES.filter((other) => other !== route).map((other) => (
-          <MenuItem key={other} onSelect={() => reroute.mutate({ replyId: reply.id, route: other })}>
-            {t(`chat.reroute.${other}`)}
-          </MenuItem>
-        ))}
-      </Menu>
-    </span>
-  );
-}
-
 function Reply({
   reply,
   replaced,
@@ -85,9 +52,8 @@ function Reply({
 }) {
   const { t } = useI18n();
   const errorText = useErrorText();
-  const reroute = useReroute();
+  const retry = useRetry();
   const [review, setReview] = useState(false);
-  const choose = (route: Route) => reroute.mutate({ replyId: reply.id, route });
 
   const grouped = review
     ? []
@@ -114,11 +80,7 @@ function Reply({
           </span>
           {!replaced && (
             <span>
-              <Button
-                size="sm"
-                disabled={reroute.isPending}
-                onClick={() => choose(reply.understood_as ?? reply.ask?.[0] ?? "guardar")}
-              >
+              <Button size="sm" disabled={retry.isPending} onClick={() => retry.mutate(reply.id)}>
                 {t("chat.retry")}
               </Button>
             </span>
@@ -128,25 +90,15 @@ function Reply({
       {reply.status === "done" && (
         <>
           {reply.text && <span className="whitespace-pre-line">{reply.text}</span>}
-          {reply.ask && reply.ask.length > 0 && !replaced && (
-            <span className="flex gap-1">
-              {reply.ask.map((route) => (
-                <Button key={route} size="sm" disabled={reroute.isPending} onClick={() => choose(route)}>
-                  {t(`chat.ask.${route}`)}
-                </Button>
-              ))}
-            </span>
-          )}
           {grouped.length > 1 && <FileGroup proposals={grouped} onReview={() => setReview(true)} />}
           {cards.map((proposal) => (
             <ProposalCard key={proposal.id} proposal={proposal} />
           ))}
-          {!replaced && !reply.ask?.length && <Understood reply={reply} />}
         </>
       )}
-      {reroute.error && (
+      {retry.error && (
         <span role="alert" className="text-12 text-err">
-          {errorText(reroute.error)}
+          {errorText(retry.error)}
         </span>
       )}
     </article>

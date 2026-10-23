@@ -1,10 +1,12 @@
-"""AI-1's synthetic cases: each message or PDF goes through `ChatService` with the LLM decider, over a seeded base in
-a database and a bucket made for the run and dropped after it, so no base of the developer's is ever touched.
+"""AI-1's synthetic cases: each fact or PDF is filed through `FilingService` (the Curator the chat's tools and MCP
+agents call) with the LLM decider, over a seeded base in a database and a bucket made for the run and dropped after it,
+so no base of the developer's is ever touched.
 
     make eval-ai1
 """
 
 import asyncio
+import hashlib
 import json
 import os
 import sys
@@ -12,7 +14,6 @@ import uuid
 from collections import Counter
 from dataclasses import dataclass
 from io import BytesIO
-from itertools import permutations
 from pathlib import Path
 from typing import Any, Literal
 
@@ -25,13 +26,14 @@ from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from acervo.core.ids import uuid7
 from acervo.core.settings import LlmRoles, Settings, Thresholds, get_settings
 from acervo.db.session import async_url
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.factory import build_decider, build_writer
 from acervo.model_clients.writer import Writer
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.conversation import ConversationStart, MessageRead
+from acervo.schemas.conversation import Attachment
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
 from acervo.schemas.proposal import (
@@ -41,28 +43,20 @@ from acervo.schemas.proposal import (
     MovePayload,
     PatchPayload,
     ProposalPayload,
-    ProposalRead,
     RenamePayload,
     ReplacePdfPayload,
     SavePdfPayload,
     UndoPayload,
 )
 from acervo.services.base_service import BaseService
-from acervo.services.chat_service import ASK_FIRST, KIND, ChatService
-from acervo.services.conversation_service import ConversationService, Upload
-from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.file_service import FileService
-from acervo.services.proposal_service import ProposalService
+from acervo.services.filing_service import Filing, FilingService, Origin
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
 HERE = Path(__file__).parent
 ROOT = HERE.parents[1]
 PDF = "application/pdf"
-# The reply lines of `ChatService` that carry no proposal but an outcome.
-ALREADY = "Já está escrito em "
-UNPLACED = "Não sei onde guardar"
-ASKS = {f"{first[0].upper()}{first[1:]} ou {second}?" for first, second in permutations(ASK_FIRST.values(), 2)}
 OUTCOME = {
     "append": "append",
     "edit": "edit",
@@ -70,9 +64,6 @@ OUTCOME = {
     "conflict": "conflict",
     "save_pdf": "save",
     "replace_pdf": "replace",
-    "move": "move",
-    "rename": "rename",
-    "undo": "undo",
 }
 # PydanticAI reads each provider's key from the environment; a provider missing here is not checked.
 PROVIDER_KEYS = {
@@ -86,17 +77,13 @@ PROVIDER_KEYS = {
     "bedrock": "AWS_ACCESS_KEY_ID",
 }
 
-Outcome = Literal[
-    "append", "create", "conflict", "already", "not-sure", "save", "replace", "move", "rename", "undo", "ask-first"
-]
+Outcome = Literal["append", "create", "conflict", "already", "not-sure", "save", "replace"]
 Level = Literal["first", "second", "miss"]
 # What the place of each outcome must be in the seed; append, conflict and already name a page or one of its sections.
 WANTED = {
     "create": ("folder", "page", "root"),
     "save": ("folder", "root"),
     "replace": ("file",),
-    "move": ("folder", "page", "file"),
-    "rename": ("folder", "page", "file"),
     "not-sure": ("folder", "page", "root"),
 }
 
@@ -120,8 +107,7 @@ class Base(BaseModel):
 
 class Expected(BaseModel):
     """What one part of the message should become. `place` is the page (› section) for append, conflict and already;
-    the folder for create and save; the PDF for replace; "from → to folder" for move; "path → new title" for rename;
-    where the undone change is for undo; for not-sure, a place the options should hold."""
+    the folder for create and save; the PDF for replace; for not-sure, a place the options should hold."""
 
     outcome: Outcome
     place: str | None = None
@@ -131,10 +117,8 @@ class Case(BaseModel):
     id: str
     message: str = ""
     files: dict[str, GeneratedPdf] = {}
-    # More than one: a message split in two, or one proposal per file.
+    # More than one: one proposal per file.
     expect: list[Expected] = Field(min_length=1)
-    # Its proposals are accepted after it runs, so a later case has something to undo.
-    accept: bool = False
 
     @model_validator(mode="after")
     def _something_sent(self) -> "Case":
@@ -198,29 +182,19 @@ def check(base: Base, cases: list[Case]) -> list[str]:
     problems: list[str] = []
     ids = Counter(case.id for case in cases)
     problems += [f"{id}: the id is repeated" for id, count in ids.items() if count > 1]
-    accepted = False
     for case in cases:
         problems += [f"{case.id}: {name} is not a .pdf" for name in case.files if not name.endswith(".pdf")]
         for expected in case.expect:
-            problem = _misplaced(expected, kinds, accepted)
+            problem = _misplaced(expected, kinds)
             if problem:
                 problems.append(f"{case.id}: {problem}")
-        accepted = accepted or case.accept
     return problems
 
 
-def _misplaced(expected: Expected, kinds: dict[str, str], accepted: bool) -> str | None:
+def _misplaced(expected: Expected, kinds: dict[str, str]) -> str | None:
     place, outcome = expected.place, expected.outcome
     if place is None:
-        return None if outcome in ("ask-first", "not-sure") else f"{outcome} needs a place"
-    if outcome == "ask-first":
-        return "ask-first has no place"
-    if outcome == "undo":
-        return None if accepted else "undo needs an earlier case that accepts"
-    if outcome in ("move", "rename"):
-        place, _, to = place.partition(" → ")
-        if outcome == "move" and to and kinds.get(to) != "folder":
-            return f"{to!r} is not a folder"
+        return None if outcome == "not-sure" else f"{outcome} needs a place"
     wanted = WANTED.get(outcome, ("page", "section"))
     if kinds.get(place) in wanted or place == "" and "root" in wanted:
         return None
@@ -272,27 +246,31 @@ def _place(payload: ProposalPayload) -> str:
             return payload.path
 
 
-def seen(reply: MessageRead, proposals: list[ProposalRead]) -> list[Seen]:
-    """The reply's outcomes, read from its lines: one per part or file, in order, each proposal with its line."""
-    if reply.status != "done":
-        return [Seen("failed", reply.error or "")]
-    waiting = iter(proposals)
+def seen(filings: list[Filing]) -> list[Seen]:
+    """What each input became, in order, with the other places it offered."""
     outcomes: list[Seen] = []
-    for line in reply.text.splitlines():
-        if line.startswith(ALREADY):
-            outcomes.append(Seen("already", line.removeprefix(ALREADY).removesuffix(".")))
-        elif line.startswith(UNPLACED):
-            options = tuple(option.path for option in next(waiting).alternatives or [])
-            outcomes.append(Seen("not-sure", options[0] if options else "", options[1:]))
-        elif any(line.startswith(f"{label}:") for label in KIND.values()):
-            proposal = next(waiting)
-            others = tuple(option.path for option in proposal.alternatives or [])
+    for filing in filings:
+        if filing.written is not None:
+            written = filing.written
+            outcomes.append(Seen("already", f"{written.path} › {written.heading}" if written.heading else written.path))
+            continue
+        assert filing.proposal is not None
+        proposal = filing.proposal
+        others = tuple(option.path for option in proposal.alternatives or [])
+        if filing.placed:
             outcomes.append(Seen(OUTCOME[proposal.kind], _place(proposal.payload), others))
-        elif line in ASKS:
-            outcomes.append(Seen("ask-first", ""))
         else:
-            outcomes.append(Seen("other", line))
+            outcomes.append(Seen("not-sure", others[0] if others else "", others[1:]))
     return outcomes
+
+
+async def _staged(storage: Storage, kb_id: uuid.UUID, name: str, pdf: GeneratedPdf) -> Attachment:
+    """A PDF as the chat stages a dropped one: in storage, outside the base."""
+    data = pdf_bytes(pdf)
+    sha256 = hashlib.sha256(data).hexdigest()
+    key = f"staged/{kb_id}/{sha256}"
+    await storage.put(key, BytesIO(data), len(data))
+    return Attachment(storage_key=key, sha256=sha256, size=len(data), name=name, mime=PDF)
 
 
 def _at(expected: str, place: str) -> bool:
@@ -321,26 +299,27 @@ async def run(
     base: Base,
     cases: list[Case],
 ) -> list[Result]:
-    """Seeds the base, then sends each case in a conversation of its own, in order."""
+    """Seeds the base, then files each case, in order, as the built-in chat's tools do."""
     results: list[Result] = []
     async with UnitOfWork(session_factory) as uow:
         kb_id = await _seed(uow, storage, base)
-        jobs = RecordingJobQueue()
-        conversations = ConversationService(uow, storage, jobs, InMemoryEventBus())
-        chat = ChatService(uow, storage, decider, writer, thresholds, InMemoryEventBus(), jobs)
+        agent = await uow.agents.get_by(kb_id=kb_id, built_in=True)
+        assert agent is not None
+        filing = FilingService(uow, storage, decider, writer, thresholds)
         for case in cases:
-            conversation = await conversations.create(kb_id, ConversationStart(title=case.id))
-            uploads = [Upload(name, PDF, BytesIO(pdf_bytes(pdf))) for name, pdf in case.files.items()]
-            posted = await conversations.post(conversation.id, case.message, uploads, None)
-            reply = await chat.handle(posted.message.id, posted.reply.id)
-            proposals = await uow.proposals.of_message(reply.id)
-            decisions = await uow.decisions.of_run(reply.run_id) if reply.run_id else []
-            if case.accept:
-                for proposal in proposals:
-                    await ProposalService(uow, storage).accept(proposal.id)
-            outcomes = seen(reply, proposals)
+            origin = Origin(agent, uuid7())
+            try:
+                if case.files:
+                    staged = [await _staged(storage, kb_id, name, pdf) for name, pdf in case.files.items()]
+                    filings = [await filing.attachment(attachment, origin) for attachment in staged]
+                else:
+                    filings = [await filing.fact(case.message, origin)]
+                status, outcomes = "done", seen(filings)
+            except Exception as exc:
+                status, outcomes = "failed", [Seen("failed", str(exc))]
+            decisions = await uow.decisions.of_run(origin.run_id)
             levels = [score(expected, outcomes) for expected in case.expect]
-            results.append(Result(case, reply.status, outcomes, levels, decisions))
+            results.append(Result(case, status, outcomes, levels, decisions))
     return results
 
 

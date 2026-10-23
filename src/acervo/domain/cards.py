@@ -1,18 +1,9 @@
-"""What the chat understands of an input and where the Curator files it (skill `curator-agent`)."""
+"""What the Curator reads of an input and where it files it (skill `curator-agent`)."""
 
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-
-Route = Literal["perguntar", "guardar", "organizar", "conversar"]
-# The options of the route Choice, in the order ties are broken.
-ROUTES: tuple[Route, ...] = ("perguntar", "guardar", "organizar", "conversar")
-OrganizeKind = Literal["move", "rename", "undo"]
-# The options of the organize Choice, in the order ties are broken.
-ORGANIZE_KINDS: tuple[OrganizeKind, ...] = ("move", "rename", "undo")
-# How the person says a message is to be read when the chat asks: a route, or which change an organizar is.
-Reading = Route | OrganizeKind
 
 NodeKind = Literal["folder", "page", "file"]
 

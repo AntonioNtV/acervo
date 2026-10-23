@@ -229,6 +229,12 @@ class AgentTools:
 
     async def move(self, node_id: UUID, parent_id: UUID | None) -> ProposalRead:
         """`parent_id` null moves it to the base's root."""
+        return await self._propose(await self.move_payload(node_id, parent_id))
+
+    async def rename(self, node_id: UUID, title: str) -> ProposalRead:
+        return await self._propose(await self.rename_payload(node_id, title))
+
+    async def move_payload(self, node_id: UUID, parent_id: UUID | None) -> MovePayload:
         node = await self._node(node_id)
         to_path = ""
         if parent_id is not None:
@@ -237,17 +243,15 @@ class AgentTools:
                 raise ValidationError("nada vai dentro de um arquivo", {"parent_id": str(parent_id)})
             to_path = await self._uow.nodes.path(parent.id)
         from_path = await self._uow.nodes.path(node.id)
-        return await self._propose(
-            MovePayload(node_id=node.id, from_path=from_path, parent_id=parent_id, to_path=to_path)
-        )
+        return MovePayload(node_id=node.id, from_path=from_path, parent_id=parent_id, to_path=to_path)
 
-    async def rename(self, node_id: UUID, title: str) -> ProposalRead:
+    async def rename_payload(self, node_id: UUID, title: str) -> RenamePayload:
         node = await self._node(node_id)
         title = " ".join(title.split())
         if not title:
             raise ValidationError("um título não pode ser vazio", {"title": title})
         path = await self._uow.nodes.path(node.id)
-        return await self._propose(RenamePayload(node_id=node.id, path=path, title=title))
+        return RenamePayload(node_id=node.id, path=path, title=title)
 
     async def get_proposal(self, proposal_id: UUID) -> ProposalRead:
         proposal = await self._proposals.get(proposal_id)
@@ -269,13 +273,14 @@ class AgentTools:
         return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:
-        """Posted to the agent's latest conversation, or a new one; its job runs as a chat message's does."""
+        """Posted to the agent's latest conversation, or a new one; its job files it straight through the Curator,
+        without the chat's agent: an external agent is its own."""
         kb_id, agent_id = self._agent.kb_id, self._agent.id
         conversations = await self._conversations.list(kb_id, agent_id)
         conversation = conversations[0] if conversations else None
         if conversation is None:
             conversation = await self._conversations.create(kb_id, ConversationStart(agent_id=agent_id))
-        posted = await self._conversations.post(conversation.id, text, uploads, None, route="guardar")
+        posted = await self._conversations.post(conversation.id, text, uploads, None)
         return await self._filed(await self._wait(posted.reply))
 
     async def get_reply(self, reply_id: UUID) -> Filed:

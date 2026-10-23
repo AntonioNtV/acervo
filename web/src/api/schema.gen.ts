@@ -25,6 +25,27 @@ export interface paths {
         patch: operations["update_agent_v1_agents__agent_id__patch"];
         trace?: never;
     };
+    "/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Conversation
+         * @description Leaves the list and its messages are no longer served; what it proposed stays, pending or in the history. A
+         *     conversation still working: 409.
+         */
+        delete: operations["delete_conversation_v1_conversations__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/conversations/{conversation_id}/events": {
         parameters: {
             query?: never;
@@ -425,7 +446,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/messages/{message_id}/reroute": {
+    "/v1/messages/{message_id}/retry": {
         parameters: {
             query?: never;
             header?: never;
@@ -435,10 +456,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Reroute Message
-         * @description A new reply that redoes a finished reply's message understood as `route`.
+         * Retry Message
+         * @description A new reply that runs a finished reply's message again ("Tentar de novo"); what the old one left waiting is
+         *     dropped.
          */
-        post: operations["reroute_message_v1_messages__message_id__reroute_post"];
+        post: operations["retry_message_v1_messages__message_id__retry_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -875,7 +897,7 @@ export interface paths {
         put?: never;
         /**
          * Redo Proposal
-         * @description A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;
+         * @description A stale proposal's message run again into a new reply, whose events arrive on the conversation's stream;
          *     the stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.
          */
         post: operations["redo_proposal_v1_proposals__proposal_id__redo_post"];
@@ -1151,6 +1173,44 @@ export interface components {
             parent_id?: string | null;
         };
         /**
+         * Citation
+         * @description Where a claim of a reply came from: a page, one of its sections, or a page of a PDF.
+         */
+        Citation: {
+            /**
+             * Anchor
+             * @description The section of the page; null for the whole page.
+             */
+            anchor?: string | null;
+            /**
+             * Kind
+             * @description A page, or a PDF.
+             * @enum {string}
+             */
+            kind: "page" | "file";
+            /**
+             * Marker
+             * @description The number the reply's text writes as [n] after the claim.
+             */
+            marker: number;
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The page or the PDF.
+             */
+            node_id: string;
+            /**
+             * Page
+             * @description The PDF's page, counted from 1; null for a page.
+             */
+            page?: number | null;
+            /**
+             * Path
+             * @description Its path, joined by /.
+             */
+            path: string;
+        };
+        /**
          * ConflictPayload
          * @description A fact that contradicts a page: both texts, for the person to choose.
          */
@@ -1215,6 +1275,11 @@ export interface components {
              * @description When it started.
              */
             created_at: string;
+            /**
+             * Deleted At
+             * @description When the person deleted it: out of the list, its messages no longer served.
+             */
+            deleted_at?: string | null;
             /**
              * Id
              * Format: uuid
@@ -1287,6 +1352,28 @@ export interface components {
              * @description The page's title.
              */
             title: string;
+        };
+        /**
+         * DeltaEvent
+         * @description More of a reply's text as the chat writes it; the `message` event at the end carries the whole text.
+         */
+        DeltaEvent: {
+            /**
+             * Message Id
+             * Format: uuid
+             * @description The reply being written.
+             */
+            message_id: string;
+            /**
+             * Text
+             * @description The text to add after what came before.
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "delta";
         };
         /**
          * DiffLine
@@ -1782,15 +1869,15 @@ export interface components {
          */
         MessageRead: {
             /**
-             * Ask
-             * @description A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an organizar is, likeliest first; null otherwise.
-             */
-            ask?: (("perguntar" | "guardar" | "organizar" | "conversar") | ("move" | "rename" | "undo"))[] | null;
-            /**
              * Attachments
              * @description Files sent with it.
              */
             attachments?: components["schemas"]["Attachment"][];
+            /**
+             * Citations
+             * @description A reply's sources, one per marker [n] its text writes, in order.
+             */
+            citations?: components["schemas"]["Citation"][];
             /** @description The open page and selection, if kept. */
             context?: components["schemas"]["MessageContext"] | null;
             /**
@@ -1811,6 +1898,12 @@ export interface components {
              */
             error: string | null;
             /**
+             * Grounded
+             * @description A reply that used the base: it cites it or filed or organized; else general.
+             * @default false
+             */
+            grounded: boolean;
+            /**
              * Id
              * Format: uuid
              * @description Message ID.
@@ -1818,7 +1911,7 @@ export interface components {
             id: string;
             /**
              * Replaces Id
-             * @description The reply this one redoes another way.
+             * @description The reply this one runs again.
              */
             replaces_id?: string | null;
             /**
@@ -1845,11 +1938,6 @@ export interface components {
              * @default
              */
             text: string;
-            /**
-             * Understood As
-             * @description How the message was understood, shown with a one-click change; null until it is.
-             */
-            understood_as: ("perguntar" | "guardar" | "organizar" | "conversar") | null;
         };
         /**
          * MovePayload
@@ -2712,17 +2800,6 @@ export interface components {
             path: string;
         };
         /**
-         * Reroute
-         * @description How a message is to be understood instead ("era uma pergunta").
-         */
-        Reroute: {
-            /**
-             * Route
-             * @description The understanding to redo the message with, or which change it asks.
-             */
-            route: ("perguntar" | "guardar" | "organizar" | "conversar") | ("move" | "rename" | "undo");
-        };
-        /**
          * RestoredNode
          * @description A node back from the trash.
          */
@@ -2883,12 +2960,12 @@ export interface components {
         };
         /**
          * StepEvent
-         * @description A step of the job working on a reply, shown live in the thread.
+         * @description A tool the chat calls while working on a reply, shown live in the thread.
          */
         StepEvent: {
             /**
              * Detail
-             * @description What it is done to: a file's name, a folder's path.
+             * @description What it is done to: a path, a file's name, a fact.
              */
             detail?: string | null;
             /**
@@ -2899,10 +2976,10 @@ export interface components {
             message_id: string;
             /**
              * Step
-             * @description What the job is doing; the app shows its own text for it.
+             * @description The tool called; the app shows its own text for it.
              * @enum {string}
              */
-            step: "understanding" | "splitting" | "reading_file" | "choosing_place" | "checking_page" | "checking_pdf" | "writing" | "organizing";
+            step: "list_folder" | "read_page" | "read_pdf_pages" | "file_fact" | "file_attachment" | "move" | "rename" | "undo_last";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}
@@ -3143,6 +3220,66 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_conversation_v1_conversations__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4433,7 +4570,7 @@ export interface operations {
             };
         };
     };
-    reroute_message_v1_messages__message_id__reroute_post: {
+    retry_message_v1_messages__message_id__retry_post: {
         parameters: {
             query?: never;
             header?: {
@@ -4444,11 +4581,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Reroute"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             201: {

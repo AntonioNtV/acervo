@@ -8,9 +8,14 @@ from typing import Any
 import httpx
 import pytest
 from fastapi import FastAPI
+from sqlalchemy import update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core.settings import Settings
+from acervo.db.models import Message
+from acervo.repositories.proposal import ProposalRepository
 from acervo.schemas.events import DoneEvent, StepEvent
+from acervo.schemas.proposal import CreatePagePayload, ProposalCreate
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.storage import Storage
 
@@ -52,9 +57,7 @@ async def test_post_stores_two_messages_and_enqueues_one_job(
     messages = (await client.get(f"/v1/conversations/{conversation_id}/messages")).json()
     assert [(m["role"], m["status"]) for m in messages] == [("person", "done"), ("acervo", "working")]
     assert messages[0]["context"] == {"page_id": page_id, "selection": None}
-    assert jobs.jobs == [
-        ("handle_message", {"message_id": messages[0]["id"], "reply_id": messages[1]["id"], "route": None})
-    ]
+    assert jobs.jobs == [("handle_message", {"message_id": messages[0]["id"], "reply_id": messages[1]["id"]})]
     listed = (await client.get(f"/v1/kbs/{kb_id}/conversations")).json()
     assert [c["title"] for c in listed] == ["O prazo de emissão da apólice residencial é 5 dias úteis."]
 
@@ -98,7 +101,7 @@ async def test_events_stream_in_order(
 
     posted = await client.post(f"/v1/conversations/{conversation_id}/messages", data={"text": "Anota isso"})
     reply_id = uuid.UUID(posted.json()["reply"]["id"])
-    await bus.publish(uuid.UUID(conversation_id), StepEvent(message_id=reply_id, step="choosing_place"))
+    await bus.publish(uuid.UUID(conversation_id), StepEvent(message_id=reply_id, step="file_fact"))
     await bus.publish(uuid.UUID(conversation_id), DoneEvent(message_id=reply_id))
     await bus.close(uuid.UUID(conversation_id))
     response = await stream
@@ -114,3 +117,34 @@ async def test_events_stream_in_order(
         ("done", None),
     ]
     assert (await client.get(f"/v1/conversations/{uuid.uuid4()}/events")).status_code == 404
+
+
+async def test_a_deleted_conversation_leaves_the_list_and_keeps_its_proposals(
+    client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue, bus: InMemoryEventBus
+) -> None:
+    kb_id, conversation_id = await _conversation(client)
+    posted = await client.post(f"/v1/conversations/{conversation_id}/messages", data={"text": "Prazo: 5 dias."})
+    working = await client.delete(f"/v1/conversations/{conversation_id}")
+    [conversation] = (await client.get(f"/v1/kbs/{kb_id}/conversations")).json()
+    reply_id = uuid.UUID(posted.json()["reply"]["id"])
+    await session.execute(update(Message).where(Message.id == reply_id).values(status="done"))
+    payload = CreatePagePayload(parent_id=None, parent_path="", title="Prazos", markdown="# Prazos\n")
+    proposal = await ProposalRepository(session).create(
+        ProposalCreate(
+            kb_id=uuid.UUID(kb_id),
+            agent_id=uuid.UUID(conversation["agent_id"]),
+            conversation_id=uuid.UUID(conversation_id),
+            message_id=reply_id,
+            payload=payload,
+        )
+    )
+    await session.flush()
+
+    deleted = await client.delete(f"/v1/conversations/{conversation_id}")
+
+    assert working.status_code == 409, working.text
+    assert deleted.status_code == 200 and deleted.json()["deleted_at"] is not None, deleted.text
+    assert (await client.get(f"/v1/kbs/{kb_id}/conversations")).json() == []
+    assert (await client.get(f"/v1/conversations/{conversation_id}/messages")).status_code == 404
+    pending = (await client.get(f"/v1/kbs/{kb_id}/proposals")).json()
+    assert [p["id"] for p in pending] == [str(proposal.id)]

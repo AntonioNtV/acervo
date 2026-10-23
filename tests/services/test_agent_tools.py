@@ -176,10 +176,9 @@ async def test_remember_and_save_file_post_to_the_agents_conversation_and_answer
         ("acervo", ""),
     ]
     assert messages[2].attachments[0].name == "Tabela.pdf"
-    # Always filed: an agent's "remember" is never read as a question.
-    assert [(job, kwargs["reply_id"], kwargs["route"]) for job, kwargs in env.jobs.jobs] == [
-        ("handle_message", str(filed.reply_id), "guardar"),
-        ("handle_message", str(saved.reply_id), "guardar"),
+    assert [(job, kwargs["reply_id"]) for job, kwargs in env.jobs.jobs] == [
+        ("handle_message", str(filed.reply_id)),
+        ("handle_message", str(saved.reply_id)),
     ]
     assert (await env.tools.get_reply(filed.reply_id)).status == "working"
 

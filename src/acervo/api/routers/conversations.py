@@ -13,7 +13,6 @@ from acervo.schemas.conversation import (
     MessageContext,
     MessagePosted,
     MessageRead,
-    Reroute,
 )
 from acervo.schemas.events import ChatEvent
 from acervo.services.conversation_service import ConversationService, Upload
@@ -41,6 +40,13 @@ async def start_conversation(kb_id: UUID, body: ConversationStart, service: Serv
     return await service.create(kb_id, body)
 
 
+@router.delete("/conversations/{conversation_id}", response_model=ConversationRead, responses={409: ERROR})
+async def delete_conversation(conversation_id: UUID, service: Service) -> ConversationRead:
+    """Leaves the list and its messages are no longer served; what it proposed stays, pending or in the history. A
+    conversation still working: 409."""
+    return await service.delete(conversation_id)
+
+
 @router.get("/conversations/{conversation_id}/messages", response_model=list[MessageRead])
 async def list_messages(conversation_id: UUID, service: Service) -> list[MessageRead]:
     """The conversation's messages in the order they were sent."""
@@ -62,10 +68,11 @@ async def post_message(
     return await service.post(conversation_id, text, uploads, context)
 
 
-@router.post("/messages/{message_id}/reroute", status_code=201, response_model=MessageRead, responses={409: ERROR})
-async def reroute_message(message_id: UUID, body: Reroute, service: Service) -> MessageRead:
-    """A new reply that redoes a finished reply's message understood as `route`."""
-    return await service.reroute(message_id, body.route)
+@router.post("/messages/{message_id}/retry", status_code=201, response_model=MessageRead, responses={409: ERROR})
+async def retry_message(message_id: UUID, service: Service) -> MessageRead:
+    """A new reply that runs a finished reply's message again ("Tentar de novo"); what the old one left waiting is
+    dropped."""
+    return await service.retry(message_id)
 
 
 async def _events(conversation_id: UUID, service: Service) -> AsyncIterator[ChatEvent]:

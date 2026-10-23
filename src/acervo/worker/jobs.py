@@ -3,28 +3,29 @@
 from typing import Any
 from uuid import UUID
 
-from acervo.domain.cards import Reading
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.chat_service import ChatService
+from acervo.services.filing_service import FilingService
 
 
-def _chat(ctx: dict[str, Any], uow: UnitOfWork) -> ChatService:
-    return ChatService(
-        uow,
-        ctx["storage"],
-        ctx["decider"],
-        ctx["writer"],
-        ctx["settings"].thresholds,
-        ctx["events"],
-        ctx["jobs"],
-    )
-
-
-async def handle_message(ctx: dict[str, Any], message_id: str, reply_id: str, route: Reading | None = None) -> None:
+async def handle_message(ctx: dict[str, Any], message_id: str, reply_id: str) -> None:
+    settings = ctx["settings"]
     async with UnitOfWork(ctx["session_factory"]) as uow:
-        await _chat(ctx, uow).handle(UUID(message_id), UUID(reply_id), route)
+        chat = ChatService(
+            uow,
+            ctx["storage"],
+            ctx["decider"],
+            ctx["writer"],
+            settings.thresholds,
+            ctx["events"],
+            ctx["jobs"],
+            ctx["chat"],
+            settings.chat_history,
+        )
+        await chat.handle(UUID(message_id), UUID(reply_id))
 
 
 async def refresh_descriptions(ctx: dict[str, Any], node_ids: list[str]) -> None:
     async with UnitOfWork(ctx["session_factory"]) as uow:
-        await _chat(ctx, uow).refresh_descriptions([UUID(node_id) for node_id in node_ids])
+        filing = FilingService(uow, ctx["storage"], ctx["decider"], ctx["writer"], ctx["settings"].thresholds)
+        await filing.refresh_descriptions([UUID(node_id) for node_id in node_ids])

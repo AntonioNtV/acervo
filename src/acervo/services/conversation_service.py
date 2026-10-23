@@ -8,7 +8,6 @@ from typing import BinaryIO
 from uuid import UUID
 
 from acervo.core.errors import ConflictError, NotFoundError, ValidationError
-from acervo.domain.cards import Reading, Route
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
 from acervo.schemas.conversation import (
@@ -62,8 +61,19 @@ class ConversationService:
         return conversation
 
     async def messages(self, conversation_id: UUID) -> builtins.list[MessageRead]:
-        await self._uow.conversations.get(conversation_id)
+        await self._live(conversation_id)
         return await self._uow.messages.of_conversation(conversation_id)
+
+    async def delete(self, conversation_id: UUID) -> ConversationRead:
+        """Out of the list, its messages no longer served; what it proposed and the decisions logged stay."""
+        await self._live(conversation_id)
+        if any(message.status == "working" for message in await self._uow.messages.of_conversation(conversation_id)):
+            raise ConflictError("a conversa ainda está trabalhando", {"id": str(conversation_id)})
+        deleted = await self._uow.conversations.update(
+            conversation_id, ConversationUpdate(deleted_at=datetime.now(UTC))
+        )
+        await self._uow.commit()
+        return deleted
 
     async def post(
         self,
@@ -71,11 +81,9 @@ class ConversationService:
         text: str,
         uploads: Sequence[Upload],
         context: MessageContext | None,
-        route: Route | None = None,
     ) -> MessagePosted:
-        """Stores the message with its files staged outside the base, and a working reply whose job is enqueued;
-        `route`, when given, is how the job must take it (an agent's "remember" is always filed)."""
-        conversation = await self._uow.conversations.get(conversation_id)
+        """Stores the message with its files staged outside the base, and a working reply whose job is enqueued."""
+        conversation = await self._live(conversation_id)
         text = text.strip()
         if not text and not uploads:
             raise ValidationError("a mensagem está vazia")
@@ -93,14 +101,15 @@ class ConversationService:
             change.title = (text.splitlines()[0] if text else attachments[0].name)[:TITLE_LENGTH]
         await self._uow.conversations.update(conversation.id, change)
         await self._uow.commit()
-        await self._run(conversation.id, message, reply, route, (message, reply))
+        await self._run(conversation.id, message, reply, (message, reply))
         return MessagePosted(message=message, reply=reply)
 
-    async def reroute(self, reply_id: UUID, route: Reading) -> MessageRead:
-        """A new reply that redoes the message as `route`; the job drops what the replaced reply produced."""
+    async def retry(self, reply_id: UUID) -> MessageRead:
+        """A new reply that runs the message again; the job drops what the replaced reply left waiting."""
         replaced = await self._uow.messages.get(reply_id)
         if replaced.role != "acervo" or replaced.status == "working":
             raise ConflictError("só uma resposta terminada pode ser refeita", {"id": str(reply_id)})
+        await self._live(replaced.conversation_id)
         thread = await self._uow.messages.of_conversation(replaced.conversation_id)
         message = _asked(thread, replaced)
         reply = await self._uow.messages.create(
@@ -109,18 +118,18 @@ class ConversationService:
             )
         )
         await self._uow.commit()
-        await self._run(replaced.conversation_id, message, reply, route, (reply,))
+        await self._run(replaced.conversation_id, message, reply, (reply,))
         return reply
 
     async def redo(self, proposal_id: UUID) -> MessageRead:
-        """A stale proposal's message filed again into a new reply; the job drops the stale one, as a reroute does."""
+        """A stale proposal's message run again into a new reply, on the newest text; the job drops the stale one."""
         proposal = await self._uow.proposals.get(proposal_id)
         if proposal.status != "stale" or proposal.message_id is None:
             raise ConflictError("só uma proposta desatualizada do chat pode ser refeita", {"id": str(proposal_id)})
-        return await self.reroute(proposal.message_id, "guardar")
+        return await self.retry(proposal.message_id)
 
     async def events(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
-        await self._uow.conversations.get(conversation_id)
+        await self._live(conversation_id)
         # A stream may stay open for hours: it must not hold a database connection meanwhile.
         await self._uow.rollback()
         return self._events.subscribe(conversation_id)
@@ -130,12 +139,17 @@ class ConversationService:
         conversation_id: UUID,
         message: MessageRead,
         reply: MessageRead,
-        route: Reading | None,
         new: Sequence[MessageRead],
     ) -> None:
-        await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id), route=route)
+        await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id))
         for stored in new:
             await self._events.publish(conversation_id, MessageEvent(message=stored))
+
+    async def _live(self, conversation_id: UUID) -> ConversationRead:
+        conversation = await self._uow.conversations.get(conversation_id)
+        if conversation.deleted_at is not None:
+            raise NotFoundError(f"conversation {conversation_id} not found", {"id": str(conversation_id)})
+        return conversation
 
     async def _agent(self, kb_id: UUID, agent_id: UUID | None) -> AgentRead:
         await self._uow.kbs.get_in(kb_id)
@@ -159,7 +173,7 @@ class ConversationService:
 
 
 def _asked(thread: list[MessageRead], reply: MessageRead) -> MessageRead:
-    """The person's message a reply answers: the one just before the first reply in its chain of redos."""
+    """The person's message a reply answers: the one just before the first reply in its chain of retries."""
     by_id = {message.id: message for message in thread}
     first = reply
     while first.replaces_id is not None:

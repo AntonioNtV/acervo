@@ -12,10 +12,10 @@ class ConversationRepository(BaseRepository[Conversation, ConversationRead, Conv
     read_schema = ConversationRead
 
     async def of_agent(self, agent_id: UUID) -> list[ConversationRead]:
-        """The agent's conversations, the most recently changed first."""
+        """The agent's conversations not deleted, the most recently changed first."""
         query = (
             select(Conversation)
-            .where(Conversation.agent_id == agent_id)
+            .where(Conversation.agent_id == agent_id, Conversation.deleted_at.is_(None))
             .order_by(Conversation.updated_at.desc(), Conversation.id.desc())
         )
         return [self._to_read(conversation) for conversation in await self._session.scalars(query)]

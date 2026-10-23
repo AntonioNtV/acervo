@@ -130,12 +130,12 @@ describe("Chat", () => {
   it("a step event shows live in the reply", async () => {
     respond("GET", "/v1/conversations/c-1/messages", { body: [message("r-1", { status: "working" })] });
     respond("GET", "/v1/conversations/c-1/events", {
-      body: sse({ type: "step", message_id: "r-1", step: "reading_file", detail: "CG_Residencial_2026.pdf" }),
+      body: sse({ type: "step", message_id: "r-1", step: "file_attachment", detail: "CG_Residencial_2026.pdf" }),
     });
     renderChat();
 
     const steps = await screen.findByRole("list", { name: "Passos" });
-    expect(steps).toHaveTextContent("lendo o início do arquivo");
+    expect(steps).toHaveTextContent("procurando onde salvar");
     expect(steps).toHaveTextContent("CG_Residencial_2026.pdf");
   });
 
@@ -148,49 +148,18 @@ describe("Chat", () => {
     expect(card).toHaveTextContent("Porto Seguro / Residencial / Vistoria.md § Como agendar");
   });
 
-  it("'mudar' redoes the message another way", async () => {
-    respond("GET", "/v1/conversations/c-1/messages", { body: [message("r-1", { text: "Feito.", understood_as: "guardar" })] });
-    respond("POST", "/v1/messages/r-1/reroute", { status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
-    renderChat();
-
-    expect(await screen.findByText("Entendi como algo para guardar")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "mudar" }));
-    await userEvent.click(await screen.findByRole("menuitem", { name: "era uma pergunta" }));
-
-    await waitFor(() =>
-      expect(calls.find((call) => call.path === "/v1/messages/r-1/reroute")).toMatchObject({ body: { route: "perguntar" } }),
-    );
-    expect(await screen.findByText("Trabalhando nisso…")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "mudar" })).not.toBeInTheDocument();
-  });
-
-  it("asks first with two buttons and nothing else", async () => {
-    respond("GET", "/v1/conversations/c-1/messages", {
-      body: [message("r-1", { text: "Guardar isso na base ou procurar a resposta?", ask: ["guardar", "perguntar"] })],
-    });
-    respond("POST", "/v1/messages/r-1/reroute", { status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
-    renderChat();
-
-    const reply = await screen.findByRole("article", { name: "Resposta do Acervo" });
-    expect(within(reply).getAllByRole("button").map((button) => button.textContent)).toEqual(["Guardar", "Procurar"]);
-    await userEvent.click(within(reply).getByRole("button", { name: "Procurar" }));
-    await waitFor(() =>
-      expect(calls.find((call) => call.path === "/v1/messages/r-1/reroute")).toMatchObject({ body: { route: "perguntar" } }),
-    );
-  });
-
   it("a failed reply offers to try again", async () => {
     respond("GET", "/v1/conversations/c-1/messages", {
-      body: [message("r-1", { status: "failed", error: "model down", understood_as: "guardar" })],
+      body: [message("r-1", { status: "failed", error: "model down" })],
     });
-    respond("POST", "/v1/messages/r-1/reroute", { status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
+    respond("POST", "/v1/messages/r-1/retry", { status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
     renderChat();
 
     expect(await screen.findByText("Não consegui terminar esta mensagem. Nada foi aplicado.")).toBeInTheDocument();
     expect(screen.queryByText("model down")).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
     await waitFor(() =>
-      expect(calls.find((call) => call.path === "/v1/messages/r-1/reroute")).toMatchObject({ body: { route: "guardar" } }),
+      expect(calls.find((call) => call.path === "/v1/messages/r-1/retry")).toBeDefined(),
     );
   });
 
