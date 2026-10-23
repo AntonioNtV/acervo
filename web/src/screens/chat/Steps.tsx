@@ -28,9 +28,10 @@ export function Steps({ parts }: { parts: ChatPart[] }) {
         const failed = part.state === "output-error";
         const detail = detailOf(part);
         return (
-          <li key={part.toolCallId} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-12 leading-[22px] text-text-3">
+          // The label keeps its width; a long detail (a whole fact) truncates in what is left instead of covering it.
+          <li key={part.toolCallId} className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 text-12 leading-[22px] text-text-3">
             <Dot tone={failed ? "err" : done ? "ok" : "run"}>
-              <span className={done ? "text-text-3" : "text-text"}>
+              <span className={`whitespace-nowrap ${done ? "text-text-3" : "text-text"}`}>
                 {t(TOOLS.includes(name) ? `chat.step.${name}` : "chat.step.other")}
               </span>
             </Dot>
