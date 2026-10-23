@@ -1,9 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { calls, node, renderWithApi, resetApi, respond } from "../../api/testing";
+import { MemoryRouter } from "react-router-dom";
+import { apiFetch, calls, node, renderWithApi, resetApi, respond } from "../../api/testing";
 import { Chat } from "./Chat";
-import { append, message, proposal, T0 } from "./testing";
+import { append, message, proposal, T0, undo } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
@@ -35,18 +36,39 @@ class FakeXhr {
 }
 
 const conversation = (id: string, title: string) => ({ id, kb_id: "kb-1", agent_id: "agent-chat", title, created_at: T0, updated_at: T0 });
-const sse = (...events: unknown[]) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
-const never = () => new Promise<never>(() => {});
+const lines = (chunks: unknown[]) => chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("");
+/** A reply that ended: all its chunks, then `[DONE]`. */
+const ended = (...chunks: unknown[]) => () => ({ body: lines([...chunks, { type: "finish" }]) + "data: [DONE]\n\n" });
+/** A reply still working: its chunks so far, and the stream stays open. */
+const working = (...chunks: unknown[]) => () => ({
+  body: new ReadableStream({ start: (stream) => stream.enqueue(new TextEncoder().encode(lines(chunks))) }),
+});
+const text = (id: string, delta: string) => [
+  { type: "text-start", id },
+  { type: "text-delta", id, delta },
+  { type: "text-end", id },
+];
+const person = (id: string, value: string, conversationId = "c-1") =>
+  message(id, { role: "person", text: value, conversation_id: conversationId });
+
+/** The stored thread: the messages, and their UI parts by id. */
+function thread(conversationId: string, stored: ReturnType<typeof message>[], ui: unknown[] = []) {
+  respond("GET", `/v1/conversations/${conversationId}/messages`, { body: stored });
+  respond("GET", `/v1/conversations/${conversationId}/ui-messages`, { body: ui });
+}
+
+let conversations = [conversation("c-1", "Prazos"), conversation("c-2", "Vistorias")];
 
 beforeEach(() => {
   resetApi();
   editor.selection = "";
   FakeXhr.sent = [];
+  conversations = [conversation("c-1", "Prazos"), conversation("c-2", "Vistorias")];
   vi.stubGlobal("XMLHttpRequest", FakeXhr);
+  vi.stubGlobal("fetch", apiFetch);
   respond("GET", "/v1/kbs", { body: [{ id: "kb-1", name: "Seguros · Operação" }] });
-  respond("GET", "/v1/kbs/kb-1/conversations", { body: [conversation("c-1", "Prazos"), conversation("c-2", "Vistorias")] });
-  respond("GET", "/v1/conversations/c-1/messages", { body: [] });
-  respond("GET", "/v1/conversations/c-1/events", never);
+  respond("GET", "/v1/kbs/kb-1/conversations", () => ({ body: conversations }));
+  thread("c-1", []);
   respond("GET", "/v1/kbs/kb-1/proposals", { body: [] });
   respond("GET", "/v1/nodes/page-1", {
     body: { ...node("page-1", "page", "Renovação e prazos"), path: "Bradesco/Renovação e prazos", page: null, file: null, versions: 0 },
@@ -56,10 +78,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 function renderChat() {
-  return renderWithApi(<Chat kbId="kb-1" nodeId="page-1" onClose={() => {}} />);
+  return renderWithApi(
+    <MemoryRouter>
+      <Chat kbId="kb-1" nodeId="page-1" onClose={() => {}} />
+    </MemoryRouter>,
+  );
 }
 
 const box = () => screen.getByRole("textbox", { name: "Mensagem" });
+const streamed = (replyId: string) => calls.filter((call) => call.path === `/v1/messages/${replyId}/stream`);
 
 describe("Chat", () => {
   it("has one box and no mode tabs", async () => {
@@ -70,7 +97,8 @@ describe("Chat", () => {
     expect(screen.queryByText("Perguntar")).not.toBeInTheDocument();
   });
 
-  it("sending posts the text with the open page and the selection, and Enter sends", async () => {
+  it("sending posts the text with the open page and the selection, and the reply streams in as Markdown", async () => {
+    respond("GET", "/v1/messages/r-1/stream", working({ type: "start", messageId: "r-1" }, ...text("t-1", "Guardo até **60 dias**.")));
     editor.selection = "Renovação aceita até 60 dias após o vencimento.";
     renderChat();
     expect(await screen.findByText("Renovação e prazos")).toBeInTheDocument();
@@ -84,13 +112,15 @@ describe("Chat", () => {
     expect(sent.form?.get("text")).toBe("Isso também vale para o Auto.\nGuarda lá.");
     expect(sent.form?.get("page_id")).toBe("page-1");
     expect(sent.form?.get("selection")).toBe("Renovação aceita até 60 dias após o vencimento.");
+    expect(await screen.findByText("Trabalhando nisso…")).toBeInTheDocument();
 
     sent.reply(201, {
-      message: message("m-1", { role: "person", text: "Isso também vale para o Auto.\nGuarda lá." }),
+      message: person("m-1", "Isso também vale para o Auto.\nGuarda lá."),
       reply: message("r-1", { status: "working" }),
     });
-    expect(await screen.findByText("Trabalhando nisso…")).toBeInTheDocument();
+    expect((await screen.findByText("60 dias")).tagName).toBe("STRONG");
     expect(box()).toHaveValue("");
+    expect(streamed("r-1")[0]?.key).toBe("test-key");
   });
 
   it("the page and the selection chips can be removed before sending", async () => {
@@ -108,7 +138,7 @@ describe("Chat", () => {
   it("files attach to the message", async () => {
     renderChat();
     const file = new File(["%PDF"], "CG_Residencial_2026.pdf", { type: "application/pdf" });
-    await userEvent.upload(screen.getByLabelText("Arquivos para anexar"), file);
+    await userEvent.upload(await screen.findByLabelText("Arquivos para anexar"), file);
     expect(screen.getByRole("button", { name: "Tirar CG_Residencial_2026.pdf" })).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Enviar" }));
@@ -118,59 +148,138 @@ describe("Chat", () => {
 
   it("a new conversation starts with the first message", async () => {
     respond("POST", "/v1/kbs/kb-1/conversations", { status: 201, body: conversation("c-3", "") });
-    respond("GET", "/v1/conversations/c-3/messages", { body: [] });
-    respond("GET", "/v1/conversations/c-3/events", never);
     renderChat();
     await userEvent.click(screen.getByRole("button", { name: "Nova conversa" }));
-    await userEvent.type(box(), "Um fato.{Enter}");
+    await userEvent.type(await screen.findByRole("textbox", { name: "Mensagem" }), "Um fato.{Enter}");
 
     await waitFor(() => expect(FakeXhr.sent[0]?.path).toBe("/v1/conversations/c-3/messages"));
   });
 
-  it("a step event shows live in the reply", async () => {
-    respond("GET", "/v1/conversations/c-1/messages", { body: [message("r-1", { status: "working" })] });
-    respond("GET", "/v1/conversations/c-1/events", {
-      body: sse({ type: "step", message_id: "r-1", step: "file_attachment", detail: "CG_Residencial_2026.pdf" }),
-    });
+  it("a reply still working is followed: its steps show live", async () => {
+    thread("c-1", [person("m-1", "Guarda este PDF."), message("r-1", { status: "working" })]);
+    respond(
+      "GET",
+      "/v1/messages/r-1/stream",
+      working(
+        { type: "start", messageId: "r-1" },
+        { type: "tool-input-available", toolCallId: "call-1", toolName: "file_attachment", input: { name: "CG_Residencial_2026.pdf" } },
+      ),
+    );
     renderChat();
 
     const steps = await screen.findByRole("list", { name: "Passos" });
     expect(steps).toHaveTextContent("procurando onde salvar");
     expect(steps).toHaveTextContent("CG_Residencial_2026.pdf");
+    expect(screen.getByText("Trabalhando nisso…")).toBeInTheDocument();
   });
 
-  it("a proposal event shows its card in the reply", async () => {
-    respond("GET", "/v1/conversations/c-1/messages", { body: [message("r-1", { text: "Acréscimo: Vistoria" })] });
-    respond("GET", "/v1/conversations/c-1/events", { body: sse({ type: "proposal", proposal: proposal(append) }) });
+  it("reopening replays a reply that was working and ends it", async () => {
+    thread("c-1", [person("m-1", "Oi"), message("r-1", { status: "working" })], [{ id: "m-1", role: "user", parts: [] }]);
+    respond("GET", "/v1/messages/r-1/stream", ended({ type: "start", messageId: "r-1" }, ...text("t-1", "Pronto, guardei.")));
+    renderChat();
+
+    expect(await screen.findByText("Pronto, guardei.")).toBeInTheDocument();
+    expect(screen.queryByText("Trabalhando nisso…")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("article", { name: "Resposta do Acervo" })).toHaveLength(1);
+  });
+
+  it("a proposal part shows its card, and a later part with its id updates it", async () => {
+    thread("c-1", [person("m-1", "Vistoria por vídeo até 300 m²."), message("r-1", { status: "working" })]);
+    respond(
+      "GET",
+      "/v1/messages/r-1/stream",
+      ended(
+        { type: "start", messageId: "r-1" },
+        { type: "data-proposal", id: "p-1", data: proposal(append) },
+        {
+          type: "data-proposal",
+          id: "p-1",
+          data: proposal(append, { status: "applied", accepted_by: "auto", updated_at: "2026-10-22T10:01:00Z" }),
+        },
+      ),
+    );
     renderChat();
 
     const card = await screen.findByRole("region", { name: "Acréscimo" });
     expect(card).toHaveTextContent("Porto Seguro / Residencial / Vistoria.md § Como agendar");
+    expect(await within(card).findByText("Aplicada automaticamente")).toBeInTheDocument();
+    expect(screen.getAllByRole("region", { name: "Acréscimo" })).toHaveLength(1);
   });
 
-  it("a failed reply offers to try again", async () => {
-    respond("GET", "/v1/conversations/c-1/messages", {
-      body: [message("r-1", { status: "failed", error: "model down" })],
-    });
-    respond("POST", "/v1/messages/r-1/retry", { status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
+  it("citations open the page at its section and the PDF at its page", async () => {
+    thread(
+      "c-1",
+      [person("m-1", "Qual o prazo?"), message("r-1", { grounded: true })],
+      [
+        {
+          id: "r-1",
+          role: "assistant",
+          parts: [
+            { type: "text", text: "Até 60 dias após o vencimento [1]. Depois vira apólice nova [2]." },
+            ...[
+              { marker: 1, kind: "page", node_id: "page-1", path: "Bradesco/Residencial/Renovação e prazos", anchor: "prazos", page: null },
+              { marker: 2, kind: "file", node_id: "file-1", path: "Bradesco/Residencial/Condições Gerais 2026.pdf", anchor: null, page: 88 },
+            ].map((citation) => ({
+              type: "source-document",
+              sourceId: `[${citation.marker}]`,
+              mediaType: citation.kind === "file" ? "application/pdf" : "text/markdown",
+              title: citation.path,
+              providerMetadata: { acervo: citation },
+            })),
+          ],
+        },
+      ],
+    );
+    renderChat();
+
+    const reply = await screen.findByRole("article", { name: "Resposta do Acervo" });
+    expect(within(reply).getByRole("link", { name: "1" })).toHaveAttribute("href", "/kbs/kb-1/n/page-1#prazos");
+    const sources = within(reply).getByRole("list", { name: "Fontes" });
+    expect(within(sources).getByRole("link", { name: /Renovação e prazos/ })).toHaveAttribute("href", "/kbs/kb-1/n/page-1#prazos");
+    const pdf = within(sources).getByRole("link", { name: /Condições Gerais 2026/ });
+    expect(pdf).toHaveAttribute("href", "/kbs/kb-1/n/file-1?p=88");
+    expect(pdf).toHaveTextContent("p. 88");
+    expect(screen.queryByText("Isso não veio da base.")).not.toBeInTheDocument();
+  });
+
+  it("a general answer says it did not come from the base, with no way to change how it was understood", async () => {
+    thread("c-1", [person("m-1", "Oi!"), message("r-1", { text: "Oi! Em que posso ajudar?", grounded: false })]);
+    renderChat();
+
+    expect(await screen.findByText("Oi! Em que posso ajudar?")).toBeInTheDocument();
+    expect(screen.getByText("Isso não veio da base.")).toBeInTheDocument();
+    expect(screen.queryByText(/mudar/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Entendi como/)).not.toBeInTheDocument();
+  });
+
+  it("a failed reply retries and follows the new reply's stream", async () => {
+    thread("c-1", [person("m-1", "Guarda isso."), message("r-1", { status: "failed", error: "model down" })]);
+    let answer: (reply: { status: number; body: unknown }) => void = () => {};
+    respond("POST", "/v1/messages/r-1/retry", () => new Promise((resolve) => (answer = resolve)));
+    respond("GET", "/v1/messages/r-2/stream", ended({ type: "start", messageId: "r-2" }, ...text("t-1", "Agora foi.")));
     renderChat();
 
     expect(await screen.findByText("Não consegui terminar esta mensagem. Nada foi aplicado.")).toBeInTheDocument();
     expect(screen.queryByText("model down")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
-    await waitFor(() =>
-      expect(calls.find((call) => call.path === "/v1/messages/r-1/retry")).toBeDefined(),
-    );
+    const retry = screen.getByRole("button", { name: "Tentar de novo" });
+    await userEvent.click(retry);
+    expect(retry).toBeDisabled();
+
+    answer({ status: 201, body: message("r-2", { status: "working", replaces_id: "r-1" }) });
+    expect(await screen.findByText("Agora foi.")).toBeInTheDocument();
+    expect(screen.queryByText("Não consegui terminar esta mensagem. Nada foi aplicado.")).not.toBeInTheDocument();
   });
 
   it("the pending list counts every proposal, names its agent and opens its conversation", async () => {
-    respond("GET", "/v1/kbs/kb-1/proposals", {
-      body: [
-        { ...proposal(append, { conversation_id: "c-2", message_id: "r-9" }), agent_name: "Claude", conversation_title: "Vistorias" },
-      ],
-    });
-    respond("GET", "/v1/conversations/c-2/messages", { body: [message("r-9", { conversation_id: "c-2", text: "Proponho." })] });
-    respond("GET", "/v1/conversations/c-2/events", never);
+    const waiting = proposal(append, { conversation_id: "c-2", message_id: "r-9" });
+    respond("GET", "/v1/kbs/kb-1/proposals", (url) => ({
+      body: url.searchParams.get("status") === "pending" ? [{ ...waiting, agent_name: "Claude", conversation_title: "Vistorias" }] : [],
+    }));
+    thread(
+      "c-2",
+      [message("r-9", { conversation_id: "c-2", text: "Proponho." })],
+      [{ id: "r-9", role: "assistant", parts: [{ type: "text", text: "Proponho." }, { type: "data-proposal", id: "p-1", data: waiting }] }],
+    );
     renderChat();
 
     expect(await screen.findByText("1 proposta esperando você")).toBeInTheDocument();
@@ -183,13 +292,56 @@ describe("Chat", () => {
     expect(screen.getByRole("region", { name: "Acréscimo" })).toBeInTheDocument();
   });
 
+  it("the list shows what agents applied automatically, each with Desfazer", async () => {
+    const auto = proposal(append, { id: "p-9", status: "applied", accepted_by: "auto", conversation_id: null, message_id: null });
+    respond("GET", "/v1/kbs/kb-1/proposals", (url) => ({
+      body: url.searchParams.get("status") === "applied" ? [{ ...auto, agent_name: "Claude", conversation_title: null }] : [],
+    }));
+    respond("POST", "/v1/proposals/p-9/undo", { status: 201, body: proposal(undo, { id: "p-10", status: "applied", accepted_by: "auto" }) });
+    renderChat();
+
+    expect(await screen.findByText("1 mudança aplicada automaticamente")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Ver todas" }));
+    const applied = screen.getByRole("region", { name: "Aplicadas automaticamente" });
+    expect(applied).toHaveTextContent("Porto Seguro / Residencial / Vistoria.md § Como agendar");
+    expect(applied).toHaveTextContent("Claude");
+
+    await userEvent.click(within(applied).getByRole("button", { name: "Desfazer" }));
+    expect(await within(applied).findByText("Desfeita")).toBeInTheDocument();
+    expect(calls.filter((call) => call.method === "POST" && call.path === "/v1/proposals/p-9/undo")).toHaveLength(1);
+  });
+
+  it("deleting a conversation confirms, calls DELETE and leaves the list; the chat starts anew", async () => {
+    thread("c-1", [person("m-1", "Antes de apagar.")]);
+    respond("DELETE", "/v1/conversations/c-1", () => {
+      conversations = conversations.filter((c) => c.id !== "c-1");
+      return { body: conversation("c-1", "Prazos") };
+    });
+    renderChat();
+    expect(await screen.findByText("Antes de apagar.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Conversas anteriores" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Apagar Prazos" }));
+    const dialog = screen.getByRole("dialog", { name: "Apagar “Prazos”?" });
+    expect(calls.filter((call) => call.method === "DELETE")).toHaveLength(0);
+
+    await userEvent.click(within(dialog).getByRole("button", { name: "Apagar conversa" }));
+    await waitFor(() => expect(calls.filter((call) => call.method === "DELETE" && call.path === "/v1/conversations/c-1")).toHaveLength(1));
+    const list = screen.getByRole("list", { name: "Conversas anteriores" });
+    await waitFor(() => expect(list).not.toHaveTextContent("Prazos"));
+    expect(list).toHaveTextContent("Vistorias");
+
+    await userEvent.click(screen.getByRole("button", { name: "Voltar à conversa" }));
+    expect(screen.queryByText("Antes de apagar.")).not.toBeInTheDocument();
+    expect(screen.getByText("Conte o que aprendeu")).toBeInTheDocument();
+  });
+
   it("past conversations reopen", async () => {
-    respond("GET", "/v1/conversations/c-2/messages", { body: [message("m-9", { conversation_id: "c-2", role: "person", text: "Antiga." })] });
-    respond("GET", "/v1/conversations/c-2/events", never);
+    thread("c-2", [person("m-9", "Antiga.", "c-2")]);
     renderChat();
 
     await userEvent.click(screen.getByRole("button", { name: "Conversas anteriores" }));
-    await userEvent.click(await screen.findByRole("button", { name: /Vistorias/ }));
+    await userEvent.click(await screen.findByRole("button", { name: /^Vistorias/ }));
     expect(await screen.findByText("Antiga.")).toBeInTheDocument();
   });
 });

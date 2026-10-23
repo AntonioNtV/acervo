@@ -104,6 +104,22 @@ describe("AgentsScreen", () => {
     expect(screen.queryByText(/acv_secret71c2/)).not.toBeInTheDocument();
   });
 
+  it("Enter in the name connects", async () => {
+    respond("POST", "/v1/kbs/kb-1/agents", (_url, body) => ({
+      status: 201,
+      body: { ...agent("sales", (body as { name: string }).name, { token_hint: "71c2" }), token: "acv_secret71c2" },
+    }));
+    renderScreen();
+    await row("Chat do Acervo");
+
+    await userEvent.click(screen.getByRole("button", { name: "Conectar agente" }));
+    const dialog = screen.getByRole("dialog", { name: "Conectar agente" });
+    await userEvent.type(within(dialog).getByLabelText("Nome"), "Bot de vendas{Enter}");
+
+    expect(await within(dialog).findByLabelText("Conexão")).toHaveTextContent("Bearer acv_secret71c2");
+    expect(calls.filter((call) => call.method === "POST")).toMatchObject([{ body: { name: "Bot de vendas" } }]);
+  });
+
   it("revoking asks first, then DELETEs", async () => {
     respond("DELETE", "/v1/agents/support", () => {
       agents[1] = { ...agents[1]!, revoked_at: new Date().toISOString() };

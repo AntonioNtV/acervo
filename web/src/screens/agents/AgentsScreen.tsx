@@ -170,6 +170,12 @@ function ConnectDialog({ kbId, onClose }: { kbId: string; onClose: () => void })
               value={name}
               placeholder={t("agents.connect.placeholder")}
               onChange={(event) => setName(event.target.value)}
+              onKeyDown={(event) => {
+                // The submit button sits in the dialog's footer, so the browser's own Enter does not reach it.
+                if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+                event.preventDefault();
+                if (name.trim() && !connect.isPending) submit(event);
+              }}
             />
           </label>
           {connect.isError && (
