@@ -3,6 +3,7 @@ from typing import Self
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
 from acervo.repositories.kb import KbRepository
@@ -22,6 +23,7 @@ class UnitOfWork:
     page_versions: PageVersionRepository
     page_drafts: PageDraftRepository
     page_links: PageLinkRepository
+    favorites: FavoriteRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -35,6 +37,7 @@ class UnitOfWork:
         self.page_versions = PageVersionRepository(self._session)
         self.page_drafts = PageDraftRepository(self._session)
         self.page_links = PageLinkRepository(self._session)
+        self.favorites = FavoriteRepository(self._session)
         return self
 
     async def __aexit__(
