@@ -12,7 +12,7 @@ class Proposal(UUIDPkMixin, TimestampMixin, Base):
     __tablename__ = "proposal"
     __table_args__ = (
         CheckConstraint(
-            "status in ('pending', 'editing', 'accepted', 'applied', 'rejected', 'stale')",
+            "status in ('pending', 'applied', 'rejected', 'stale')",
             name="status",
         ),
         CheckConstraint(

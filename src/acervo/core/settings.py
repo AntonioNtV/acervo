@@ -22,6 +22,8 @@ class Thresholds(BaseModel):
     contradicts: float = 0.60
     # Above, for the page line about the same thing as the input: edit that line instead of appending a new one.
     same_line: float = 0.70
+    # Below, for the most likely kind of an organizar (move, rename, undo): ask the person which, propose nothing.
+    organize_min: float = 0.60
     # Above: propose replacing the existing PDF with the new one.
     pdf_new_version: float = 0.70
     # Above: the read page is kept as evidence.
@@ -73,6 +75,10 @@ class Settings(BaseSettings):
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024
+    # A message's job is cancelled past this, and its reply marked failed.
+    job_timeout_seconds: int = 600
+    # The list of applied proposals, where an agent's automatic changes are undone, goes back this many days.
+    applied_list_days: int = 7
 
     @field_validator("api_key")
     @classmethod

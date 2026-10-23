@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from acervo.domain.cards import Placement
 
 ProposalKind = Literal["append", "edit", "create_page", "conflict", "save_pdf", "replace_pdf", "move", "rename", "undo"]
-ProposalStatus = Literal["pending", "editing", "accepted", "applied", "rejected", "stale"]
+ProposalStatus = Literal["pending", "applied", "rejected", "stale"]
 RejectReason = Literal["wrong_place", "already_there", "wrong_info", "not_worth_keeping"]
 AcceptedBy = Literal["person", "auto"]
 
@@ -173,11 +173,9 @@ class ProposalReject(BaseModel):
     reason: RejectReason = Field(description="Why it is rejected.")
 
 
-class DecisionLogCreate(BaseModel):
+class Decision(BaseModel):
     """One question asked of the decider, with its answer and what code did with it (rule 7)."""
 
-    run_id: UUID = Field(description="The run that asked; the proposal it produced stores it too.")
-    message_id: UUID | None = Field(default=None, description="The message the run handled.")
     step: str = Field(description="The step that asked: route, descent, page_check, pdf_check, organize.")
     question_type: Literal["noul", "choice"] = Field(description="The kind of question.")
     options: list[str] = Field(description="A Choice's options in order; a Noul's question.")
@@ -186,6 +184,13 @@ class DecisionLogCreate(BaseModel):
     action: str = Field(description="What code did with the answer.")
     latency_ms: int = Field(description="How long the call took.")
     cached: bool = Field(default=False, description="Answered from the cache, without a call.")
+
+
+class DecisionLogCreate(Decision):
+    """A decision as logged, with the run that asked it."""
+
+    run_id: UUID = Field(description="The run that asked; the proposal it produced stores it too.")
+    message_id: UUID | None = Field(default=None, description="The message the run handled.")
 
 
 class DecisionLogRead(DecisionLogCreate):

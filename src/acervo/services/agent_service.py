@@ -4,26 +4,11 @@ import secrets
 from datetime import UTC, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
 from acervo.core.errors import AuthError, ConflictError, ValidationError
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.agent import AgentCreate, AgentMode, AgentRead, AgentUpdate
+from acervo.schemas.agent import AgentConnected, AgentCreate, AgentEdit, AgentRead, AgentUpdate
 
 TOKEN_PREFIX = "acv_"
-
-
-class AgentEdit(BaseModel):
-    """What the person changes on an agent; omitted fields keep their value."""
-
-    name: str | None = Field(default=None, min_length=1, description="New name.")
-    mode: AgentMode | None = Field(default=None, description="ask: its proposals wait; auto: applied when created.")
-
-
-class AgentConnected(AgentRead):
-    """A new agent with its token, shown this once: only its hash is kept."""
-
-    token: str = Field(description="Sent as `Authorization: Bearer <token>`; it sees only this agent's base.")
 
 
 def _name(name: str) -> str:

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from acervo.domain.cards import Route
+from acervo.domain.cards import Reading, Route
 from acervo.schemas.proposal import StagedFile
 
 MessageRole = Literal["person", "acervo"]
@@ -68,7 +68,7 @@ class MessageUpdate(BaseModel):
     text: str | None = Field(default=None, description="The reply's text.")
     status: MessageStatus | None = Field(default=None, description="New status.")
     understood_as: Route | None = Field(default=None, description="How the message was understood.")
-    ask: list[Route] | None = Field(default=None, description="The two readings the person picks between.")
+    ask: list[Reading] | None = Field(default=None, description="The readings the person picks between.")
     run_id: UUID | None = Field(default=None, description="The run that handles it.")
     error: str | None = Field(default=None, description="Why it failed.")
 
@@ -82,8 +82,30 @@ class MessageRead(MessageCreate):
     understood_as: Route | None = Field(
         description="How the message was understood, shown with a one-click change; null until it is."
     )
-    ask: list[Route] | None = Field(
-        default=None, description="A reply that asks first: the two readings, likeliest first; null otherwise."
+    ask: list[Reading] | None = Field(
+        default=None,
+        description="A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an "
+        "organizar is, likeliest first; null otherwise.",
     )
     error: str | None = Field(description="Why it failed; null unless status is failed.")
     created_at: datetime = Field(description="When it was sent.")
+
+
+class ConversationStart(BaseModel):
+    """A conversation to start in a base."""
+
+    agent_id: UUID | None = Field(default=None, description="The agent it talks to; omitted for the built-in chat.")
+    title: str = Field(default="", description="Shown in the list of past conversations.")
+
+
+class MessagePosted(BaseModel):
+    """The person's message, stored, and Acervo's reply, working until its job ends."""
+
+    message: MessageRead
+    reply: MessageRead
+
+
+class Reroute(BaseModel):
+    """How a message is to be understood instead ("era uma pergunta")."""
+
+    route: Reading = Field(description="The understanding to redo the message with, or which change it asks.")

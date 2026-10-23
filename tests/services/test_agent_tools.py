@@ -13,7 +13,7 @@ from acervo.core.errors import NotFoundError
 from acervo.core.settings import Settings
 from acervo.db.models import PageVersion
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.agent import AgentCreate, AgentRead
+from acervo.schemas.agent import AgentCreate, AgentRead, AgentUpdate
 from acervo.schemas.proposal import MovePayload, PatchPayload, RenamePayload
 from acervo.services.agent_tools import MAX_PDF_PAGES, AgentTools
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
@@ -77,7 +77,7 @@ async def test_every_tool_sees_only_its_base(env: Env) -> None:
     for call in calls:
         with pytest.raises(NotFoundError):
             await call
-    assert await env.uow.proposals.pending(env.other.kb.id) == []
+    assert await env.uow.proposals.listed(env.other.kb.id) == []
 
 
 async def test_list_folder_gives_each_child_with_kind_and_description(env: Env) -> None:
@@ -182,3 +182,13 @@ async def test_remember_and_save_file_post_to_the_agents_conversation_and_answer
         ("handle_message", str(saved.reply_id), "guardar"),
     ]
     assert (await env.tools.get_reply(filed.reply_id)).status == "working"
+
+
+async def test_an_auto_write_refreshes_descriptions(env: Env) -> None:
+    await env.uow.agents.update(env.agent.id, AgentUpdate(mode="auto"))
+    await env.uow.commit()
+
+    moved = await env.tools.move(env.tree["Bradesco/Residencial"].id, env.tree["Arquivo"].id)
+
+    assert moved.status == "applied"
+    assert env.jobs.jobs == [("refresh_descriptions", {"node_ids": [str(env.tree["Arquivo"].id)]})]

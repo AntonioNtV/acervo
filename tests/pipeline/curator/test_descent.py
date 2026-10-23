@@ -3,7 +3,7 @@ from typing import Any
 
 from acervo.domain.decisions import Choice
 from acervo.model_clients.fakes import FakeDecider
-from acervo.pipeline.curator.descent import MAX_DEPTH, descend
+from acervo.pipeline.curator.descent import MAX_DEPTH, descend, placement
 from acervo.pipeline.curator.options import RECENT, pdf_options, text_options
 
 Make = Callable[[Any], Any]
@@ -20,7 +20,7 @@ async def test_the_beam_keeps_two_paths(make_snapshot: Make, fake_decider: FakeD
         "descent:": {"Bradesco (pasta)": 0.5, "Itaú (pasta)": 0.3, "Porto (pasta)": 0.2},
         "descent:Bradesco": {"Auto (pasta)": 0.9, "Residencial (pasta)": 0.1},
         "descent:Itaú": {"Residencial (pasta)": 1.0},
-        "descent:Bradesco/Auto": {"ficar neste nível": 1.0},
+        "descent:Bradesco/Auto": {"nova página aqui": 1.0},
         "descent:Itaú/Residencial": {"Coberturas (página)": 1.0},
     }
 
@@ -33,7 +33,7 @@ async def test_the_beam_keeps_two_paths(make_snapshot: Make, fake_decider: FakeD
         ["descent:Bradesco/Auto", "descent:Itaú/Residencial"],
     ]
     first, second = descent.ranked[:2]
-    assert (first.node, first.landing, first.probability) == (snap["Bradesco/Auto"], "here", 0.45)
+    assert (first.node, first.landing, first.probability) == (snap["Bradesco/Auto"], "new_page", 0.45)
     assert (second.node, second.landing) == (snap["Itaú/Residencial/Coberturas.md"], "node")
     assert second.probability == 0.3
 
@@ -74,7 +74,7 @@ async def test_it_stops_at_depth_six(make_snapshot: Make, fake_decider: FakeDeci
     for name in reversed(names):
         spec = {name: spec}
     snap = make_snapshot(spec)
-    fake_decider.table = {f"descent:{'/'.join(names[:i])}": [1.0, 0, 0] for i in range(len(names))}
+    fake_decider.table = {f"descent:{'/'.join(names[:i])}": [1.0, 0] for i in range(len(names))}
 
     descent = await descend("Fundo", snap.tree, fake_decider, text_options, "descent", "Onde?")
 
@@ -92,5 +92,40 @@ async def test_past_255_children_the_recent_60_and_none_of_these(
 
     options = fake_decider.calls[1][1][0].options
     assert options[:RECENT] == tuple(f"Apólice {n:03d} (página)" for n in range(299, 299 - RECENT, -1))
-    assert options[RECENT:] == ("ficar neste nível", "nova página aqui", "nenhuma destas")
+    assert options[RECENT:] == ("nova página aqui", "nenhuma destas")
     assert descent.ranked[0].landing == "none"
+
+
+async def test_text_descends_into_a_page_with_children(make_snapshot: Make, fake_decider: FakeDecider) -> None:
+    snap = make_snapshot({"Bradesco": {"Auto.md": ["Franquias.md"]}})
+    fake_decider.table = {
+        "descent:": {"Bradesco (pasta)": 1.0},
+        "descent:Bradesco": {"Auto (página)": 1.0},
+        "descent:Bradesco/Auto": {"ficar neste nível": 1.0},
+    }
+
+    descent = await descend("Auto cobre vidros", snap.tree, fake_decider, text_options, "descent", "Onde?")
+
+    # A page with children is gone into; there, staying is writing to that page. At a folder, staying is a new page.
+    assert [choice.options for _, [choice] in fake_decider.calls] == [
+        ("Bradesco (pasta)", "nova página aqui"),
+        ("Auto (página)", "nova página aqui"),
+        ("Franquias (página)", "ficar neste nível", "nova página aqui"),
+    ]
+    assert (descent.ranked[0].node, descent.ranked[0].landing) == (snap["Bradesco/Auto.md"], "node")
+
+
+async def test_a_pdf_is_saved_under_a_page(make_snapshot: Make, fake_decider: FakeDecider) -> None:
+    snap = make_snapshot({"Bradesco": {"Auto.md": ["Franquias.md"], "Residencial": []}})
+    fake_decider.table = {
+        "descent:": {"Bradesco (pasta)": 1.0},
+        "descent:Bradesco": {"Auto (página)": 1.0},
+        "descent:Bradesco/Auto": {"Franquias (página)": 1.0},
+    }
+
+    descent = await descend("Tabela de franquias", snap.tree, fake_decider, pdf_options, "descent", "Onde?")
+
+    assert fake_decider.calls[1][1][0].options == ("Auto (página)", "Residencial (pasta)", "salvar aqui")
+    # A page with no children stops the descent; the PDF goes under it, as a file.
+    assert (descent.ranked[0].node, descent.ranked[0].landing) == (snap["Bradesco/Auto.md/Franquias.md"], "here")
+    assert placement(snap.tree, descent.ranked[0]).landing == "here"

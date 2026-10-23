@@ -7,15 +7,16 @@ from fastapi.sse import EventSourceResponse
 
 from acervo.api.deps import get_conversation_service, require_api_key
 from acervo.schemas.common import ErrorResponse
-from acervo.schemas.conversation import ConversationRead, MessageContext, MessageRead
-from acervo.schemas.events import ChatEvent
-from acervo.services.conversation_service import (
-    ConversationService,
+from acervo.schemas.conversation import (
+    ConversationRead,
     ConversationStart,
+    MessageContext,
     MessagePosted,
+    MessageRead,
     Reroute,
-    Upload,
 )
+from acervo.schemas.events import ChatEvent
+from acervo.services.conversation_service import ConversationService, Upload
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 

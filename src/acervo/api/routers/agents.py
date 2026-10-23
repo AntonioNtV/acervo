@@ -4,9 +4,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from acervo.api.deps import get_agent_service, require_api_key
-from acervo.schemas.agent import AgentCreate, AgentRead
+from acervo.schemas.agent import AgentConnected, AgentCreate, AgentEdit, AgentRead
 from acervo.schemas.common import ErrorResponse
-from acervo.services.agent_service import AgentConnected, AgentEdit, AgentService
+from acervo.services.agent_service import AgentService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 

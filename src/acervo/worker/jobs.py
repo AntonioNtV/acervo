@@ -3,7 +3,7 @@
 from typing import Any
 from uuid import UUID
 
-from acervo.domain.cards import Route
+from acervo.domain.cards import Reading
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.chat_service import ChatService
 
@@ -20,7 +20,7 @@ def _chat(ctx: dict[str, Any], uow: UnitOfWork) -> ChatService:
     )
 
 
-async def handle_message(ctx: dict[str, Any], message_id: str, reply_id: str, route: Route | None = None) -> None:
+async def handle_message(ctx: dict[str, Any], message_id: str, reply_id: str, route: Reading | None = None) -> None:
     async with UnitOfWork(ctx["session_factory"]) as uow:
         await _chat(ctx, uow).handle(UUID(message_id), UUID(reply_id), route)
 

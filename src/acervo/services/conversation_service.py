@@ -7,19 +7,19 @@ from datetime import UTC, datetime
 from typing import BinaryIO
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
 from acervo.core.errors import ConflictError, NotFoundError, ValidationError
-from acervo.domain.cards import Route
+from acervo.domain.cards import Reading, Route
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
 from acervo.schemas.conversation import (
     Attachment,
     ConversationCreate,
     ConversationRead,
+    ConversationStart,
     ConversationUpdate,
     MessageContext,
     MessageCreate,
+    MessagePosted,
     MessageRead,
 )
 from acervo.schemas.events import ChatEvent, MessageEvent
@@ -38,31 +38,6 @@ class Upload:
     name: str | None
     mime: str | None
     source: BinaryIO
-
-
-class ConversationStart(BaseModel):
-    """A conversation to start in a base."""
-
-    agent_id: UUID | None = Field(default=None, description="The agent it talks to; omitted for the built-in chat.")
-    title: str = Field(default="", description="Shown in the list of past conversations.")
-
-
-class MessagePosted(BaseModel):
-    """The person's message, stored, and Acervo's reply, working until its job ends."""
-
-    message: MessageRead
-    reply: MessageRead
-
-
-class Reroute(BaseModel):
-    """How a message is to be understood instead ("era uma pergunta")."""
-
-    route: Route = Field(description="The understanding to redo the message with.")
-
-
-def staged_key(kb_id: UUID, sha256: str) -> str:
-    """Outside the keys of the base's files, so discarding a staged file never touches one saved in the base."""
-    return f"staged/{kb_id}/{sha256}"
 
 
 class ConversationService:
@@ -121,7 +96,7 @@ class ConversationService:
         await self._run(conversation.id, message, reply, route, (message, reply))
         return MessagePosted(message=message, reply=reply)
 
-    async def reroute(self, reply_id: UUID, route: Route) -> MessageRead:
+    async def reroute(self, reply_id: UUID, route: Reading) -> MessageRead:
         """A new reply that redoes the message as `route`; the job drops what the replaced reply produced."""
         replaced = await self._uow.messages.get(reply_id)
         if replaced.role != "acervo" or replaced.status == "working":
@@ -137,6 +112,13 @@ class ConversationService:
         await self._run(replaced.conversation_id, message, reply, route, (reply,))
         return reply
 
+    async def redo(self, proposal_id: UUID) -> MessageRead:
+        """A stale proposal's message filed again into a new reply; the job drops the stale one, as a reroute does."""
+        proposal = await self._uow.proposals.get(proposal_id)
+        if proposal.status != "stale" or proposal.message_id is None:
+            raise ConflictError("só uma proposta desatualizada do chat pode ser refeita", {"id": str(proposal_id)})
+        return await self.reroute(proposal.message_id, "guardar")
+
     async def events(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
         await self._uow.conversations.get(conversation_id)
         # A stream may stay open for hours: it must not hold a database connection meanwhile.
@@ -148,7 +130,7 @@ class ConversationService:
         conversation_id: UUID,
         message: MessageRead,
         reply: MessageRead,
-        route: Route | None,
+        route: Reading | None,
         new: Sequence[MessageRead],
     ) -> None:
         await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id), route=route)
@@ -169,7 +151,8 @@ class ConversationService:
         if not upload.name:
             raise ValidationError("o arquivo não tem nome")
         sha256, size, _ = await asyncio.to_thread(read_hash, upload.source)
-        key = staged_key(kb_id, sha256)
+        # Outside the keys of the base's files, so discarding a staged file never touches one saved in the base.
+        key = f"staged/{kb_id}/{sha256}"
         await self._storage.put(key, upload.source, size)
         mime = upload.mime or mimetypes.guess_type(upload.name)[0] or "application/octet-stream"
         return Attachment(storage_key=key, sha256=sha256, size=size, name=upload.name, mime=mime)

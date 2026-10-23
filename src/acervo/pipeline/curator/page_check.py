@@ -4,11 +4,13 @@ from dataclasses import dataclass, field
 
 from acervo.core.settings import Thresholds
 from acervo.domain.decisions import Choice, Noul, Question
+from acervo.domain.patch import span
 from acervo.domain.sections import sections
 from acervo.model_clients.decider import Decider
-from acervo.pipeline.curator.log import Decision, best, record
+from acervo.pipeline.curator.log import best, record
 from acervo.pipeline.curator.options import MAX_OPTIONS
 from acervo.pipeline.curator.tree import PageText
+from acervo.schemas.proposal import Decision
 
 STEP = "page_check"
 NO_LINE = "nenhuma linha"
@@ -25,6 +27,16 @@ class PageSection:
     def markdown(self) -> str:
         return "\n".join([f"## {self.heading}", *self.lines] if self.heading else self.lines)
 
+    @property
+    def body(self) -> str:
+        """The lines under the heading, without the blank ones around them: what a conflict with no line replaces."""
+        lines = list(self.lines)
+        while lines and not lines[-1].strip():
+            lines.pop()
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        return "\n".join(lines)
+
 
 @dataclass
 class PageCheck:
@@ -37,17 +49,12 @@ class PageCheck:
 
 def split(markdown: str) -> list[PageSection]:
     """The page cut at its ## headings, the text before the first one included."""
-    headings = iter(sections(markdown))
-    parts = [PageSection("", "")]
-    in_code = False
-    for line in markdown.splitlines():
-        if line.startswith(("```", "~~~")):
-            in_code = not in_code
-        if not in_code and sections(line):
-            heading = next(headings)
-            parts.append(PageSection(heading.anchor, heading.heading))
-        else:
-            parts[-1].lines.append(line)
+    lines = markdown.splitlines()
+    start, end = span(lines, "")
+    parts = [PageSection("", "", lines[start:end])]
+    for found in sections(markdown):
+        start, end = span(lines, found.anchor)
+        parts.append(PageSection(found.anchor, found.heading, lines[start + 1 : end]))
     return parts
 
 

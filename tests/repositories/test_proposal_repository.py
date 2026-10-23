@@ -59,7 +59,7 @@ async def test_pending_proposals_of_a_base_newest_first_with_agent_and_conversat
     foreign_chat = await agents.create(AgentCreate(name="Chat do Acervo"), kb_id=other.kb.id, built_in=True)
     await proposals.create(ProposalCreate(kb_id=other.kb.id, agent_id=foreign_chat.id, payload=move))
 
-    pending = await proposals.pending(tree.kb.id)
+    pending = await proposals.listed(tree.kb.id)
 
     assert [(p.id, p.kind, p.agent_name, p.conversation_title) for p in pending] == [
         (pdf.id, "save_pdf", "Claude", None),

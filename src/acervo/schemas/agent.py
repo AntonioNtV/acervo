@@ -40,3 +40,16 @@ class AgentRead(BaseModel):
     last_used_at: datetime | None = Field(description="When its token was last accepted; null if never.")
     revoked_at: datetime | None = Field(description="When its token stopped working; null while it works.")
     created_at: datetime = Field(description="When it was connected.")
+
+
+class AgentEdit(BaseModel):
+    """What the person changes on an agent; omitted fields keep their value."""
+
+    name: str | None = Field(default=None, min_length=1, description="New name.")
+    mode: AgentMode | None = Field(default=None, description="ask: its proposals wait; auto: applied when created.")
+
+
+class AgentConnected(AgentRead):
+    """A new agent with its token, shown this once: only its hash is kept."""
+
+    token: str = Field(description="Sent as `Authorization: Bearer <token>`; it sees only this agent's base.")

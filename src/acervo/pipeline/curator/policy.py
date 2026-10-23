@@ -6,18 +6,19 @@ from pydantic import BaseModel
 
 from acervo.core.settings import Thresholds
 from acervo.domain.cards import Card, CardInput, Placement
+from acervo.domain.decisions import Noul
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.pipeline.curator import build
 from acervo.pipeline.curator.descent import Descent, Path, descend, placements
-from acervo.pipeline.curator.log import Decision
-from acervo.pipeline.curator.options import pdf_options, text_options
+from acervo.pipeline.curator.log import record
+from acervo.pipeline.curator.options import label, pdf_options, text_options
 from acervo.pipeline.curator.page_check import check_page
-from acervo.pipeline.curator.pdf_check import replaced_pdf
-from acervo.pipeline.curator.tree import ReadPage, TreeSnapshot
-from acervo.schemas.proposal import ProposalPayload
+from acervo.pipeline.curator.tree import ReadPage, SnapshotNode, TreeSnapshot
+from acervo.schemas.proposal import Decision, ProposalPayload
 
 STEP = "descent"
+PDF_STEP = "pdf_check"
 
 
 class Propose(BaseModel):
@@ -41,6 +42,8 @@ class NotSure(BaseModel):
     """No place is likely enough: the person chooses among the top 3; the input waits in "Sem lugar definido"."""
 
     options: list[Placement]
+    # For a filing, what waits there, under the likeliest place; None for an organize.
+    payload: ProposalPayload | None = None
 
 
 Filed = Propose | AlreadyWritten | NotSure
@@ -52,6 +55,11 @@ def card_state(card: Card) -> str:
     if card.entities:
         lines.append(f"Menciona: {', '.join(card.entities)}")
     return "\n".join(lines)
+
+
+def _likeliest(tree: TreeSnapshot, options: list[Placement]) -> SnapshotNode | None:
+    first = options[0] if options else None
+    return tree.node(first.node_id) if first and first.node_id else None
 
 
 def place(
@@ -71,6 +79,35 @@ def place(
     return first, (placements(tree, descent.ranked[1:2]) or None) if second else None
 
 
+async def replaced_pdf(
+    state: str,
+    tree: TreeSnapshot,
+    folder: SnapshotNode | None,
+    decider: Decider,
+    thresholds: Thresholds,
+    log: list[Decision],
+) -> SnapshotNode | None:
+    """The PDF of the folder or page reached that the new one is a new version of, or None; one Noul per PDF there,
+    all in one call."""
+    pdfs = {
+        f"new_version:{tree.path(node)}": node
+        for node in tree.children(folder)
+        if node.kind == "file" and node.title.lower().endswith(".pdf")
+    }
+    if not pdfs:
+        return None
+    answers = await decider.ask(
+        state,
+        [Noul(id=id, question=f"O PDF recebido é uma nova versão de {label(node)}?") for id, node in pdfs.items()],
+    )
+    likely = max(pdfs, key=lambda id: answers.p_yes(id))
+    replaced = pdfs[likely] if answers.p_yes(likely) > thresholds.pdf_new_version else None
+    for id in pdfs:
+        action = "replace_pdf" if replaced is pdfs[id] else "not_a_version"
+        log.append(record(answers, id, PDF_STEP, action, thresholds.pdf_new_version))
+    return replaced
+
+
 async def file_text(
     source: CardInput,
     tree: TreeSnapshot,
@@ -85,7 +122,8 @@ async def file_text(
     descent = await descend(state, tree, decider, text_options, STEP, "Onde guardar esta informação?")
     placed = place(tree, descent, thresholds, log)
     if isinstance(placed, NotSure):
-        return placed
+        unplaced = await build.create_page(writer, card, tree, _likeliest(tree, placed.options))
+        return placed.model_copy(update={"payload": unplaced})
     path, alternatives = placed
     if path.landing != "node" or path.node is None:
         return Propose(payload=await build.create_page(writer, card, tree, path.node), alternatives=alternatives)
@@ -111,14 +149,15 @@ async def file_pdf(
     writer: Writer,
     thresholds: Thresholds,
     log: list[Decision],
-) -> Filed:
+) -> Propose | NotSure:
     """`source` holds the PDF's first pages and outline only, never the whole PDF."""
     card = await writer.card(source)
     state = card_state(card)
     descent = await descend(state, tree, decider, pdf_options, STEP, "Onde salvar este PDF?")
     placed = place(tree, descent, thresholds, log)
     if isinstance(placed, NotSure):
-        return placed
+        unplaced = build.save_pdf(tree, _likeliest(tree, placed.options), source.file_name or card.title)
+        return placed.model_copy(update={"payload": unplaced})
     path, alternatives = placed
     replaced = await replaced_pdf(state, tree, path.node, decider, thresholds, log)
     if replaced is not None:

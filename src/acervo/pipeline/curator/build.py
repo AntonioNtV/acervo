@@ -15,13 +15,18 @@ from acervo.schemas.proposal import (
 )
 
 
-async def patch(writer: Writer, card: Card, page: PageText, path: str, check: PageCheck) -> PatchPayload:
-    """An edit of the line about the same thing, or lines appended to the chosen section."""
-    action: Literal["append", "edit"] = "edit" if check.line else "append"
+async def _written(writer: Writer, card: Card, check: PageCheck, action: Literal["append", "edit"]) -> list[str]:
+    """The lines the LLM writes for the chosen section."""
     request = PatchRequest(
         section_markdown=check.section.markdown, heading=check.section.heading, action=action, card=card
     )
-    written = await writer.patch(request)
+    return (await writer.patch(request)).lines
+
+
+async def patch(writer: Writer, card: Card, page: PageText, path: str, check: PageCheck) -> PatchPayload:
+    """An edit of the line about the same thing, or lines appended to the chosen section."""
+    action: Literal["append", "edit"] = "edit" if check.line else "append"
+    lines = await _written(writer, card, check, action)
     return PatchPayload(
         kind=action,
         page_id=page.page_id,
@@ -31,24 +36,21 @@ async def patch(writer: Writer, card: Card, page: PageText, path: str, check: Pa
         heading=check.section.heading,
         op="replace" if check.line else "append",
         line=check.line,
-        lines=written.lines,
+        lines=lines,
     )
 
 
 async def conflict(writer: Writer, card: Card, page: PageText, path: str, check: PageCheck) -> ConflictPayload:
     """What the page says now next to what the input says, written as the edit it would be."""
-    request = PatchRequest(
-        section_markdown=check.section.markdown, heading=check.section.heading, action="edit", card=card
-    )
-    written = await writer.patch(request)
+    lines = await _written(writer, card, check, "edit")
     return ConflictPayload(
         page_id=page.page_id,
         path=path,
         base_version_id=page.version_id,
         anchor=check.section.anchor,
         heading=check.section.heading,
-        current=check.line or check.section.markdown,
-        new="\n".join(written.lines),
+        current=check.line or check.section.body,
+        new="\n".join(lines),
     )
 
 

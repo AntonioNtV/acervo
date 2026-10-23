@@ -1,8 +1,7 @@
-import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 from uuid import UUID
 
 from acervo.core.errors import AcervoError, ConflictError, NotFoundError, ValidationError
@@ -28,12 +27,30 @@ from acervo.schemas.proposal import (
     StagedFile,
     UndoPayload,
 )
+from acervo.services.events import JobQueue
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
 OPEN = ("pending", "stale")
+REFRESH_DESCRIPTIONS = "refresh_descriptions"
+
+
+def changed_parent(payload: ProposalPayload) -> UUID | None:
+    """The folder or page that got, lost or renamed a child, whose description follows its children."""
+    match payload:
+        case CreatePagePayload() | SavePdfPayload() | MovePayload():
+            return payload.parent_id
+        case _:
+            return None
+
+
+async def enqueue_refresh(jobs: JobQueue, proposal: ProposalRead) -> None:
+    """An applied proposal's changed parent describes its children again, in the worker."""
+    parent = changed_parent(proposal.edited_payload or proposal.payload)
+    if proposal.status == "applied" and parent is not None:
+        await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
 
 
 class ProposalService:
@@ -47,29 +64,45 @@ class ProposalService:
         self._files = FileService(uow, storage)
         self._storage = storage
 
-    async def pending(self, kb_id: UUID) -> list[ProposalSummary]:
-        """What waits for the person in the live base, from any conversation or agent, newest first."""
+    async def listed(
+        self,
+        kb_id: UUID,
+        status: Literal["pending", "applied"] = "pending",
+        accepted_by: AcceptedBy | None = None,
+        since: datetime | None = None,
+    ) -> list[ProposalSummary]:
+        """What waits for the person in the live base, newest first; or what was applied in it from `since` on,
+        most recent first, so an agent's automatic changes can be undone."""
         await self._uow.kbs.get_in(kb_id)
-        return await self._uow.proposals.pending(kb_id)
+        return await self._uow.proposals.listed(kb_id, status, accepted_by, since)
 
     async def get(self, id: UUID) -> ProposalRead:
         return await self._uow.proposals.get(id)
 
     async def create(self, data: ProposalCreate, placed: bool = True) -> ProposalRead:
-        """Stores the proposal; applies it at once when its agent is in auto mode, it is not a conflict and it has a
-        clear place (`placed`). An auto apply that fails leaves it pending for the person."""
-        agent = await self._uow.agents.get(data.agent_id)
-        if agent.kb_id != data.kb_id:
-            raise ValidationError("o agente não é desta base", {"agent_id": str(agent.id)})
-        proposal = await self._uow.proposals.create(data)
+        """Stores the proposal, then `auto_accept`s it. An auto apply that fails leaves it pending for the person."""
+        proposal = await self.add(data)
         await self._uow.commit()
-        if agent.mode != "auto" or proposal.kind == "conflict" or not placed:
-            return proposal
         try:
-            return await self.accept(proposal.id, "auto")
+            return await self.auto_accept(proposal, placed)
         except AcervoError:
             await self._uow.rollback()
             return await self._uow.proposals.get(proposal.id)
+
+    async def add(self, data: ProposalCreate) -> ProposalRead:
+        """Stores the proposal pending, in the caller's transaction."""
+        agent = await self._uow.agents.get(data.agent_id)
+        if agent.kb_id != data.kb_id:
+            raise ValidationError("o agente não é desta base", {"agent_id": str(agent.id)})
+        return await self._uow.proposals.create(data)
+
+    async def auto_accept(self, proposal: ProposalRead, placed: bool = True) -> ProposalRead:
+        """Applies a stored proposal when its agent is in auto mode, it is not a conflict and it has a clear place
+        (`placed`); otherwise it stays pending. A failing apply raises, and the caller rolls back."""
+        agent = await self._uow.agents.get(proposal.agent_id)
+        if agent.mode != "auto" or proposal.kind == "conflict" or not placed:
+            return proposal
+        return await self.accept(proposal.id, "auto")
 
     async def accept(self, id: UUID, by: AcceptedBy = "person") -> ProposalRead:
         """Applies the proposal, its edited version if any, in one transaction. Accepting an applied one changes
@@ -255,11 +288,9 @@ class ProposalService:
 
     @asynccontextmanager
     async def _download(self, staged: StagedFile | None) -> AsyncIterator[BinaryIO]:
-        """The staged bytes in a local temporary file, so the file service reads them as it reads an upload."""
+        """The staged bytes from a local file, so the file service reads them as it reads an upload."""
         if staged is None:
             raise ValidationError("a proposta não tem arquivo", {})
-        with tempfile.TemporaryFile() as target:
-            async for chunk in self._storage.stream(staged.storage_key):
-                target.write(chunk)
-            target.seek(0)
-            yield target
+        async with self._storage.download(staged.storage_key) as path:
+            with path.open("rb") as source:
+                yield source

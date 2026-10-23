@@ -33,7 +33,7 @@ def apply(markdown: str, patch: Patch, origin: str) -> str:
     text given, so applying to the newest text is the rebase: a section that moved is still found, one that is gone
     raises `Stale`."""
     lines = markdown.splitlines()
-    start, end = _span(lines, patch.anchor)
+    start, end = span(lines, patch.anchor)
     added = [_marked(line, origin) for line in patch.lines]
     if patch.op == "append":
         while end > start + 1 and not lines[end - 1].strip():
@@ -44,10 +44,12 @@ def apply(markdown: str, patch: Patch, origin: str) -> str:
         added = ([""] if at and lines[at - 1].strip() else []) + added + ([""] if at < len(lines) else [])
     else:
         wanted = (patch.line or "").splitlines()
-        found = _find(lines[start:end], wanted)
+        # Below the heading: a replace or an insert never touches it, so the section keeps its anchor.
+        body = start + 1 if patch.anchor else start
+        found = _find(lines[body:end], wanted)
         if found is None:
             raise Stale(f"line not in section {patch.anchor!r}")
-        first, after = start + found, start + found + len(wanted)
+        first, after = body + found, body + found + len(wanted)
         at, cut = (after, after) if patch.op == "insert_after" else (first, after)
     text = "\n".join(lines[:at] + added + lines[cut:])
     return text + "\n" if text else text
@@ -60,8 +62,9 @@ def _marked(line: str, origin: str) -> str:
     return f"{line} {origin}"
 
 
-def _span(lines: list[str], anchor: str) -> tuple[int, int]:
-    """The section's first line and the line after its last; "" is the text before the first `##`."""
+def span(lines: list[str], anchor: str) -> tuple[int, int]:
+    """The section's first line (its heading's) and the line after its last; "" is the text before the first `##`,
+    which has no heading. `Stale` when the page has no such section."""
     starts: list[int] = []
     in_code = False
     for index, line in enumerate(lines):

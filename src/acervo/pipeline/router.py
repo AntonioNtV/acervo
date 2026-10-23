@@ -7,7 +7,8 @@ from acervo.domain.cards import ROUTES, Route
 from acervo.domain.decisions import Answers, Choice, Noul, Question
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
-from acervo.pipeline.curator.log import Decision, record
+from acervo.pipeline.curator.log import record
+from acervo.schemas.proposal import Decision
 
 STEP = "route"
 _MEANING: dict[Route, str] = {

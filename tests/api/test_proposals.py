@@ -1,16 +1,23 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import httpx
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from acervo.db.models import Agent
+from acervo.core.settings import Settings, Thresholds
+from acervo.db.models import Agent, Message, Proposal
+from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.proposal import ProposalRepository
-from acervo.schemas.proposal import CreatePagePayload, ProposalCreate
-from acervo.services.events import RecordingJobQueue
+from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.proposal import CreatePagePayload, ProposalCreate, ProposalUpdate
+from acervo.services.chat_service import ChatService
+from acervo.services.events import InMemoryEventBus, RecordingJobQueue
+from acervo.services.proposal_service import ProposalService
+from acervo.services.storage import Storage
 
 
 @pytest.fixture(autouse=True)
@@ -78,3 +85,80 @@ async def test_reject_without_a_reason_is_422(client: httpx.AsyncClient, session
     assert (rejected.json()["status"], rejected.json()["reject_reason"]) == ("rejected", "already_there")
     assert (await client.get(f"/v1/proposals/{proposal_id}")).json()["status"] == "rejected"
     assert await _children(client, kb_id) == []
+
+
+async def test_auto_applied_proposals_are_listed_with_their_agent(
+    client: httpx.AsyncClient,
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    test_settings: Settings,
+) -> None:
+    kb_id, by_person = await _proposal(client, session)
+    agent = (await client.post(f"/v1/kbs/{kb_id}/agents", json={"name": "Claude", "mode": "auto"})).json()
+    async with UnitOfWork(session_factory) as uow:
+        service = ProposalService(uow, Storage(test_settings))
+        old, new = [
+            await service.create(
+                ProposalCreate(
+                    kb_id=UUID(kb_id),
+                    agent_id=agent["id"],
+                    payload=CreatePagePayload(parent_id=None, parent_path="", title=title, markdown=f"# {title}\n"),
+                )
+            )
+            for title in ("Antiga", "Vistoria")
+        ]
+    await session.execute(
+        update(Proposal).where(Proposal.id == old.id).values(applied_at=datetime.now(UTC) - timedelta(days=8))
+    )
+    assert (await client.post(f"/v1/proposals/{by_person}/accept")).status_code == 200
+
+    auto = (await client.get(f"/v1/kbs/{kb_id}/proposals", params={"status": "applied", "accepted_by": "auto"})).json()
+    applied = (await client.get(f"/v1/kbs/{kb_id}/proposals", params={"status": "applied"})).json()
+
+    assert [(p["id"], p["agent_name"], p["accepted_by"]) for p in auto] == [(str(new.id), "Claude", "auto")]
+    assert [p["id"] for p in applied] == [by_person, str(new.id)]
+    undone = await client.post(f"/v1/proposals/{new.id}/undo")
+    assert (undone.status_code, undone.json()["status"]) == (201, "applied"), undone.text
+
+
+async def test_redo_a_stale_proposal(
+    app: FastAPI, client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue, fake_decider: FakeDecider
+) -> None:
+    app.state.event_bus = InMemoryEventBus()
+    kb_id: str = (await client.post("/v1/kbs", json={"name": "Seguros · Operação"})).json()["id"]
+    conversation = (await client.post(f"/v1/kbs/{kb_id}/conversations", json={})).json()
+    posted = await client.post(f"/v1/conversations/{conversation['id']}/messages", data={"text": "Prazo: 5 dias."})
+    message, reply = posted.json()["message"], posted.json()["reply"]
+    await session.execute(update(Message).where(Message.id == UUID(reply["id"])).values(status="done"))
+    payload = CreatePagePayload(parent_id=None, parent_path="", title="Prazos", markdown="# Prazos\n")
+    proposals = ProposalRepository(session)
+    stale, pending = [
+        await proposals.create(
+            ProposalCreate(
+                kb_id=UUID(kb_id),
+                agent_id=UUID(conversation["agent_id"]),
+                conversation_id=UUID(conversation["id"]),
+                message_id=UUID(reply["id"]),
+                payload=payload,
+            )
+        )
+        for _ in range(2)
+    ]
+    await proposals.update(stale.id, ProposalUpdate(status="stale"))
+    await session.flush()
+
+    refused = await client.post(f"/v1/proposals/{pending.id}/redo")
+    redone = await client.post(f"/v1/proposals/{stale.id}/redo")
+
+    assert refused.status_code == 409, refused.text
+    assert redone.status_code == 201, redone.text
+    assert (redone.json()["replaces_id"], redone.json()["status"]) == (reply["id"], "working")
+    job = ("handle_message", {"message_id": message["id"], "reply_id": redone.json()["id"], "route": "guardar"})
+    assert jobs.jobs[-1] == job
+    fake_decider.table = {"descent:": {"nova página aqui": 1.0}}
+    async with UnitOfWork(app.state.session_factory) as uow:
+        chat = ChatService(uow, app.state.storage, fake_decider, FakeWriter(), Thresholds(), app.state.event_bus, jobs)
+        filed = await chat.handle(UUID(message["id"]), UUID(redone.json()["id"]), "guardar")
+    assert [p.kind for p in await ProposalRepository(session).of_message(filed.id)] == ["create_page"]
+    dropped = (await client.get(f"/v1/proposals/{stale.id}")).json()
+    assert (dropped["status"], dropped["reject_reason"]) == ("rejected", None)

@@ -31,7 +31,7 @@ from acervo.model_clients.decider import Decider
 from acervo.model_clients.factory import build_decider, build_writer
 from acervo.model_clients.writer import Writer
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.conversation import MessageRead
+from acervo.schemas.conversation import ConversationStart, MessageRead
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
 from acervo.schemas.proposal import (
@@ -49,7 +49,7 @@ from acervo.schemas.proposal import (
 )
 from acervo.services.base_service import BaseService
 from acervo.services.chat_service import ASK_FIRST, KIND, ChatService
-from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
+from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.file_service import FileService
 from acervo.services.proposal_service import ProposalService

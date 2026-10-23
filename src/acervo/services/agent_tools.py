@@ -6,21 +6,20 @@ import base64
 import binascii
 import io
 import mimetypes
-import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from pathlib import Path
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.errors import NotFoundError, ValidationError
+from acervo.domain.patch import span
 from acervo.domain.sections import sections
 from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
-from acervo.schemas.conversation import MessageRead, MessageStatus
+from acervo.schemas.conversation import ConversationStart, MessageRead, MessageStatus
 from acervo.schemas.node import NodeKind, NodeRead
 from acervo.schemas.page import Section
 from acervo.schemas.proposal import (
@@ -32,10 +31,10 @@ from acervo.schemas.proposal import (
     RenamePayload,
 )
 from acervo.services.agent_service import AgentService
-from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
+from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
-from acervo.services.proposal_service import ProposalService
+from acervo.services.proposal_service import ProposalService, enqueue_refresh
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -130,6 +129,7 @@ class AgentTools:
     ) -> None:
         self._uow = uow
         self._storage = storage
+        self._jobs = jobs
         self._agent = agent
         self._wait_seconds = wait_seconds
         self._pages = PageService(uow)
@@ -180,11 +180,7 @@ class AgentTools:
         path = await self._uow.nodes.path(node.id)
         # The bytes come from the bucket; the database is not held meanwhile.
         await self._uow.rollback()
-        with tempfile.TemporaryDirectory() as directory:
-            local = Path(directory) / "file.pdf"
-            with local.open("wb") as target:
-                async for chunk in self._storage.stream(content.storage_key):
-                    target.write(chunk)
+        async with self._storage.download(content.storage_key) as local:
             texts, page_count = await asyncio.to_thread(
                 reader.page_text, local, first, first + min(last - first, MAX_PDF_PAGES - 1)
             )
@@ -266,9 +262,11 @@ class AgentTools:
         return node
 
     async def _propose(self, payload: ProposalPayload) -> ProposalRead:
-        return await self._proposals.create(
+        proposal = await self._proposals.create(
             ProposalCreate(kb_id=self._agent.kb_id, agent_id=self._agent.id, payload=payload)
         )
+        await enqueue_refresh(self._jobs, proposal)
+        return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:
         """Posted to the agent's latest conversation, or a new one; its job runs as a chat message's does."""
@@ -312,17 +310,8 @@ class AgentTools:
 
 def _section(markdown: str, wanted: str) -> tuple[Section, int, int]:
     """The section whose anchor or heading is `wanted`, with its heading's line and the line after its last."""
-    found = sections(markdown)
-    index = next((i for i, section in enumerate(found) if wanted in (section.anchor, section.heading)), None)
-    if index is None:
+    found = next((section for section in sections(markdown) if wanted in (section.anchor, section.heading)), None)
+    if found is None:
         raise NotFoundError(f"section {wanted!r} not in the page", {"section": wanted})
-    lines = markdown.splitlines()
-    starts: list[int] = []
-    in_code = False
-    for number, line in enumerate(lines):
-        if line.startswith(("```", "~~~")):
-            in_code = not in_code
-        elif not in_code and sections(line):
-            starts.append(number)
-    bounds = [*starts, len(lines)]
-    return Section(anchor=found[index].anchor, heading=found[index].heading), bounds[index], bounds[index + 1]
+    start, end = span(markdown.splitlines(), found.anchor)
+    return Section(anchor=found.anchor, heading=found.heading), start, end

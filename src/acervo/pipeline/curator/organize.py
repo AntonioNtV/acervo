@@ -6,16 +6,16 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from acervo.core.settings import Thresholds
+from acervo.domain.cards import ORGANIZE_KINDS, OrganizeKind
 from acervo.domain.decisions import Choice
 from acervo.model_clients.decider import Decider
 from acervo.pipeline.curator.descent import descend
-from acervo.pipeline.curator.log import Decision, best, record
+from acervo.pipeline.curator.log import record
 from acervo.pipeline.curator.options import Option, Options, label, level
 from acervo.pipeline.curator.policy import NotSure, Propose, place
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
-from acervo.schemas.proposal import MovePayload, RenamePayload, UndoPayload
+from acervo.schemas.proposal import Decision, MovePayload, RenamePayload, UndoPayload
 
-KINDS = ("move", "rename", "undo")
 KIND = Choice(
     id="organize",
     question="O que a pessoa pede para fazer na base?",
@@ -26,6 +26,7 @@ KIND = Choice(
     ),
 )
 THIS_FOLDER = Option("esta própria pasta", landing="here")
+THIS_PAGE = Option("esta própria página", landing="here")
 MOVE_HERE = Option("mover para cá", landing="here")
 # The new name is what follows the last "para", "pra" or "como": "renomeia a tabela para Tabela 2026".
 _NEW_TITLE = re.compile(r".*\s(?:para|pra|como)\s+(.+)$", re.IGNORECASE | re.DOTALL)
@@ -49,17 +50,26 @@ class NothingToUndo(BaseModel):
     """No applied proposal to undo."""
 
 
-Organized = Propose | NotSure | NeedsTitle | NothingToUndo
+class AskKind(BaseModel):
+    """Not clear which change is asked: the person picks one before anything is proposed."""
+
+    options: tuple[OrganizeKind, ...]
+
+
+Organized = Propose | NotSure | NeedsTitle | NothingToUndo | AskKind
 
 
 def target_options(tree: TreeSnapshot, at: SnapshotNode | None) -> list[Option]:
-    """Any child, a folder to go into; inside a folder, the folder itself comes first."""
+    """Any child, a folder or a page with children to go into; inside one, that folder or page comes first."""
 
     def child(node: SnapshotNode) -> Option:
-        return Option(label(node), node, None if node.kind == "folder" else "node")
+        container = node.kind == "folder" or bool(tree.children(node))
+        return Option(label(node), node, None if container else "node")
 
     options = level(tree, at, child, [])
-    return [THIS_FOLDER, *options] if at else options
+    if at is None:
+        return options
+    return [THIS_FOLDER if at.kind == "folder" else THIS_PAGE, *options]
 
 
 def _destination_options(target: SnapshotNode) -> Options:
@@ -85,10 +95,20 @@ async def organize(
     decider: Decider,
     thresholds: Thresholds,
     log: list[Decision],
+    kind: OrganizeKind | None = None,
 ) -> Organized:
-    answers = await decider.ask(message, [KIND])
-    kind = KINDS[best(answers, KIND.id)[0]]
-    log.append(record(answers, KIND.id, "organize", kind))
+    """`kind` is the change the person picked when asked; else it is decided, and below `organize_min` asked."""
+    if kind is None:
+        answers = await decider.ask(message, [KIND])
+        probs = answers.probs[KIND.id]
+        order = sorted(range(len(ORGANIZE_KINDS)), key=lambda i: (-probs[i], i))
+        ranked = tuple(ORGANIZE_KINDS[i] for i in order)
+        unsure = probs[order[0]] < thresholds.organize_min
+        action = f"ask {' or '.join(ranked)}" if unsure else ranked[0]
+        log.append(record(answers, KIND.id, "organize", action, thresholds.organize_min))
+        if unsure:
+            return AskKind(options=ranked)
+        kind = ranked[0]
     if kind == "undo":
         if last_applied is None:
             return NothingToUndo()

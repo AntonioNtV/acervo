@@ -232,7 +232,6 @@ export function ProposalCard({ proposal: given, agentName }: { proposal: AnyProp
             )}
           </>
         )}
-        {proposal.status === "accepted" && <Dot tone="run">{t("chat.status.applying")}</Dot>}
         {proposal.status === "stale" && <Dot tone="warn">{t("chat.status.stale")}</Dot>}
         {proposal.status === "rejected" && (
           <Dot>

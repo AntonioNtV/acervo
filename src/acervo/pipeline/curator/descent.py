@@ -7,9 +7,10 @@ from typing import Literal
 from acervo.domain.cards import Placement
 from acervo.domain.decisions import Choice
 from acervo.model_clients.decider import Decider
-from acervo.pipeline.curator.log import Decision, record
+from acervo.pipeline.curator.log import record
 from acervo.pipeline.curator.options import Landing, Options
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
+from acervo.schemas.proposal import Decision
 
 PlacementLanding = Literal["page", "here", "new_page", "new_folder"]
 
@@ -63,8 +64,7 @@ async def descend(
         candidates = [path for path in descent.ranked if path.landing is not None]
         for id, (path, opts) in levels.items():
             for option, probability in zip(opts, answers.probs[id], strict=True):
-                node = option.node if option.node and option.landing in (None, "node") else path.node
-                candidates.append(Path(node, path.probability * probability, option.landing))
+                candidates.append(Path(option.node or path.node, path.probability * probability, option.landing))
         descent.ranked = sorted(candidates, key=lambda path: -path.probability)
         kept = " | ".join(tree.path(path.node) or "raiz" for path in descent.ranked[:BEAM])
         descent.decisions += [record(answers, id, step, f"kept {kept}") for id in levels]

@@ -7,10 +7,11 @@ from acervo.core.settings import Settings
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate
+from acervo.schemas.conversation import ConversationStart
 from acervo.schemas.events import ChatEvent, DoneEvent
 from acervo.schemas.kb import KbCreate
 from acervo.services.chat_service import NOT_YET
-from acervo.services.conversation_service import ConversationService, ConversationStart
+from acervo.services.conversation_service import ConversationService
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.storage import Storage
 from acervo.worker.jobs import handle_message
