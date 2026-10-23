@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from acervo.domain.cards import Placement
 
 ProposalKind = Literal["append", "edit", "create_page", "conflict", "save_pdf", "replace_pdf", "move", "rename", "undo"]
-ProposalStatus = Literal["pending", "editing", "accepted", "applied", "rejected", "stale"]
+ProposalStatus = Literal["pending", "applied", "rejected", "stale"]
 RejectReason = Literal["wrong_place", "already_there", "wrong_info", "not_worth_keeping"]
 AcceptedBy = Literal["person", "auto"]
 
