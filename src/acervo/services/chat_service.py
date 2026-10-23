@@ -160,7 +160,7 @@ def _join(parent: str, name: str) -> str:
     return f"{parent}/{name}" if parent else name
 
 
-def _where(payload: ProposalPayload) -> str:
+def where(payload: ProposalPayload) -> str:
     match payload:
         case PatchPayload() | ConflictPayload():
             return f"{payload.path} › {payload.heading}" if payload.heading else payload.path
@@ -252,7 +252,7 @@ class ChatService:
                 settled, failed = await self._settle(proposal, placed)
                 chunks.append(_proposal_chunk(settled))
                 if failed is not None:
-                    notes.append(f"{KIND[settled.kind]}: {_where(settled.payload)} · não foi aplicada ({failed}).")
+                    notes.append(f"{KIND[settled.kind]}: {where(settled.payload)} · não foi aplicada ({failed}).")
             for note in notes:
                 chunks += text_chunks(note)
             text = "\n\n".join([text, *notes])
@@ -284,7 +284,7 @@ class ChatService:
                 continue
             proposal, failed = await self._settle(filing.proposal, filing.placed)
             chunks.append(_proposal_chunk(proposal))
-            what = f"{KIND[proposal.kind]}: {_where(proposal.edited_payload or proposal.payload)}"
+            what = f"{KIND[proposal.kind]}: {where(proposal.edited_payload or proposal.payload)}"
             if proposal.status == "applied":
                 lines.append(f"{what} · aplicada.")
             elif failed is not None:
@@ -437,7 +437,7 @@ class ChatService:
         proposed = Proposed(
             outcome="proposed" if filing.placed else "not_sure",
             kind=proposal.kind,
-            where=_where(proposal.payload),
+            where=where(proposal.payload),
             options=[] if filing.placed else [option.path or "raiz" for option in proposal.alternatives or []],
         )
         return with_data(proposed, _proposal_chunk(proposal))
