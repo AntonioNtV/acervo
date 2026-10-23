@@ -41,13 +41,14 @@ export function replaceFile(nodeId: string, file: File, onProgress?: OnProgress)
   return send<FileNode>(REPLACE.replace("{node_id}", encodeURIComponent(nodeId)), { file }, onProgress);
 }
 
-export function useUploadFile(kbId: string) {
+/** Each file into `parentId` on its own request, one promise per file; the tree refreshes once, after the last settles. */
+export function useUploadFiles(kbId: string) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ parentId, file, onProgress }: { parentId: string | null; file: File; onProgress?: OnProgress }) =>
-      uploadFile(kbId, parentId, file, onProgress),
-    onSuccess: () => refreshTree(queryClient),
-  });
+  return (parentId: string | null, files: File[], onProgress: (index: number) => OnProgress) => {
+    const sent = files.map((file, i) => uploadFile(kbId, parentId, file, onProgress(i)));
+    void Promise.allSettled(sent).then(() => refreshTree(queryClient));
+    return sent;
+  };
 }
 
 export function useReplaceFile(nodeId: string) {
