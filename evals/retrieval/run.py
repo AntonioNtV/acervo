@@ -1,13 +1,15 @@
 """The retrieval eval: each question goes through `ChatService` as the person's message, with the configured chat
 model and decider, over a seeded base in a database and a bucket made for the run and dropped after it. A case is
 covered when the reply cites its reference (the node, and the PDF's page when given); a "not_found" case when the
-reply cites nothing. The references are only read here, never shown to the chat.
+reply says the base does not have it (it may cite where it looked). The references are only read here, never shown
+to the chat.
 
     make eval-retrieval
 """
 
 import asyncio
 import json
+import re
 import runpy
 import statistics
 import sys
@@ -52,6 +54,10 @@ OUT = HERE / "out"
 BUILDERS = runpy.run_path(str(HERE / "pdfs.py"))["BUILDERS"]
 AI1 = runpy.run_path(str(HERE.parent / "ai1" / "run.py"))
 
+# shortcut: the chat's wording of "not in the base" today, matched by phrase; a fixed phrase or a flag on the reply
+# (card 08's "não está na base") would make it exact.
+NOT_IN_BASE = re.compile(r"não (encontrei|achei)\b[^.]*\bbase|base não (diz|traz|tem|fala)|não está na base", re.I)
+
 # A name ending in .md is a page with its Markdown, in .pdf a PDF named by its builder in `pdfs.py`, else a folder.
 type Folder = dict[str, str | Folder]
 
@@ -89,7 +95,7 @@ class Result(BaseModel):
     @property
     def hit(self) -> bool:
         if self.case.expect == "not_found":
-            return self.status == "done" and not self.citations
+            return self.status == "done" and NOT_IN_BASE.search(self.text) is not None
         reference = self.case.expect
         return any(c.path == reference.node and reference.page in (None, c.page) for c in self.citations)
 
