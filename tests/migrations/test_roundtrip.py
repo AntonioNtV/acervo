@@ -195,6 +195,5 @@ def test_0004_gives_every_base_its_chat_agent(migrations: Config, database_url: 
     _sql(database_url, "insert into acervo.kb (name) values ('Migração')")
 
     command.upgrade(migrations, "0004")
-    _sql(database_url, "insert into acervo.kb (name) values ('Migração')")
 
-    assert _chat_agents(database_url) == [("Chat do Acervo", "ask", True)] * 2
+    assert _chat_agents(database_url) == [("Chat do Acervo", "ask", True)]

@@ -27,8 +27,7 @@ async def test_pending_proposals_of_a_base_newest_first_with_agent_and_conversat
     tree = await make_tree({"Bradesco": ["Renovação.md"], "Arquivo": None})
     other = await make_tree({"Porto": None}, name="Jurídico")
     agents, proposals = AgentRepository(session), ProposalRepository(session)
-    chat = await agents.get_by(kb_id=tree.kb.id, built_in=True)
-    assert chat is not None and chat.name == "Chat do Acervo"
+    chat = await agents.create(AgentCreate(name="Chat do Acervo"), kb_id=tree.kb.id, built_in=True)
     claude = await agents.create(AgentCreate(name="Claude", mode="auto"), kb_id=tree.kb.id, token_hash="h")
     conversation = await ConversationRepository(session).create(
         ConversationCreate(kb_id=tree.kb.id, agent_id=chat.id, title="Prazos")
@@ -57,8 +56,7 @@ async def test_pending_proposals_of_a_base_newest_first_with_agent_and_conversat
     move = MovePayload(node_id=bradesco.id, from_path="Bradesco", parent_id=arquivo.id, to_path="Arquivo")
     rejected = await proposals.create(ProposalCreate(kb_id=tree.kb.id, agent_id=chat.id, payload=move))
     await proposals.update(rejected.id, ProposalUpdate(status="rejected", reject_reason="wrong_place"))
-    foreign_chat = await agents.get_by(kb_id=other.kb.id, built_in=True)
-    assert foreign_chat is not None
+    foreign_chat = await agents.create(AgentCreate(name="Chat do Acervo"), kb_id=other.kb.id, built_in=True)
     await proposals.create(ProposalCreate(kb_id=other.kb.id, agent_id=foreign_chat.id, payload=move))
 
     pending = await proposals.pending(tree.kb.id)

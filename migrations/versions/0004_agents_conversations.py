@@ -134,26 +134,11 @@ def upgrade() -> None:
         op.f("ck_proposal_accepted_by"), "proposal", "accepted_by in ('person', 'auto')", schema="acervo"
     )
 
-    # Every base has its chat: the ones already there now, every new one as it is inserted.
+    # Every base already there gets its chat; a new base gets it from BaseService.create.
     op.execute(CHAT_AGENT.format(kb="id") + " from acervo.kb")
-    op.execute(
-        f"""
-        create function acervo.give_kb_its_chat() returns trigger language plpgsql as $$
-        begin
-            {CHAT_AGENT.format(kb="new.id")};
-            return new;
-        end
-        $$
-        """
-    )
-    op.execute(
-        "create trigger kb_chat_agent after insert on acervo.kb for each row execute function acervo.give_kb_its_chat()"
-    )
 
 
 def downgrade() -> None:
-    op.execute("drop trigger kb_chat_agent on acervo.kb")
-    op.execute("drop function acervo.give_kb_its_chat()")
     op.drop_constraint(op.f("ck_proposal_kind"), "proposal", schema="acervo", type_="check")
     # Dropping a column drops its indexes, foreign keys and checks with it.
     for column in (
