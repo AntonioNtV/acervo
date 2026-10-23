@@ -77,7 +77,7 @@ async def test_every_tool_sees_only_its_base(env: Env) -> None:
     for call in calls:
         with pytest.raises(NotFoundError):
             await call
-    assert await env.uow.proposals.pending(env.other.kb.id) == []
+    assert await env.uow.proposals.listed(env.other.kb.id) == []
 
 
 async def test_list_folder_gives_each_child_with_kind_and_description(env: Env) -> None:

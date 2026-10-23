@@ -1,16 +1,21 @@
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 import httpx
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from acervo.db.models import Agent
+from acervo.core.settings import Settings
+from acervo.db.models import Agent, Proposal
 from acervo.repositories.proposal import ProposalRepository
+from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.proposal import CreatePagePayload, ProposalCreate
 from acervo.services.events import RecordingJobQueue
+from acervo.services.proposal_service import ProposalService
+from acervo.services.storage import Storage
 
 
 @pytest.fixture(autouse=True)
@@ -78,3 +83,37 @@ async def test_reject_without_a_reason_is_422(client: httpx.AsyncClient, session
     assert (rejected.json()["status"], rejected.json()["reject_reason"]) == ("rejected", "already_there")
     assert (await client.get(f"/v1/proposals/{proposal_id}")).json()["status"] == "rejected"
     assert await _children(client, kb_id) == []
+
+
+async def test_auto_applied_proposals_are_listed_with_their_agent(
+    client: httpx.AsyncClient,
+    session: AsyncSession,
+    session_factory: async_sessionmaker[AsyncSession],
+    test_settings: Settings,
+) -> None:
+    kb_id, by_person = await _proposal(client, session)
+    agent = (await client.post(f"/v1/kbs/{kb_id}/agents", json={"name": "Claude", "mode": "auto"})).json()
+    async with UnitOfWork(session_factory) as uow:
+        service = ProposalService(uow, Storage(test_settings))
+        old, new = [
+            await service.create(
+                ProposalCreate(
+                    kb_id=UUID(kb_id),
+                    agent_id=agent["id"],
+                    payload=CreatePagePayload(parent_id=None, parent_path="", title=title, markdown=f"# {title}\n"),
+                )
+            )
+            for title in ("Antiga", "Vistoria")
+        ]
+    await session.execute(
+        update(Proposal).where(Proposal.id == old.id).values(applied_at=datetime.now(UTC) - timedelta(days=8))
+    )
+    assert (await client.post(f"/v1/proposals/{by_person}/accept")).status_code == 200
+
+    auto = (await client.get(f"/v1/kbs/{kb_id}/proposals", params={"status": "applied", "accepted_by": "auto"})).json()
+    applied = (await client.get(f"/v1/kbs/{kb_id}/proposals", params={"status": "applied"})).json()
+
+    assert [(p["id"], p["agent_name"], p["accepted_by"]) for p in auto] == [(str(new.id), "Claude", "auto")]
+    assert [p["id"] for p in applied] == [by_person, str(new.id)]
+    undone = await client.post(f"/v1/proposals/{new.id}/undo")
+    assert (undone.status_code, undone.json()["status"]) == (201, "applied"), undone.text

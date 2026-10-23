@@ -1,5 +1,6 @@
 from collections.abc import Mapping
-from typing import Any
+from datetime import datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import select
@@ -8,7 +9,7 @@ from acervo.db.models.agent import Agent
 from acervo.db.models.conversation import Conversation
 from acervo.db.models.proposal import Proposal
 from acervo.repositories.base import BaseRepository
-from acervo.schemas.proposal import ProposalCreate, ProposalRead, ProposalSummary, ProposalUpdate
+from acervo.schemas.proposal import AcceptedBy, ProposalCreate, ProposalRead, ProposalSummary, ProposalUpdate
 
 JSON_FIELDS = {"payload", "edited_payload", "alternatives", "staged"}
 
@@ -17,15 +18,27 @@ class ProposalRepository(BaseRepository[Proposal, ProposalRead, ProposalCreate, 
     orm_model = Proposal
     read_schema = ProposalRead
 
-    async def pending(self, kb_id: UUID) -> list[ProposalSummary]:
-        """The base's proposals waiting for the person, from any conversation or agent, newest first."""
+    async def listed(
+        self,
+        kb_id: UUID,
+        status: Literal["pending", "applied"] = "pending",
+        accepted_by: AcceptedBy | None = None,
+        since: datetime | None = None,
+    ) -> list[ProposalSummary]:
+        """The base's proposals in `status`, from any conversation or agent: pending ones newest first, applied ones
+        most recently applied first, from `since` on."""
+        newest = Proposal.created_at if status == "pending" else Proposal.applied_at
         query = (
             select(Proposal, Agent.name, Conversation.title)
             .join(Agent, Agent.id == Proposal.agent_id)
             .outerjoin(Conversation, Conversation.id == Proposal.conversation_id)
-            .where(Proposal.kb_id == kb_id, Proposal.status == "pending")
-            .order_by(Proposal.created_at.desc(), Proposal.id.desc())
+            .where(Proposal.kb_id == kb_id, Proposal.status == status)
+            .order_by(newest.desc(), Proposal.id.desc())
         )
+        if accepted_by is not None:
+            query = query.where(Proposal.accepted_by == accepted_by)
+        if since is not None:
+            query = query.where(Proposal.applied_at >= since)
         return [
             ProposalSummary(**self._to_read(proposal).model_dump(), agent_name=agent, conversation_title=conversation)
             for proposal, agent, conversation in await self._session.execute(query)

@@ -2,7 +2,7 @@ import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 from uuid import UUID
 
 from acervo.core.errors import AcervoError, ConflictError, NotFoundError, ValidationError
@@ -47,10 +47,17 @@ class ProposalService:
         self._files = FileService(uow, storage)
         self._storage = storage
 
-    async def pending(self, kb_id: UUID) -> list[ProposalSummary]:
-        """What waits for the person in the live base, from any conversation or agent, newest first."""
+    async def listed(
+        self,
+        kb_id: UUID,
+        status: Literal["pending", "applied"] = "pending",
+        accepted_by: AcceptedBy | None = None,
+        since: datetime | None = None,
+    ) -> list[ProposalSummary]:
+        """What waits for the person in the live base, newest first; or what was applied in it from `since` on,
+        most recent first, so an agent's automatic changes can be undone."""
         await self._uow.kbs.get_in(kb_id)
-        return await self._uow.proposals.pending(kb_id)
+        return await self._uow.proposals.listed(kb_id, status, accepted_by, since)
 
     async def get(self, id: UUID) -> ProposalRead:
         return await self._uow.proposals.get(id)

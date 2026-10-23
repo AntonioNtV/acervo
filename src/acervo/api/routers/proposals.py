@@ -1,11 +1,13 @@
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
 
-from acervo.api.deps import get_job_queue, get_proposal_service, require_api_key
+from acervo.api.deps import get_job_queue, get_proposal_service, get_settings, require_api_key
+from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
-from acervo.schemas.proposal import ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
+from acervo.schemas.proposal import AcceptedBy, ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
 from acervo.services.chat_service import REFRESH_DESCRIPTIONS, changed_parent
 from acervo.services.events import JobQueue
 from acervo.services.proposal_service import ProposalService
@@ -24,10 +26,19 @@ Service = Annotated[ProposalService, Depends(get_proposal_service)]
 
 @router.get("/kbs/{kb_id}/proposals", response_model=list[ProposalSummary], responses={404: ERROR})
 async def list_proposals(
-    kb_id: UUID, service: Service, status: Literal["pending"] = "pending"
+    kb_id: UUID,
+    service: Service,
+    settings: Annotated[Settings, Depends(get_settings)],
+    status: Literal["pending", "applied"] = "pending",
+    accepted_by: AcceptedBy | None = None,
 ) -> list[ProposalSummary]:
-    """The base's proposals waiting for the person, from any conversation or agent, newest first."""
-    return await service.pending(kb_id)
+    """The base's proposals waiting for the person, from any conversation or agent, newest first; with
+    `status=applied`, those applied in the last days, most recent first (`accepted_by=auto`: by an agent in auto
+    mode), each with its agent's name, to undo."""
+    since = None
+    if status == "applied":
+        since = datetime.now(UTC) - timedelta(days=settings.applied_list_days)
+    return await service.listed(kb_id, status, accepted_by, since)
 
 
 @router.get("/proposals/{proposal_id}", response_model=ProposalRead, responses={404: ERROR})
