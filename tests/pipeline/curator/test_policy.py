@@ -8,12 +8,12 @@ from uuid import UUID
 from acervo.core.settings import Thresholds
 from acervo.domain.cards import Card, CardInput, Placement, WrittenPatch
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
-from acervo.pipeline.curator.log import Decision
 from acervo.pipeline.curator.policy import AlreadyWritten, NotSure, Propose, file_pdf, file_text
 from acervo.pipeline.curator.tree import PageText
 from acervo.schemas.proposal import (
     ConflictPayload,
     CreatePagePayload,
+    Decision,
     PatchPayload,
     ReplacePdfPayload,
     SavePdfPayload,

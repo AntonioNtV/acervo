@@ -3,8 +3,8 @@ import pytest
 from acervo.core.settings import Thresholds
 from acervo.domain.cards import ROUTES, Route
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
-from acervo.pipeline.curator.log import Decision
 from acervo.pipeline.router import AskFirst, RouteContext, Routed, Split, route
+from acervo.schemas.proposal import Decision
 
 
 def _intent(winner: Route, probability: float) -> list[float]:

@@ -89,3 +89,23 @@ class MessageRead(MessageCreate):
     )
     error: str | None = Field(description="Why it failed; null unless status is failed.")
     created_at: datetime = Field(description="When it was sent.")
+
+
+class ConversationStart(BaseModel):
+    """A conversation to start in a base."""
+
+    agent_id: UUID | None = Field(default=None, description="The agent it talks to; omitted for the built-in chat.")
+    title: str = Field(default="", description="Shown in the list of past conversations.")
+
+
+class MessagePosted(BaseModel):
+    """The person's message, stored, and Acervo's reply, working until its job ends."""
+
+    message: MessageRead
+    reply: MessageRead
+
+
+class Reroute(BaseModel):
+    """How a message is to be understood instead ("era uma pergunta")."""
+
+    route: Reading = Field(description="The understanding to redo the message with, or which change it asks.")

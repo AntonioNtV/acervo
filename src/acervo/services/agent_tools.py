@@ -19,7 +19,7 @@ from acervo.domain.sections import sections
 from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
-from acervo.schemas.conversation import MessageRead, MessageStatus
+from acervo.schemas.conversation import ConversationStart, MessageRead, MessageStatus
 from acervo.schemas.node import NodeKind, NodeRead
 from acervo.schemas.page import Section
 from acervo.schemas.proposal import (
@@ -31,7 +31,7 @@ from acervo.schemas.proposal import (
     RenamePayload,
 )
 from acervo.services.agent_service import AgentService
-from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
+from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
 from acervo.services.proposal_service import ProposalService, enqueue_refresh

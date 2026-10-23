@@ -7,9 +7,10 @@ from typing import Literal
 from acervo.domain.cards import Placement
 from acervo.domain.decisions import Choice
 from acervo.model_clients.decider import Decider
-from acervo.pipeline.curator.log import Decision, record
+from acervo.pipeline.curator.log import record
 from acervo.pipeline.curator.options import Landing, Options
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
+from acervo.schemas.proposal import Decision
 
 PlacementLanding = Literal["page", "here", "new_page", "new_folder"]
 

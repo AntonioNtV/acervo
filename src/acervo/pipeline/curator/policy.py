@@ -6,18 +6,19 @@ from pydantic import BaseModel
 
 from acervo.core.settings import Thresholds
 from acervo.domain.cards import Card, CardInput, Placement
+from acervo.domain.decisions import Noul
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.pipeline.curator import build
 from acervo.pipeline.curator.descent import Descent, Path, descend, placements
-from acervo.pipeline.curator.log import Decision
-from acervo.pipeline.curator.options import pdf_options, text_options
+from acervo.pipeline.curator.log import record
+from acervo.pipeline.curator.options import label, pdf_options, text_options
 from acervo.pipeline.curator.page_check import check_page
-from acervo.pipeline.curator.pdf_check import replaced_pdf
 from acervo.pipeline.curator.tree import ReadPage, SnapshotNode, TreeSnapshot
-from acervo.schemas.proposal import ProposalPayload
+from acervo.schemas.proposal import Decision, ProposalPayload
 
 STEP = "descent"
+PDF_STEP = "pdf_check"
 
 
 class Propose(BaseModel):
@@ -76,6 +77,35 @@ def place(
         return NotSure(options=placements(tree, descent.ranked[:3]))
     second = first.probability < thresholds.place_show_second
     return first, (placements(tree, descent.ranked[1:2]) or None) if second else None
+
+
+async def replaced_pdf(
+    state: str,
+    tree: TreeSnapshot,
+    folder: SnapshotNode | None,
+    decider: Decider,
+    thresholds: Thresholds,
+    log: list[Decision],
+) -> SnapshotNode | None:
+    """The PDF of the folder or page reached that the new one is a new version of, or None; one Noul per PDF there,
+    all in one call."""
+    pdfs = {
+        f"new_version:{tree.path(node)}": node
+        for node in tree.children(folder)
+        if node.kind == "file" and node.title.lower().endswith(".pdf")
+    }
+    if not pdfs:
+        return None
+    answers = await decider.ask(
+        state,
+        [Noul(id=id, question=f"O PDF recebido é uma nova versão de {label(node)}?") for id, node in pdfs.items()],
+    )
+    likely = max(pdfs, key=lambda id: answers.p_yes(id))
+    replaced = pdfs[likely] if answers.p_yes(likely) > thresholds.pdf_new_version else None
+    for id in pdfs:
+        action = "replace_pdf" if replaced is pdfs[id] else "not_a_version"
+        log.append(record(answers, id, PDF_STEP, action, thresholds.pdf_new_version))
+    return replaced
 
 
 async def file_text(

@@ -21,7 +21,6 @@ from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.pipeline import router
 from acervo.pipeline.curator import organize, policy
-from acervo.pipeline.curator.log import Decision
 from acervo.pipeline.curator.tree import PageText, SnapshotNode, TreeSnapshot
 from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
@@ -32,6 +31,7 @@ from acervo.schemas.node import NodeUpdate
 from acervo.schemas.proposal import (
     ConflictPayload,
     CreatePagePayload,
+    Decision,
     DecisionLogCreate,
     MovePayload,
     PatchPayload,

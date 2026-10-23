@@ -1,23 +1,7 @@
 """Every question the pipeline asked, with its answer and what code did with it (rule 7)."""
 
-from typing import Literal
-
-from pydantic import BaseModel
-
 from acervo.domain.decisions import Answers, Choice
-
-
-class Decision(BaseModel):
-    """A `DecisionLogCreate` without the run and the message, which the caller adds."""
-
-    step: str
-    question_type: Literal["noul", "choice"]
-    options: list[str]
-    probs: list[float]
-    threshold: float | None = None
-    action: str
-    latency_ms: int
-    cached: bool = False
+from acervo.schemas.proposal import Decision
 
 
 def record(answers: Answers, id: str, step: str, action: str, threshold: float | None = None) -> Decision:

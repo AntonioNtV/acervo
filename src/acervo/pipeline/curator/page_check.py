@@ -7,9 +7,10 @@ from acervo.domain.decisions import Choice, Noul, Question
 from acervo.domain.patch import span
 from acervo.domain.sections import sections
 from acervo.model_clients.decider import Decider
-from acervo.pipeline.curator.log import Decision, best, record
+from acervo.pipeline.curator.log import best, record
 from acervo.pipeline.curator.options import MAX_OPTIONS
 from acervo.pipeline.curator.tree import PageText
+from acervo.schemas.proposal import Decision
 
 STEP = "page_check"
 NO_LINE = "nenhuma linha"

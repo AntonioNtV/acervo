@@ -16,11 +16,11 @@ from acervo.domain.cards import Route, WrittenPatch
 from acervo.model_clients.fakes import FakeDecider, FakeProbs, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate, AgentUpdate
-from acervo.schemas.conversation import MessageRead
+from acervo.schemas.conversation import ConversationStart, MessageRead
 from acervo.schemas.events import ChatEvent, DoneEvent, ErrorEvent
 from acervo.schemas.proposal import ProposalRead
 from acervo.services.chat_service import INTERRUPTED, NOT_YET, ChatService
-from acervo.services.conversation_service import ConversationService, ConversationStart, Upload
+from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage

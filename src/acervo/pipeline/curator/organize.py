@@ -10,11 +10,11 @@ from acervo.domain.cards import ORGANIZE_KINDS, OrganizeKind
 from acervo.domain.decisions import Choice
 from acervo.model_clients.decider import Decider
 from acervo.pipeline.curator.descent import descend
-from acervo.pipeline.curator.log import Decision, record
+from acervo.pipeline.curator.log import record
 from acervo.pipeline.curator.options import Option, Options, label, level
 from acervo.pipeline.curator.policy import NotSure, Propose, place
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
-from acervo.schemas.proposal import MovePayload, RenamePayload, UndoPayload
+from acervo.schemas.proposal import Decision, MovePayload, RenamePayload, UndoPayload
 
 KIND = Choice(
     id="organize",

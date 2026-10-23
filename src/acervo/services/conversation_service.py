@@ -7,8 +7,6 @@ from datetime import UTC, datetime
 from typing import BinaryIO
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-
 from acervo.core.errors import ConflictError, NotFoundError, ValidationError
 from acervo.domain.cards import Reading, Route
 from acervo.repositories.uow import UnitOfWork
@@ -17,9 +15,11 @@ from acervo.schemas.conversation import (
     Attachment,
     ConversationCreate,
     ConversationRead,
+    ConversationStart,
     ConversationUpdate,
     MessageContext,
     MessageCreate,
+    MessagePosted,
     MessageRead,
 )
 from acervo.schemas.events import ChatEvent, MessageEvent
@@ -38,31 +38,6 @@ class Upload:
     name: str | None
     mime: str | None
     source: BinaryIO
-
-
-class ConversationStart(BaseModel):
-    """A conversation to start in a base."""
-
-    agent_id: UUID | None = Field(default=None, description="The agent it talks to; omitted for the built-in chat.")
-    title: str = Field(default="", description="Shown in the list of past conversations.")
-
-
-class MessagePosted(BaseModel):
-    """The person's message, stored, and Acervo's reply, working until its job ends."""
-
-    message: MessageRead
-    reply: MessageRead
-
-
-class Reroute(BaseModel):
-    """How a message is to be understood instead ("era uma pergunta")."""
-
-    route: Reading = Field(description="The understanding to redo the message with, or which change it asks.")
-
-
-def staged_key(kb_id: UUID, sha256: str) -> str:
-    """Outside the keys of the base's files, so discarding a staged file never touches one saved in the base."""
-    return f"staged/{kb_id}/{sha256}"
 
 
 class ConversationService:
@@ -176,7 +151,8 @@ class ConversationService:
         if not upload.name:
             raise ValidationError("o arquivo não tem nome")
         sha256, size, _ = await asyncio.to_thread(read_hash, upload.source)
-        key = staged_key(kb_id, sha256)
+        # Outside the keys of the base's files, so discarding a staged file never touches one saved in the base.
+        key = f"staged/{kb_id}/{sha256}"
         await self._storage.put(key, upload.source, size)
         mime = upload.mime or mimetypes.guess_type(upload.name)[0] or "application/octet-stream"
         return Attachment(storage_key=key, sha256=sha256, size=size, name=upload.name, mime=mime)
