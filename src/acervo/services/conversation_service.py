@@ -110,12 +110,15 @@ class ConversationService:
         return MessagePosted(message=message, reply=reply)
 
     async def retry(self, reply_id: UUID) -> MessageRead:
-        """A new reply that runs the message again; the job drops what the replaced reply left waiting."""
+        """A new reply that runs the message again, once: a reply already replaced is not; the job drops what the
+        replaced reply left waiting."""
         replaced = await self._uow.messages.get(reply_id)
         if replaced.role != "acervo" or replaced.status == "working":
             raise ConflictError("só uma resposta terminada pode ser refeita", {"id": str(reply_id)})
         await self._live(replaced.conversation_id)
         thread = await self._uow.messages.of_conversation(replaced.conversation_id)
+        if any(message.replaces_id == replaced.id for message in thread):
+            raise ConflictError("esta resposta já foi refeita", {"id": str(reply_id)})
         message = _asked(thread, replaced)
         reply = await self._uow.messages.create(
             MessageCreate(

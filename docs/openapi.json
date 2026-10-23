@@ -2844,7 +2844,7 @@
                 "type": "null"
               }
             ],
-            "description": "The conversation it came from; null when none.",
+            "description": "The conversation it came from; null when none or deleted.",
             "title": "Conversation Title"
           },
           "created_at": {

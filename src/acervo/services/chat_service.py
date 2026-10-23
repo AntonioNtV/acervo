@@ -436,7 +436,10 @@ class ChatService:
         return with_data(proposed, _proposal_chunk(proposal))
 
     async def _settle(self, proposal: ProposalRead, placed: bool) -> tuple[ProposalRead, str | None]:
-        """Applied at once for an agent in auto mode, or left pending, also when that apply fails (with why)."""
+        """Applied at once for an agent in auto mode, or left pending, also when that apply fails (with why); either
+        way as it stands now, after whatever the person did to it while the run went on."""
+        # Ends the transaction, so the read sees what the person committed meanwhile, not what this session kept.
+        await self._uow.rollback()
         failed = None
         try:
             proposal = await self._proposals.auto_accept(proposal, placed)

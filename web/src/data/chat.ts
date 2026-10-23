@@ -125,8 +125,10 @@ export function useThread(conversationId: string | null) {
       ]);
       const parts = new Map(ui.map((message) => [message.id, message.parts]));
       const working = [...stored].reverse().find((message) => message.role === "acervo" && message.status === "working")?.id ?? null;
+      // A reply that was retried is not shown: the reply that replaced it is.
+      const replaced = new Set(stored.map((message) => message.replaces_id));
       const messages = stored
-        .filter((message) => message.id !== working)
+        .filter((message) => message.id !== working && !replaced.has(message.id))
         .map((message): ChatMessage =>
           message.role === "person"
             ? personMessage(message)
@@ -191,6 +193,7 @@ export function useAcervoChat({
             POST_MESSAGE.replace("{conversation_id}", encodeURIComponent(conversation.current)),
             form,
           );
+          following.current = reply.id;
           current.posted();
           posted.current(conversation.current);
           void queryClient.invalidateQueries({ queryKey: ["conversations", kbId] });
@@ -205,7 +208,7 @@ export function useAcervoChat({
     [kbId, queryClient],
   );
 
-  const reconnect = useRef<() => void>(() => {});
+  const reconnect = useRef<(partialId: string) => void>(() => {});
   const chat = useChat<ChatMessage>({
     messages: initial,
     transport,
@@ -216,26 +219,33 @@ export function useAcervoChat({
     // A dropped connection is not a failed reply: its job runs on, so its stream is read again from the start.
     onFinish: ({ message, isDisconnect }) => {
       if (!isDisconnect) return;
-      following.current = message.id;
       setDropped(true);
-      reconnect.current();
+      reconnect.current(message.id);
     },
   });
   const { setMessages, resumeStream, stop } = chat;
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    reconnect.current = () => {
+    reconnect.current = (partialId) => {
       timer = setTimeout(() => {
-        setDropped(false);
-        void resumeStream();
+        // The SDK keeps a dropped reply as it was and would add the replay from `start` to it. The partial reply
+        // leaves the thread, and a resume with nothing to follow drops what the SDK kept, so the replay builds it once.
+        const replyId = following.current;
+        setMessages((messages) => messages.filter((m) => m.id !== partialId));
+        following.current = null;
+        void resumeStream().then(() => {
+          setDropped(false);
+          following.current = replyId;
+          return resumeStream();
+        });
       }, RECONNECT_MS);
     };
     return () => {
       clearTimeout(timer);
       void stop();
     };
-  }, [resumeStream, stop]);
+  }, [resumeStream, setMessages, stop]);
 
   /** Resolves once the message is stored (the box empties); the reply streams on. */
   const send = (message: Outgoing) =>

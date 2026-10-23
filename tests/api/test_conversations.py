@@ -209,4 +209,4 @@ async def test_a_deleted_conversation_leaves_the_list_and_keeps_its_proposals(
     assert (await client.get(f"/v1/kbs/{kb_id}/conversations")).json() == []
     assert (await client.get(f"/v1/conversations/{conversation_id}/messages")).status_code == 404
     pending = (await client.get(f"/v1/kbs/{kb_id}/proposals")).json()
-    assert [p["id"] for p in pending] == [str(proposal.id)]
+    assert [(p["id"], p["conversation_title"]) for p in pending] == [(str(proposal.id), None)]

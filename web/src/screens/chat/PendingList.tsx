@@ -44,7 +44,7 @@ function Applied({ proposal }: { proposal: ProposalSummary }) {
 /**
  * Every proposal waiting in the base, from any conversation or agent, each with the agent that made it, then what
  * agents in auto mode applied lately. Opening a waiting one goes to the conversation it came from; one an agent made
- * outside a conversation opens right here.
+ * outside a conversation, or whose conversation was deleted (it has no title then), opens right here.
  */
 export function PendingList({
   proposals,
@@ -66,7 +66,7 @@ export function PendingList({
         <ul aria-label={t("chat.pending.title")} className="m-0 flex list-none flex-col p-0">
           {proposals.map((proposal) => {
             const kind = t(`chat.kind.${proposal.kind}`);
-            const conversationId = proposal.conversation_id;
+            const conversationId = proposal.conversation_title === null ? null : proposal.conversation_id;
             const from = [proposal.agent_name, proposal.conversation_title].filter(Boolean).join(" · ");
             return (
               <li key={proposal.id} className="border-b border-line">

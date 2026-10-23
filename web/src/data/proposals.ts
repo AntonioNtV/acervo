@@ -38,7 +38,11 @@ export function useAutoApplied(kbId: string | undefined) {
 
 /** What the person (or the stream) learned about a proposal: kept for the thread, and the base follows it. */
 export function settleProposal(queryClient: QueryClient, proposal: Proposal) {
-  queryClient.setQueryData<Record<string, Proposal>>(["proposal-states"], (known) => ({ ...known, [proposal.id]: proposal }));
+  // A stream replayed from its start sends a proposal as it was then: the newer state this session knows stays.
+  queryClient.setQueryData<Record<string, Proposal>>(["proposal-states"], (known) => ({
+    ...known,
+    [proposal.id]: newest(known?.[proposal.id], proposal),
+  }));
   const refreshes = [invalidate(queryClient, ["proposals", proposal.kb_id], ["applied", proposal.kb_id])];
   if (proposal.status === "applied") refreshes.push(refreshTree(queryClient), invalidate(queryClient, ["versions"], ["diff"]));
   return Promise.all(refreshes);

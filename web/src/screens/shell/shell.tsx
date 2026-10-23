@@ -40,15 +40,17 @@ export function ShellProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Captured, so ⌘J reaches the chat before the editor or an open menu handles it.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "j") {
         event.preventDefault();
+        event.stopPropagation();
         setChatOpen((open) => !open);
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
   const value = useMemo(

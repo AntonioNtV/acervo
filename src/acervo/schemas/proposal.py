@@ -164,7 +164,7 @@ class ProposalSummary(ProposalRead):
     """A proposal as the chat's list shows it, with where it came from."""
 
     agent_name: str = Field(description="The agent that made it.")
-    conversation_title: str | None = Field(description="The conversation it came from; null when none.")
+    conversation_title: str | None = Field(description="The conversation it came from; null when none or deleted.")
 
 
 class ProposalReject(BaseModel):

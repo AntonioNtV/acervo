@@ -12,6 +12,7 @@ from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from acervo.core.errors import ConflictError
 from acervo.core.settings import Settings, Thresholds
 from acervo.db.models import Node, PageVersion
 from acervo.model_clients.chat_agent import ChatAgent
@@ -41,8 +42,8 @@ TO_THE_PAGE: dict[str, FakeProbs] = {
     "section": {"Prazos": 1.0},
     "line": {"nenhuma linha": 1.0},
 }
-# One model response: text, or the tools it calls with their arguments.
-Turn = str | list[tuple[str, dict[str, Any]]]
+# One model response: text, or the tools it calls with their arguments; or what the person does first, then that.
+Turn = str | list[tuple[str, dict[str, Any]]] | Callable[[], Awaitable[Any]]
 
 
 @dataclass
@@ -55,6 +56,9 @@ class Script:
     async def __call__(self, messages: list[ModelMessage], info: AgentInfo) -> AsyncIterator[str | DeltaToolCalls]:
         self.sent.append(messages)
         turn = self.turns.pop(0)
+        if callable(turn):
+            await turn()
+            turn = self.turns.pop(0)
         if isinstance(turn, str):
             for word in turn.split(" "):
                 yield f"{word} "
@@ -299,6 +303,15 @@ async def test_retry_runs_the_message_again(env: Env) -> None:
     assert [type(sent) for sent in env.script.sent[-1]] == [ModelRequest]
 
 
+async def test_a_reply_already_replaced_is_not_retried_again(env: Env) -> None:
+    failed = await env.send("qual o prazo?", [("read_page", {"node_id": str(uuid4())})])
+    await env.conversations.retry(failed.id)
+
+    with pytest.raises(ConflictError):
+        await env.conversations.retry(failed.id)
+    assert len(await env.uow.messages.of_conversation(env.conversation_id)) == 3
+
+
 async def test_a_failing_accept_leaves_the_rest_and_logs_once(env: Env, monkeypatch: pytest.MonkeyPatch) -> None:
     await env.auto()
     accept, accepts = ProposalService.accept, iter([False, True])
@@ -394,3 +407,32 @@ async def test_an_auto_approved_proposal_is_sent_again_with_the_same_id(env: Env
     [applied] = await env.proposals(reply)
     sent = [(c["id"], c["data"]["status"]) for c in env.chunks(reply) if c["type"] == "data-proposal"]
     assert sent == [(str(applied.id), "pending"), (str(applied.id), "applied")]
+
+
+async def test_finish_sends_each_proposal_as_stored_after_the_person_settled_it(env: Env) -> None:
+    async def person_accepts() -> None:
+        [proposal] = await env.uow.proposals.listed(env.tree.kb.id)
+        await env.chat._proposals.accept(proposal.id)  # type: ignore[attr-defined]
+
+    reply = await env.send(FACT, [("file_fact", {"text": FACT})], person_accepts, "Propus um acréscimo.")
+
+    [proposal] = await env.proposals(reply)
+    sent = [(c["id"], c["data"]["status"]) for c in env.chunks(reply) if c["type"] == "data-proposal"]
+    assert sent == [(str(proposal.id), "pending"), (str(proposal.id), "applied")]
+    assert proposal.accepted_by == "person"
+
+
+async def test_an_auto_agent_skips_a_proposal_the_person_rejected_during_the_run(env: Env) -> None:
+    await env.auto()
+
+    async def person_rejects() -> None:
+        [proposal] = await env.uow.proposals.listed(env.tree.kb.id)
+        await env.chat._proposals.reject(proposal.id, "wrong_place")  # type: ignore[attr-defined]
+
+    reply = await env.send(FACT, [("file_fact", {"text": FACT})], person_rejects, "Propus um acréscimo.")
+
+    [proposal] = await env.proposals(reply)
+    assert (reply.status, proposal.status, proposal.reject_reason) == ("done", "rejected", "wrong_place")
+    assert "não foi aplicada" not in reply.text
+    assert await env.markdown() == TEXT
+    assert [c["data"]["status"] for c in env.chunks(reply) if c["type"] == "data-proposal"][-1] == "rejected"
