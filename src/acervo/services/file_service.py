@@ -30,6 +30,7 @@ from acervo.schemas.file import (
 )
 from acervo.schemas.node import NodeCreate, NodeRead
 from acervo.services.storage import Storage, key_for
+from acervo.services.tree_service import clean_title
 
 CHUNK_SIZE = 1024 * 1024
 PDF = "application/pdf"
@@ -121,6 +122,7 @@ class FileService:
         `commit`, in the caller's transaction."""
         if not filename:
             raise ValidationError("the file has no name")
+        filename = clean_title(filename)
         content = await _stage(kb_id, source, filename)
         await self._uow.kbs.lock(kb_id)
         await self._uow.nodes.live_parent(kb_id, parent_id)

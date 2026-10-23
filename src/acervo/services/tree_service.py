@@ -21,11 +21,14 @@ from acervo.schemas.page import NodeDetail, PageRead
 from acervo.services.page_service import PageService
 
 
-def _title(title: str) -> str:
-    # Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar"; Postgres refuses NUL.
+def clean_title(title: str) -> str:
+    """A new name for a node. Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar";
+    Postgres refuses NUL; a `/` would split its path, which undo and the agents read back."""
     title = " ".join(title.replace("\x00", "").split())
     if not title:
         raise ValidationError("a title cannot be empty", {"title": title})
+    if "/" in title:
+        raise ValidationError("um título não pode ter /", {"title": title})
     return title
 
 
@@ -81,7 +84,7 @@ class TreeService:
     ) -> NodeRead:
         """A new folder, or a page whose first version is `markdown`, by the agent of `proposal_id` when given.
         Without `commit`, in the caller's transaction."""
-        title = _title(data.title)
+        title = clean_title(data.title)
         await self._uow.kbs.lock(kb_id)
         await self._uow.nodes.live_parent(kb_id, data.parent_id)
         await self._ensure_title_free(kb_id, data.parent_id, data.kind, title)
@@ -125,7 +128,7 @@ class TreeService:
 
     async def _rename(self, node: NodeRead, title: str, proposal_id: UUID | None = None) -> NodeRead:
         node_id = node.id
-        title = _title(title)
+        title = clean_title(title)
         await self._uow.kbs.lock(node.kb_id)
         if title.lower() != node.title.lower():
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
