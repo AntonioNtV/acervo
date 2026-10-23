@@ -103,7 +103,7 @@ class TreeService:
             node = await self._rename(node, data.title)
         change = NodeUpdate(**data.model_dump(include={"icon", "cover"} & data.model_fields_set))
         if data.description is not None:
-            description = data.description.strip()
+            description = data.description.replace("\x00", "").strip()
             change.description = description
             change.description_locked = bool(description)
         if change.model_fields_set:

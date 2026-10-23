@@ -58,6 +58,13 @@ describe("ProposalCard", () => {
     expect(await screen.findByText("Rejeitada · Lugar errado")).toBeInTheDocument();
   });
 
+  it("a conflict with no specific line says the new text goes at the end of the section", () => {
+    renderWithApi(<ProposalCard proposal={proposal({ ...conflict, current: "" } as typeof conflict)} />);
+    expect(screen.getByRole("region", { name: "Conflito" })).toHaveTextContent(
+      "Na página hojeNenhuma linha específica; o texto novo entra no fim da seção.",
+    );
+  });
+
   it("a conflict shows both texts and its three choices", async () => {
     renderWithApi(<ProposalCard proposal={proposal(conflict)} />);
     const card = screen.getByRole("region", { name: "Conflito" });

@@ -15,6 +15,11 @@ def _name(name: str) -> str:
     return name
 
 
+def _description(text: str) -> str:
+    # Postgres refuses NUL, which text pasted from a PDF can carry.
+    return text.replace("\x00", "").strip()
+
+
 class BaseService:
     """Knowledge bases: create, list, rename, trash and restore them."""
 
@@ -25,7 +30,7 @@ class BaseService:
         return await self._uow.kbs.summaries(name)
 
     async def create(self, data: KbCreate) -> KbRead:
-        kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=data.description.strip()))
+        kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=_description(data.description)))
         await self._uow.agents.create(AgentCreate(name="Chat do Acervo"), kb_id=kb.id, built_in=True)
         await self._uow.commit()
         return kb
@@ -36,7 +41,7 @@ class BaseService:
         if data.name is not None:
             change.name = _name(data.name)
         if data.description is not None:
-            change.description = data.description.strip()
+            change.description = _description(data.description)
         if "icon" in data.model_fields_set:
             change.icon = data.icon
         kb = await self._uow.kbs.update(kb_id, change)

@@ -93,7 +93,12 @@ function Body({ proposal, payload }: { proposal: AnyProposal; payload: Payload }
     case "create_page":
       return <Diff lines={payload.markdown.replace(/\n+$/, "").split("\n").map((text) => ({ op: "add", text }))} />;
     case "conflict":
-      return <Columns left={[t("chat.conflict.current"), payload.current]} right={[t("chat.conflict.new"), payload.new]} />;
+      return (
+        <Columns
+          left={[t("chat.conflict.current"), payload.current || t("chat.conflict.noLine")]}
+          right={[t("chat.conflict.new"), payload.new]}
+        />
+      );
     case "save_pdf":
       return proposal.staged ? (
         <div className="border-b border-line px-3 py-[9px] text-12 text-text-2">
@@ -292,7 +297,7 @@ export function ProposalCard({ proposal: given, agentName }: { proposal: AnyProp
       </Foot>
     );
   } else if (payload.kind === "conflict") {
-    const both = { ...payload, new: [payload.current, payload.new, `_${t("chat.conflict.note")}_`].join("\n") };
+    const both = { ...payload, new: [payload.current, payload.new, `_${t("chat.conflict.note")}_`].filter(Boolean).join("\n") };
     foot = (
       <Foot>
         <Button size="sm" variant="ink" disabled={busy} onClick={() => accept.mutate({ id, input: undefined })}>
