@@ -34,6 +34,16 @@ describe("routes", () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/renovacao"));
   });
 
+  it("a last page that moved to another base opens under its new base", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" }), summary({ id: "kb-2", name: "Saúde" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    respond("GET", "/v1/nodes/renovacao", { body: { ...node("renovacao", "page", "Renovação"), kb_id: "kb-2" } });
+
+    const router = renderHome();
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-2/n/renovacao"));
+  });
+
   it("a last page that is gone is forgotten, and / goes to the first base's first node", async () => {
     fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
     localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/apagada");

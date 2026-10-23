@@ -33,7 +33,11 @@ export function Home() {
   useEffect(() => {
     if (gone) forgetLastPage();
   }, [gone]);
-  if (last && !gone) return lastNode.isPending ? null : <Navigate replace to={last} />;
+  // Under the node's base of now: it may have moved to another base since it was seen.
+  if (last && !gone) {
+    if (lastNode.isPending) return null;
+    return <Navigate replace to={lastNode.data ? `/kbs/${lastNode.data.kb_id}/n/${lastNode.data.id}` : last} />;
+  }
   if (kbs.isError) return <p className="m-0 p-10 text-err">{errorText(kbs.error)}</p>;
   if (!kbs.data) return null;
   const first = kbs.data[0];
