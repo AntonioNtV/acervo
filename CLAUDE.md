@@ -22,8 +22,10 @@ navigating folders and the pages of PDFs. The LLM writes, Jev decides, code appl
    only an accepted proposal changes a base, through `services/proposal_service.py`. The person accepts it, or an
    agent connection the person set to auto-approve does (`accepted_by = auto`, logged, undoable; a conflict or an
    unplaced input still waits). The person's own actions write through the other services. (skill `proposals`)
-6. **Jev decides, the LLM writes, code decides what a probability means.** Thresholds live in config
-   (`core/settings.py`, `Thresholds`), never in a prompt. (skills `jev-decisions`, `llm-calls`)
+6. **The LLM converses, Jev decides about the base, code decides what a probability means.** The chat's LLM leads the
+   conversation and chooses when to use the base's tools; inside them, where to file, "already written",
+   "contradicts" and "new version" are Jev's decisions. Thresholds live in config (`core/settings.py`, `Thresholds`),
+   never in a prompt. (skills `jev-decisions`, `llm-calls`)
 7. **Every decision is logged** with its options and probabilities, linked to the proposal it produced.
 8. Every table change ships with an Alembic migration and passes the roundtrip test. (skill `creating-migrations`)
 
