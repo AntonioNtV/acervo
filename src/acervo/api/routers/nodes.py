@@ -3,10 +3,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_tree_service, require_api_key
+from acervo.api.deps import get_tree_service, get_uow, require_api_key
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.node import NodeAdd, NodeEdit, NodeMove, NodeRead, NodeWithPath, RestoredNode, TreeNode
 from acervo.schemas.page import NodeDetail
+from acervo.services.duplicate_service import DuplicateService
 from acervo.services.tree_service import TreeService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -17,6 +18,12 @@ router = APIRouter(
     dependencies=[Depends(require_api_key)],
     responses={401: ERROR, 422: ERROR},
 )
+
+
+# Typed loosely: only `api/deps.py` may name the UnitOfWork (tests/unit/test_layering.py).
+def get_duplicate_service(uow: Annotated[Any, Depends(get_uow)]) -> DuplicateService:
+    return DuplicateService(uow)
+
 
 Service = Annotated[TreeService, Depends(get_tree_service)]
 
@@ -65,3 +72,11 @@ async def trash_node(node_id: UUID, service: Service) -> NodeRead:
 @router.post("/nodes/{node_id}/restore", response_model=RestoredNode, responses={404: ERROR, 409: ERROR})
 async def restore_node(node_id: UUID, service: Service) -> RestoredNode:
     return await service.restore(node_id)
+
+
+@router.post("/nodes/{node_id}/duplicate", status_code=201, response_model=NodeRead, responses={404: ERROR})
+async def duplicate_node(
+    node_id: UUID, service: Annotated[DuplicateService, Depends(get_duplicate_service)]
+) -> NodeRead:
+    """A copy of the page, "<título> (cópia)" right after it, with its text and its sub-pages; files are not copied."""
+    return await service.duplicate(node_id)

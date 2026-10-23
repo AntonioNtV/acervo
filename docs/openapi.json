@@ -3494,6 +3494,86 @@
         ]
       }
     },
+    "/v1/nodes/{node_id}/duplicate": {
+      "post": {
+        "description": "A copy of the page, \"<t\u00edtulo> (c\u00f3pia)\" right after it, with its text and its sub-pages; files are not copied.",
+        "operationId": "duplicate_node_v1_nodes__node_id__duplicate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Duplicate Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
     "/v1/nodes/{node_id}/favorite": {
       "delete": {
         "operationId": "remove_favorite_v1_nodes__node_id__favorite_delete",
