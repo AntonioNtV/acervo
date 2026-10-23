@@ -1,14 +1,16 @@
 import asyncio
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from pydantic_ai import ToolReturn
+from pydantic_ai import ModelRetry, ToolReturn
 
-from acervo.core.errors import NotFoundError, ValidationError
+from acervo.core.errors import AcervoError, NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
 from acervo.model_clients.chat_agent import (
@@ -52,7 +54,7 @@ from acervo.schemas.proposal import (
 from acervo.services.agent_tools import AgentTools, Folder, PageContent
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.filing_service import Filing, FilingService, Origin
-from acervo.services.proposal_service import OPEN, ProposalService, enqueue_refresh
+from acervo.services.proposal_service import OPEN, ProposalService
 from acervo.services.storage import Storage
 
 # The earlier messages the chat reads, when the caller does not say (the worker passes `Settings.chat_history`).
@@ -137,11 +139,28 @@ class _Run:
         return f"[{same.marker}]"
 
 
+async def fail_interrupted(uow: UnitOfWork, timeout_seconds: int) -> None:
+    """A reply still working past the job timeout lost its job with the worker that ran it, and arq does not run a
+    job again (`max_tries` 1): it is failed, so it never stays working."""
+    await uow.messages.fail_working(datetime.now(UTC) - timedelta(seconds=timeout_seconds), INTERRUPTED)
+    await uow.commit()
+
+
+@contextmanager
+def _retried() -> Iterator[None]:
+    """A read that fails on what the model asked (a page out of range, a node gone) is told to the model to try
+    again, instead of failing the run."""
+    try:
+        yield
+    except AcervoError as exc:
+        raise ModelRetry(exc.message) from exc
+
+
 def _join(parent: str, name: str) -> str:
     return f"{parent}/{name}" if parent else name
 
 
-def _where(payload: ProposalPayload) -> str:
+def where(payload: ProposalPayload) -> str:
     match payload:
         case PatchPayload() | ConflictPayload():
             return f"{payload.path} › {payload.heading}" if payload.heading else payload.path
@@ -155,19 +174,6 @@ def _where(payload: ProposalPayload) -> str:
             return f"{payload.path} → {payload.title}"
         case ReplacePdfPayload() | UndoPayload():
             return payload.path
-
-
-def _undone_path(payload: ProposalPayload) -> str:
-    """Where what an applied proposal changed is now."""
-    match payload:
-        case MovePayload():
-            return _join(payload.to_path, payload.from_path.rsplit("/", 1)[-1])
-        case RenamePayload():
-            return _join(payload.path.rpartition("/")[0], payload.title)
-        case PatchPayload() | ConflictPayload() | ReplacePdfPayload() | UndoPayload():
-            return payload.path
-        case CreatePagePayload() | SavePdfPayload():
-            return _where(payload)
 
 
 def _proposal_chunk(proposal: ProposalRead) -> Chunk:
@@ -246,7 +252,7 @@ class ChatService:
                 settled, failed = await self._settle(proposal, placed)
                 chunks.append(_proposal_chunk(settled))
                 if failed is not None:
-                    notes.append(f"{KIND[settled.kind]}: {_where(settled.payload)} · não foi aplicada ({failed}).")
+                    notes.append(f"{KIND[settled.kind]}: {where(settled.payload)} · não foi aplicada ({failed}).")
             for note in notes:
                 chunks += text_chunks(note)
             text = "\n\n".join([text, *notes])
@@ -278,7 +284,7 @@ class ChatService:
                 continue
             proposal, failed = await self._settle(filing.proposal, filing.placed)
             chunks.append(_proposal_chunk(proposal))
-            what = f"{KIND[proposal.kind]}: {_where(proposal.edited_payload or proposal.payload)}"
+            what = f"{KIND[proposal.kind]}: {where(proposal.edited_payload or proposal.payload)}"
             if proposal.status == "applied":
                 lines.append(f"{what} · aplicada.")
             elif failed is not None:
@@ -326,8 +332,8 @@ class ChatService:
             Args:
                 node_id: A folder or page; omitted for the base's root.
             """
-            folder = await base.list_folder(node_id)
-            return folder
+            with _retried():
+                return await base.list_folder(node_id)
 
         async def read_page(node_id: UUID, section: str | None = None) -> CitedPage:
             """A page's Markdown as the person last typed it, whole or one `##` section.
@@ -336,7 +342,8 @@ class ChatService:
                 node_id: The page.
                 section: A section's anchor or heading; omitted for the whole page.
             """
-            page = await base.read_page(node_id, section)
+            with _retried():
+                page = await base.read_page(node_id, section)
             cite = run.cite(page.node_id, "page", page.path, page.section, None)
             return CitedPage(**page.model_dump(), cite=cite)
 
@@ -348,7 +355,8 @@ class ChatService:
                 first: The first page, counted from 1.
                 last: The last page; a few pages after `first` at most.
             """
-            read = await base.read_pdf_pages(node_id, first, last)
+            with _retried():
+                read = await base.read_pdf_pages(node_id, first, last)
             pages = [
                 CitedPdfPage(cite=run.cite(read.node_id, "file", read.path, None, number), page=number, text=text)
                 for number, text in enumerate(read.pages, read.first)
@@ -401,8 +409,7 @@ class ChatService:
             last = await self._uow.proposals.last_applied(run.conversation.kb_id)
             if last is None:
                 return with_data(Proposed(outcome="nothing_to_undo"))
-            payload = UndoPayload(proposal_id=last.id, path=_undone_path(last.edited_payload or last.payload))
-            return await self._propose(run, payload)
+            return await self._propose(run, await self._proposals.undo_payload(last))
 
         return [list_folder, read_page, read_pdf_pages, file_fact, file_attachment, move, rename, undo_last]
 
@@ -430,7 +437,7 @@ class ChatService:
         proposed = Proposed(
             outcome="proposed" if filing.placed else "not_sure",
             kind=proposal.kind,
-            where=_where(proposal.payload),
+            where=where(proposal.payload),
             options=[] if filing.placed else [option.path or "raiz" for option in proposal.alternatives or []],
         )
         return with_data(proposed, _proposal_chunk(proposal))
@@ -447,7 +454,7 @@ class ChatService:
             logger.exception("proposal %s was not applied", proposal.id)
             await self._uow.rollback()
             proposal, failed = await self._uow.proposals.get(proposal.id), str(exc)
-        await enqueue_refresh(self._jobs, proposal)
+        await self._proposals.enqueue_refresh(self._jobs, proposal)
         return proposal, failed
 
     async def _drop(self, reply_id: UUID) -> list[ProposalRead]:

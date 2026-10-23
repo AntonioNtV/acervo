@@ -31,10 +31,10 @@ from acervo.schemas.proposal import (
     RenamePayload,
 )
 from acervo.services.agent_service import AgentService
-from acervo.services.conversation_service import ConversationService, Upload
+from acervo.services.conversation_service import ConversationService, Upload, too_large
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.page_service import PageService
-from acervo.services.proposal_service import ProposalService, enqueue_refresh
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -196,11 +196,18 @@ class AgentTools:
 
     async def save_file(self, name: str, content_base64: str) -> Filed:
         """A PDF, filed as one dropped in the chat is."""
+        mime = mimetypes.guess_type(name)[0]
+        if mime != "application/pdf":
+            raise ValidationError("só um PDF pode ser enviado", {"name": name})
+        max_bytes = self._storage.settings.upload_max_bytes
+        # Base64 takes 4 characters for every 3 bytes: an oversized file is refused before it is decoded.
+        if len(content_base64) > 4 * -(-max_bytes // 3):
+            raise ValidationError(too_large(max_bytes), {"max_bytes": max_bytes})
         try:
             data = base64.b64decode(content_base64, validate=True)
         except binascii.Error as exc:
             raise ValidationError("o conteúdo não está em base64", {"name": name}) from exc
-        upload = Upload(name=name, mime=mimetypes.guess_type(name)[0], source=io.BytesIO(data))
+        upload = Upload(name=name, mime=mime, source=io.BytesIO(data))
         return await self._file("", [upload])
 
     async def edit_section(self, node_id: UUID, section: str, new_text: str) -> ProposalRead:
@@ -243,7 +250,9 @@ class AgentTools:
                 raise ValidationError("nada vai dentro de um arquivo", {"parent_id": str(parent_id)})
             to_path = await self._uow.nodes.path(parent.id)
         from_path = await self._uow.nodes.path(node.id)
-        return MovePayload(node_id=node.id, from_path=from_path, parent_id=parent_id, to_path=to_path)
+        return MovePayload(
+            node_id=node.id, from_path=from_path, from_parent_id=node.parent_id, parent_id=parent_id, to_path=to_path
+        )
 
     async def rename_payload(self, node_id: UUID, title: str) -> RenamePayload:
         node = await self._node(node_id)
@@ -269,7 +278,7 @@ class AgentTools:
         proposal = await self._proposals.create(
             ProposalCreate(kb_id=self._agent.kb_id, agent_id=self._agent.id, payload=payload)
         )
-        await enqueue_refresh(self._jobs, proposal)
+        await self._proposals.enqueue_refresh(self._jobs, proposal)
         return proposal
 
     async def _file(self, text: str, uploads: list[Upload]) -> Filed:

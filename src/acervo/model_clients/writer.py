@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from typing import Protocol
 
 from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
-from acervo.domain.decisions import Answers
 
 
 class Writer(Protocol):
@@ -14,8 +13,4 @@ class Writer(Protocol):
 
     async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
         """A description of a folder or page of at most 200 characters, from its children."""
-        ...
-
-    async def explain(self, answers: Answers) -> str:
-        """One sentence saying why, from the logged probabilities; it never re-decides."""
         ...

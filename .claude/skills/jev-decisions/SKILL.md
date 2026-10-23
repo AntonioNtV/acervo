@@ -43,8 +43,6 @@ emissão, renovação, coberturas"`. A choice is only as good as its options (sk
   crossing it does.
 - **Every call is logged**: `run_id`, `step`, question type, options, probabilities, the threshold used and the
   action taken. The proposal it produced points back to the run.
-- **Jev does not explain.** When the person needs a reason, the LLM writes one sentence from the logged
-  probabilities; it never re-decides.
 - Probabilities come rounded to two decimals; ties are broken by the order the options were given (put the
   current location first when it is an option).
 - Retry with back-off on 429 and 529; a cached state is never re-sent.

@@ -3,8 +3,9 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
+from acervo.core.errors import NotFoundError
 from acervo.db.models.agent import Agent
 from acervo.db.models.conversation import Conversation
 from acervo.db.models.proposal import Proposal
@@ -59,6 +60,20 @@ class ProposalRepository(BaseRepository[Proposal, ProposalRead, ProposalCreate, 
         )
         proposal = await self._session.scalar(query)
         return None if proposal is None else self._to_read(proposal)
+
+    async def waits_on(self, storage_key: str) -> bool:
+        """Whether a pending or stale proposal still waits on the staged file at `storage_key`."""
+        waiting = exists().where(
+            Proposal.status.in_(("pending", "stale")), Proposal.staged["storage_key"].astext == storage_key
+        )
+        return bool(await self._session.scalar(select(waiting)))
+
+    async def locked(self, id: UUID) -> ProposalRead:
+        """The proposal as committed, its row held until the transaction ends: two settlements of it run one by one."""
+        proposal = await self._session.get(Proposal, id, with_for_update=True, populate_existing=True)
+        if proposal is None:
+            raise NotFoundError(f"proposal {id} not found", {"id": str(id)})
+        return self._to_read(proposal)
 
     async def update(self, id: UUID, data: ProposalUpdate) -> ProposalRead:
         proposal = await self._get_orm(id)

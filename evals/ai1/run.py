@@ -36,19 +36,9 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.conversation import Attachment
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
-from acervo.schemas.proposal import (
-    ConflictPayload,
-    CreatePagePayload,
-    DecisionLogRead,
-    MovePayload,
-    PatchPayload,
-    ProposalPayload,
-    RenamePayload,
-    ReplacePdfPayload,
-    SavePdfPayload,
-    UndoPayload,
-)
+from acervo.schemas.proposal import CreatePagePayload, DecisionLogRead, ProposalPayload, SavePdfPayload
 from acervo.services.base_service import BaseService
+from acervo.services.chat_service import where
 from acervo.services.file_service import FileService
 from acervo.services.filing_service import Filing, FilingService, Origin
 from acervo.services.storage import Storage
@@ -233,17 +223,8 @@ async def _seed(uow: UnitOfWork, storage: Storage, base: Base) -> uuid.UUID:
 
 
 def _place(payload: ProposalPayload) -> str:
-    match payload:
-        case PatchPayload() | ConflictPayload():
-            return f"{payload.path} › {payload.heading}" if payload.heading else payload.path
-        case CreatePagePayload() | SavePdfPayload():
-            return payload.parent_path
-        case MovePayload():
-            return f"{payload.from_path} → {payload.to_path}"
-        case RenamePayload():
-            return f"{payload.path} → {payload.title}"
-        case ReplacePdfPayload() | UndoPayload():
-            return payload.path
+    """Where the chat says a proposal goes; for a new page or file, the folder the cases name."""
+    return payload.parent_path if isinstance(payload, CreatePagePayload | SavePdfPayload) else where(payload)
 
 
 def seen(filings: list[Filing]) -> list[Seen]:

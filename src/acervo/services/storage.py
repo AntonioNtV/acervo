@@ -78,6 +78,10 @@ class Storage:
             finally:
                 body.close()
 
+    async def delete(self, key: str) -> None:
+        async with self._client() as s3:
+            await s3.delete_object(Bucket=self.bucket, Key=key)
+
     @asynccontextmanager
     async def download(self, key: str) -> AsyncIterator[Path]:
         """The stored bytes in a local temporary file, for what reads a file from disk; removed on exit."""

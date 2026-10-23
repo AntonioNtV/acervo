@@ -29,7 +29,6 @@ Inputs and outputs are `domain/` types; the pipeline calls the `Writer`, never a
 | `split_question` | a question Jev flagged as two-part | sub-questions | small |
 | `read_pages` | the question and the text (or images) of the pages opened | the passages that answer, with page numbers | strong, vision |
 | `answer` | the question and the kept passages | the answer with citation markers | strong |
-| `explain` | the logged probabilities of a proposal | one sentence: why here | small |
 
 Small roles are where the models from the PDF extraction lab can be plugged in.
 

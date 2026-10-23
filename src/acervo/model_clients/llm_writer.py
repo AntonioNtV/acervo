@@ -12,7 +12,6 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models import Model
 
 from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
-from acervo.domain.decisions import Answers, Choice
 
 PROMPTS = Path(__file__).parent / "prompts"
 RATE_LIMIT_ATTEMPTS = 4
@@ -69,10 +68,6 @@ class _Description(BaseModel):
     description: str = Field(max_length=200)
 
 
-class _Sentence(BaseModel):
-    sentence: str
-
-
 class LlmWriter:
     """Each role's prompt file filled with its input, sent to the role's model, its output validated."""
 
@@ -81,7 +76,6 @@ class LlmWriter:
             "card": make_agent(models["card"], Card),
             "patch": make_agent(models["patch"], WrittenPatch),
             "describe": make_agent(models["describe"], _Description),
-            "explain": make_agent(models["explain"], _Sentence),
         }
         self._prompts = {role: prompt(role) for role in self._agents}
 
@@ -106,21 +100,5 @@ class LlmWriter:
         output: _Description = await self._write("describe", title=title, children=listed)
         return output.description
 
-    async def explain(self, answers: Answers) -> str:
-        output: _Sentence = await self._write("explain", answers=_render_answers(answers))
-        return output.sentence
-
     async def _write(self, role: str, **values: str) -> Any:
         return await run(role, self._agents[role], self._prompts[role].format_map(values))
-
-
-def _render_answers(answers: Answers) -> str:
-    lines = []
-    for question in answers.questions:
-        lines.append(question.question)
-        probs = answers.probs[question.id]
-        if isinstance(question, Choice):
-            lines.extend(f"- {option}: {p:.2f}" for option, p in zip(question.options, probs, strict=True))
-        else:
-            lines.append(f"- sim: {probs[0]:.2f}")
-    return "\n".join(lines)
