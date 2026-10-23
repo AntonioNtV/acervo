@@ -25,6 +25,8 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
     revision: page.revision,
     /** The save on its way; it never rejects. */
     inFlight: null as Promise<void> | null,
+    /** The text that save carries. */
+    sending: page.markdown,
     timer: undefined as ReturnType<typeof setTimeout> | undefined,
   });
 
@@ -40,6 +42,7 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
   const send = useCallback(
     (markdown: string, revision: number, keepalive: boolean): Promise<void> => {
       const s = state.current;
+      s.sending = markdown;
       return save({ markdown, revision }, keepalive).then(
         (saved) => {
           s.revision = saved.revision;
@@ -108,7 +111,8 @@ export function useAutosave(nodeId: string, page: { markdown: string; revision: 
       clearTimeout(s.timer);
       // A closing tab never runs what waits for an answer, not even a save on its way: the text and the leave go out
       // now, in that order. If the save on its way lands first, this one is refused and kept as a version.
-      if (s.text !== s.saved) {
+      // The same text again would be refused once the save on its way lands, and reload the editor for nothing.
+      if (s.text !== s.saved && !(s.inFlight && s.text === s.sending)) {
         const body = new Blob([JSON.stringify({ markdown: s.text, revision: s.revision })]);
         void start(body.size < KEEPALIVE_MAX_BYTES);
       }

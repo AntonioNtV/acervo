@@ -224,6 +224,22 @@ describe("PageScreen", () => {
     expect(textPuts()[1]!.body).toEqual({ markdown: "## Documentos\n\nBoleto\n\nno portal\n", revision: 4 });
   });
 
+  it("hiding the tab during a save with nothing new typed only leaves", async () => {
+    const release = holdSaves();
+    await openPage();
+
+    typeInPage("Boleto");
+    await act(() => vi.advanceTimersByTimeAsync(1100));
+    await waitFor(() => expect(textPuts()).toHaveLength(1));
+    hideTab();
+
+    await waitFor(() => expect(leaves()).toHaveLength(1));
+    await release();
+    expect(textPuts()).toHaveLength(1);
+    expect(await screen.findByText("Salvo")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("a newer revision from the API reloads an idle editor", async () => {
     const { queryClient } = await openPage();
 
