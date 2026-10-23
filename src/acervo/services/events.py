@@ -1,4 +1,4 @@
-"""The ports that carry a message's work out of the request: the job queue and the live stream of a conversation."""
+"""The ports that carry a message's work out of the request: the job queue and the live stream of a reply."""
 
 import asyncio
 from collections import defaultdict
@@ -8,12 +8,12 @@ from uuid import UUID
 
 from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings
-from pydantic import TypeAdapter
 from redis.asyncio import Redis
 
-from acervo.schemas.events import ChatEvent
-
-_EVENT: TypeAdapter[ChatEvent] = TypeAdapter(ChatEvent)
+# A reply's stream ends with this chunk, as the AI SDK's UI message stream does.
+DONE = "[DONE]"
+# How long a reply's chunks are kept to replay it on a reconnect; after that the stored thread serves it.
+KEEP_SECONDS = 3600
 
 
 class JobQueue(Protocol):
@@ -21,9 +21,14 @@ class JobQueue(Protocol):
 
 
 class EventBus(Protocol):
-    async def publish(self, conversation_id: UUID, event: ChatEvent) -> None: ...
+    """A reply's chunks of the AI SDK UI message stream (JSON, `[DONE]` last), live and kept for a while."""
 
-    def subscribe(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]: ...
+    async def publish(self, reply_id: UUID, chunk: str) -> None: ...
+
+    def follow(self, reply_id: UUID, working: bool) -> AsyncIterator[str]:
+        """What was kept of the reply, then, while it is `working` (read before calling), what comes live until
+        `[DONE]`."""
+        ...
 
 
 class ArqJobQueue:
@@ -45,27 +50,53 @@ class ArqJobQueue:
 
 
 class RedisEventBus:
-    """One Redis channel per conversation; the API streams it, the worker publishes to it."""
+    """Each chunk is pushed to a list per reply and published on its channel with its index, so a reader that
+    subscribed before reading the list skips what it already replayed."""
 
     def __init__(self, redis_url: str) -> None:
         self._redis = Redis.from_url(redis_url)
 
-    async def publish(self, conversation_id: UUID, event: ChatEvent) -> None:
-        await self._redis.publish(_channel(conversation_id), event.model_dump_json())
+    async def publish(self, reply_id: UUID, chunk: str) -> None:
+        key = _key(reply_id)
+        async with self._redis.pipeline(transaction=True) as pipe:
+            pipe.rpush(key, chunk)
+            pipe.expire(key, KEEP_SECONDS)
+            length, _ = await pipe.execute()
+        await self._redis.publish(_channel(reply_id), f"{length - 1}:{chunk}")
 
-    async def subscribe(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
+    async def follow(self, reply_id: UUID, working: bool) -> AsyncIterator[str]:
         async with self._redis.pubsub() as pubsub:
-            await pubsub.subscribe(_channel(conversation_id))
-            async for item in pubsub.listen():
-                if item["type"] == "message":
-                    yield _EVENT.validate_json(item["data"])
+            await pubsub.subscribe(_channel(reply_id))
+            items = pubsub.listen()
+            # The list is read only once the subscription is confirmed, or a chunk could fall between the two.
+            async for item in items:
+                if item["type"] == "subscribe":
+                    break
+            kept = [chunk.decode() for chunk in await self._redis.lrange(_key(reply_id), 0, -1)]
+            for chunk in kept:
+                yield chunk
+            if DONE in kept or not working:
+                return
+            async for item in items:
+                if item["type"] != "message":
+                    continue
+                index, _, chunk = item["data"].decode().partition(":")
+                if int(index) < len(kept):
+                    continue
+                yield chunk
+                if chunk == DONE:
+                    return
 
     async def close(self) -> None:
         await self._redis.aclose()
 
 
-def _channel(conversation_id: UUID) -> str:
-    return f"acervo:conversation:{conversation_id}"
+def _channel(reply_id: UUID) -> str:
+    return f"acervo:reply:{reply_id}"
+
+
+def _key(reply_id: UUID) -> str:
+    return f"acervo:reply:{reply_id}:chunks"
 
 
 class RecordingJobQueue:
@@ -79,27 +110,31 @@ class RecordingJobQueue:
 
 
 class InMemoryEventBus:
-    """The tests' bus, in one process; `close` ends a conversation's streams so a reader can finish."""
+    """The tests' bus, in one process; `kept` holds every reply's chunks."""
 
     def __init__(self) -> None:
-        self._queues: defaultdict[UUID, list[asyncio.Queue[ChatEvent | None]]] = defaultdict(list)
+        self.kept: defaultdict[UUID, list[str]] = defaultdict(list)
+        self._queues: defaultdict[UUID, list[asyncio.Queue[str]]] = defaultdict(list)
 
-    def subscribers(self, conversation_id: UUID) -> int:
-        return len(self._queues[conversation_id])
+    def followers(self, reply_id: UUID) -> int:
+        return len(self._queues[reply_id])
 
-    async def publish(self, conversation_id: UUID, event: ChatEvent) -> None:
-        for queue in self._queues[conversation_id]:
-            queue.put_nowait(event)
+    async def publish(self, reply_id: UUID, chunk: str) -> None:
+        self.kept[reply_id].append(chunk)
+        for queue in self._queues[reply_id]:
+            queue.put_nowait(chunk)
 
-    async def close(self, conversation_id: UUID) -> None:
-        for queue in self._queues[conversation_id]:
-            queue.put_nowait(None)
-
-    async def subscribe(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
-        queue: asyncio.Queue[ChatEvent | None] = asyncio.Queue()
-        self._queues[conversation_id].append(queue)
+    async def follow(self, reply_id: UUID, working: bool) -> AsyncIterator[str]:
+        queue: asyncio.Queue[str] = asyncio.Queue()
+        self._queues[reply_id].append(queue)
         try:
-            while (event := await queue.get()) is not None:
-                yield event
+            kept = list(self.kept[reply_id])
+            for chunk in kept:
+                yield chunk
+            if DONE in kept or not working:
+                return
+            while (chunk := await queue.get()) != DONE:
+                yield chunk
+            yield chunk
         finally:
-            self._queues[conversation_id].remove(queue)
+            self._queues[reply_id].remove(queue)

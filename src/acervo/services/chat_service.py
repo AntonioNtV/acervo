@@ -6,24 +6,34 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+from pydantic_ai import ToolReturn
 
-from acervo.core.errors import AcervoError, NotFoundError, ValidationError
+from acervo.core.errors import NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
-from acervo.model_clients.chat_agent import ChatAgent, Tool, Turn
+from acervo.model_clients.chat_agent import (
+    ChatAgent,
+    Chunk,
+    Tool,
+    Turn,
+    end_chunks,
+    metadata_chunk,
+    start_chunk,
+    text_chunks,
+    with_data,
+)
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead, AgentUpdate
-from acervo.schemas.conversation import Citation, ConversationRead, MessageRead, MessageUpdate
-from acervo.schemas.events import (
-    DeltaEvent,
-    DoneEvent,
-    ErrorEvent,
-    MessageEvent,
-    ProposalEvent,
-    StepEvent,
-    StepName,
+from acervo.schemas.conversation import (
+    Citation,
+    ConversationRead,
+    MessageRead,
+    MessageUpdate,
+    UiMetadata,
+    UiProposalPart,
+    UiSourcePart,
 )
 from acervo.schemas.proposal import (
     ConflictPayload,
@@ -104,6 +114,8 @@ class _Run:
     sources: list[Citation] = field(default_factory=list)
     # A write tool ran: the reply is about the base even when nothing was proposed ("já está escrito").
     filed: bool = False
+    # The reply's stream started: its `start` went out.
+    streamed: bool = False
 
     @property
     def origin(self) -> Origin:
@@ -158,6 +170,10 @@ def _undone_path(payload: ProposalPayload) -> str:
             return _where(payload)
 
 
+def _proposal_chunk(proposal: ProposalRead) -> Chunk:
+    return UiProposalPart(id=proposal.id, data=proposal).model_dump_json()
+
+
 def _written(filing: Filing) -> str:
     assert filing.written is not None
     written = filing.written
@@ -201,7 +217,7 @@ class ChatService:
             await self._uow.agents.update(run.agent.id, AgentUpdate(last_used_at=datetime.now(UTC)))
         await self._uow.commit()
         try:
-            done = await self._run(run)
+            return await self._run(run)
         except asyncio.CancelledError as exc:
             # A job past its timeout is cancelled: its reply must not stay working.
             logger.warning("message %s cancelled", message_id)
@@ -210,30 +226,43 @@ class ChatService:
         except Exception as exc:
             logger.exception("message %s failed", message_id)
             return await self._fail(run, exc)
-        await self._events.publish(conversation.id, MessageEvent(message=done))
-        await self._events.publish(conversation.id, DoneEvent(message_id=done.id))
-        return done
 
     async def _run(self, run: _Run) -> MessageRead:
         if run.reply.replaces_id is not None:
-            await self._drop(run, run.reply.replaces_id)
+            await self._drop(run.reply.replaces_id)
         reply = await (self._converse(run) if run.agent.built_in else self._file(run))
         done = await self._uow.messages.update(run.reply.id, reply)
+        # Committed after its stream ended: a reader that finds the reply finished finds its whole stream kept.
         await self._uow.commit()
         return done
 
     async def _converse(self, run: _Run) -> MessageUpdate:
-        async def on_text(text: str) -> None:
-            await self._events.publish(run.conversation.id, DeltaEvent(message_id=run.reply.id, text=text))
+        update = MessageUpdate()
 
-        text = await self._chat.reply(await self._prompt(run), await self._turns(run), self._tools(run), on_text)
-        # Applied only now: a run that fails on the way leaves each of its proposals unapplied, and drops them.
-        for proposal, placed in run.proposed:
-            settled, failed = await self._settle(run, proposal, placed)
-            if failed is not None:
-                text += f"\n\n{KIND[settled.kind]}: {_where(settled.payload)} · não foi aplicada ({failed})."
-        cited = [source for source in run.sources if f"[{source.marker}]" in text]
-        return MessageUpdate(text=text, citations=cited, grounded=bool(cited) or run.filed, status="done")
+        async def finish(text: str) -> list[Chunk]:
+            # Applied only now: a run that fails on the way leaves each of its proposals unapplied, and drops them.
+            chunks, notes = [], []
+            for proposal, placed in run.proposed:
+                settled, failed = await self._settle(proposal, placed)
+                chunks.append(_proposal_chunk(settled))
+                if failed is not None:
+                    notes.append(f"{KIND[settled.kind]}: {_where(settled.payload)} · não foi aplicada ({failed}).")
+            for note in notes:
+                chunks += text_chunks(note)
+            text = "\n\n".join([text, *notes])
+            cited = [source for source in run.sources if f"[{source.marker}]" in text]
+            chunks += [UiSourcePart.of(source).model_dump_json() for source in cited]
+            update.text, update.citations, update.grounded = text, cited, bool(cited) or run.filed
+            update.status = "done"
+            chunks.append(metadata_chunk(UiMetadata(status="done", grounded=update.grounded).model_dump(mode="json")))
+            return chunks
+
+        prompt, turns = await self._prompt(run), await self._turns(run)
+        stream = self._chat.stream(prompt, turns, self._tools(run), message_id=str(run.reply.id), finish=finish)
+        run.streamed = True  # its first chunk is `start`
+        async for chunk in stream:
+            await self._publish(run, chunk)
+        return update
 
     async def _file(self, run: _Run) -> MessageUpdate:
         """The message's files, or else its text as a fact, each filed before any is applied."""
@@ -242,12 +271,13 @@ class ChatService:
             filings = [await self._filing.attachment(attachment, run.origin) for attachment in message.attachments]
         else:
             filings = [await self._filing.fact(message.text, run.origin)]
-        lines = []
+        lines, chunks = [], []
         for filing in filings:
             if filing.proposal is None:
                 lines.append(f"Já está escrito em {_written(filing)}.")
                 continue
-            proposal, failed = await self._settle(run, filing.proposal, filing.placed)
+            proposal, failed = await self._settle(filing.proposal, filing.placed)
+            chunks.append(_proposal_chunk(proposal))
             what = f"{KIND[proposal.kind]}: {_where(proposal.edited_payload or proposal.payload)}"
             if proposal.status == "applied":
                 lines.append(f"{what} · aplicada.")
@@ -257,7 +287,11 @@ class ChatService:
                 lines.append("Não sei onde guardar; escolha um dos lugares sugeridos.")
             else:
                 lines.append(f"{what} · esperando aprovação.")
-        return MessageUpdate(text="\n".join(lines), grounded=True, status="done")
+        text = "\n".join(lines)
+        metadata = metadata_chunk(UiMetadata(status="done", grounded=True).model_dump(mode="json"))
+        run.streamed = True
+        await self._publish(run, start_chunk(str(run.reply.id)), *text_chunks(text), *chunks, metadata, *end_chunks())
+        return MessageUpdate(text=text, grounded=True, status="done")
 
     async def _prompt(self, run: _Run) -> str:
         message = run.message
@@ -293,7 +327,6 @@ class ChatService:
                 node_id: A folder or page; omitted for the base's root.
             """
             folder = await base.list_folder(node_id)
-            await self._step(run, "list_folder", folder.path or None)
             return folder
 
         async def read_page(node_id: UUID, section: str | None = None) -> CitedPage:
@@ -304,7 +337,6 @@ class ChatService:
                 section: A section's anchor or heading; omitted for the whole page.
             """
             page = await base.read_page(node_id, section)
-            await self._step(run, "read_page", page.path)
             cite = run.cite(page.node_id, "page", page.path, page.section, None)
             return CitedPage(**page.model_dump(), cite=cite)
 
@@ -317,24 +349,22 @@ class ChatService:
                 last: The last page; a few pages after `first` at most.
             """
             read = await base.read_pdf_pages(node_id, first, last)
-            await self._step(run, "read_pdf_pages", f"{read.path} · {read.first}–{read.last}")
             pages = [
                 CitedPdfPage(cite=run.cite(read.node_id, "file", read.path, None, number), page=number, text=text)
                 for number, text in enumerate(read.pages, read.first)
             ]
             return CitedPdf(node_id=read.node_id, path=read.path, page_count=read.page_count, pages=pages)
 
-        async def file_fact(text: str) -> Proposed:
+        async def file_fact(text: str) -> ToolReturn:
             """Files a fact the person brought: where it goes, whether it is already written or contradicts a page
             is decided here, and the result is a proposal the person approves.
 
             Args:
                 text: The fact, in plain words, standing on its own.
             """
-            await self._step(run, "file_fact", text)
             return await self._proposed(run, await self._filing.fact(text, run.origin))
 
-        async def file_attachment(name: str) -> Proposed:
+        async def file_attachment(name: str) -> ToolReturn:
             """Files a PDF attached to the message: saved in the right folder or as a new version of one there,
             as a proposal the person approves.
 
@@ -344,10 +374,9 @@ class ChatService:
             attachment = next((attachment for attachment in run.message.attachments if attachment.name == name), None)
             if attachment is None:
                 raise ValidationError(f"nenhum anexo se chama {name}", {"name": name})
-            await self._step(run, "file_attachment", name)
             return await self._proposed(run, await self._filing.attachment(attachment, run.origin))
 
-        async def move(node_id: UUID, parent_id: UUID | None) -> Proposed:
+        async def move(node_id: UUID, parent_id: UUID | None) -> ToolReturn:
             """Proposes moving a folder, page or file under another folder or page.
 
             Args:
@@ -355,10 +384,9 @@ class ChatService:
                 parent_id: The folder or page it goes under; null for the base's root.
             """
             payload = await base.move_payload(node_id, parent_id)
-            await self._step(run, "move", payload.from_path)
             return await self._propose(run, payload)
 
-        async def rename(node_id: UUID, title: str) -> Proposed:
+        async def rename(node_id: UUID, title: str) -> ToolReturn:
             """Proposes a new title for a folder, page or file.
 
             Args:
@@ -366,21 +394,19 @@ class ChatService:
                 title: The new title.
             """
             payload = await base.rename_payload(node_id, title)
-            await self._step(run, "rename", payload.path)
             return await self._propose(run, payload)
 
-        async def undo_last() -> Proposed:
+        async def undo_last() -> ToolReturn:
             """Proposes undoing the change applied last in the base."""
-            await self._step(run, "undo_last")
             last = await self._uow.proposals.last_applied(run.conversation.kb_id)
             if last is None:
-                return Proposed(outcome="nothing_to_undo")
+                return with_data(Proposed(outcome="nothing_to_undo"))
             payload = UndoPayload(proposal_id=last.id, path=_undone_path(last.edited_payload or last.payload))
             return await self._propose(run, payload)
 
         return [list_folder, read_page, read_pdf_pages, file_fact, file_attachment, move, rename, undo_last]
 
-    async def _propose(self, run: _Run, payload: ProposalPayload) -> Proposed:
+    async def _propose(self, run: _Run, payload: ProposalPayload) -> ToolReturn:
         proposal = await self._proposals.add(
             ProposalCreate(
                 kb_id=run.conversation.kb_id,
@@ -395,21 +421,21 @@ class ChatService:
         await self._uow.commit()
         return await self._proposed(run, Filing(proposal=proposal))
 
-    async def _proposed(self, run: _Run, filing: Filing) -> Proposed:
+    async def _proposed(self, run: _Run, filing: Filing) -> ToolReturn:
         run.filed = True
         if filing.proposal is None:
-            return Proposed(outcome="already_written", where=_written(filing))
+            return with_data(Proposed(outcome="already_written", where=_written(filing)))
         proposal = filing.proposal
         run.proposed.append((proposal, filing.placed))
-        await self._events.publish(run.conversation.id, ProposalEvent(proposal=proposal))
-        return Proposed(
+        proposed = Proposed(
             outcome="proposed" if filing.placed else "not_sure",
             kind=proposal.kind,
             where=_where(proposal.payload),
             options=[] if filing.placed else [option.path or "raiz" for option in proposal.alternatives or []],
         )
+        return with_data(proposed, _proposal_chunk(proposal))
 
-    async def _settle(self, run: _Run, proposal: ProposalRead, placed: bool) -> tuple[ProposalRead, str | None]:
+    async def _settle(self, proposal: ProposalRead, placed: bool) -> tuple[ProposalRead, str | None]:
         """Applied at once for an agent in auto mode, or left pending, also when that apply fails (with why)."""
         failed = None
         try:
@@ -418,31 +444,35 @@ class ChatService:
             logger.exception("proposal %s was not applied", proposal.id)
             await self._uow.rollback()
             proposal, failed = await self._uow.proposals.get(proposal.id), str(exc)
-        await self._events.publish(run.conversation.id, ProposalEvent(proposal=proposal))
         await enqueue_refresh(self._jobs, proposal)
         return proposal, failed
 
-    async def _drop(self, run: _Run, reply_id: UUID) -> None:
+    async def _drop(self, reply_id: UUID) -> list[ProposalRead]:
         """What a reply's pending or stale proposals proposed is no longer asked: the system's rejection, not the
         person's, so no reason labels it. Applied ones stay."""
-        for proposal in await self._uow.proposals.of_message(reply_id):
-            if proposal.status in OPEN:
-                dropped = await self._uow.proposals.update(proposal.id, ProposalUpdate(status="rejected"))
-                await self._events.publish(run.conversation.id, ProposalEvent(proposal=dropped))
+        dropped = [
+            await self._uow.proposals.update(proposal.id, ProposalUpdate(status="rejected"))
+            for proposal in await self._uow.proposals.of_message(reply_id)
+            if proposal.status in OPEN
+        ]
         await self._uow.commit()
+        return dropped
 
     async def _fail(self, run: _Run, exc: BaseException) -> MessageRead:
         """Nothing of the run is left waiting or applied; the decisions it asked stay logged, once (the filing logs
-        them)."""
+        them). The stream ends with the error, before the failure is committed."""
         await self._uow.rollback()
-        await self._drop(run, run.reply.id)
-        code = exc.code if isinstance(exc, AcervoError) else "internal"
+        dropped = await self._drop(run.reply.id)
         error = INTERRUPTED if isinstance(exc, asyncio.CancelledError) else str(exc)
         failed = await self._uow.messages.update(run.reply.id, MessageUpdate(status="failed", error=error))
+        metadata = UiMetadata(status="failed", grounded=failed.grounded, error=error).model_dump(mode="json")
+        # A run that failed before its stream started still streams a whole reply.
+        chunks = [] if run.streamed else [start_chunk(str(run.reply.id))]
+        chunks += [_proposal_chunk(proposal) for proposal in dropped]
+        await self._publish(run, *chunks, metadata_chunk(metadata), *end_chunks(error))
         await self._uow.commit()
-        await self._events.publish(run.conversation.id, MessageEvent(message=failed))
-        await self._events.publish(run.conversation.id, ErrorEvent(message_id=failed.id, error=code, message=error))
         return failed
 
-    async def _step(self, run: _Run, step: StepName, detail: str | None = None) -> None:
-        await self._events.publish(run.conversation.id, StepEvent(message_id=run.reply.id, step=step, detail=detail))
+    async def _publish(self, run: _Run, *chunks: Chunk) -> None:
+        for chunk in chunks:
+            await self._events.publish(run.reply.id, chunk)

@@ -1,5 +1,4 @@
 from collections.abc import AsyncIterator
-from uuid import UUID
 
 from pydantic_ai.messages import ModelMessage
 from pydantic_ai.models.function import AgentInfo, FunctionModel
@@ -11,23 +10,11 @@ from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate
 from acervo.schemas.conversation import ConversationStart
-from acervo.schemas.events import ChatEvent, DoneEvent
 from acervo.schemas.kb import KbCreate
 from acervo.services.conversation_service import ConversationService
-from acervo.services.events import InMemoryEventBus, RecordingJobQueue
+from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
 from acervo.services.storage import Storage
 from acervo.worker.jobs import handle_message
-
-
-class RecordingBus:
-    def __init__(self) -> None:
-        self.events: list[ChatEvent] = []
-
-    async def publish(self, conversation_id: UUID, event: ChatEvent) -> None:
-        self.events.append(event)
-
-    def subscribe(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
-        raise NotImplementedError
 
 
 async def test_handle_message_runs_the_chat_and_publishes_done(
@@ -49,7 +36,7 @@ async def test_handle_message_runs_the_chat_and_publishes_done(
     async def answer(messages: list[ModelMessage], info: AgentInfo) -> AsyncIterator[str]:
         yield "Cinco dias."
 
-    bus = RecordingBus()
+    bus = InMemoryEventBus()
     ctx = {
         "session_factory": session_factory,
         "storage": storage,
@@ -65,7 +52,7 @@ async def test_handle_message_runs_the_chat_and_publishes_done(
     await handle_message(ctx, **kwargs)
 
     assert (job, kwargs["reply_id"]) == ("handle_message", str(posted.reply.id))
-    assert bus.events[-1] == DoneEvent(message_id=posted.reply.id)
+    assert bus.kept[posted.reply.id][-1] == DONE
     async with UnitOfWork(session_factory) as check:
         reply = await check.messages.get(posted.reply.id)
     assert (reply.status, reply.text) == ("done", "Cinco dias.")

@@ -20,8 +20,13 @@ from acervo.schemas.conversation import (
     MessageCreate,
     MessagePosted,
     MessageRead,
+    UiMessage,
+    UiMetadata,
+    UiPart,
+    UiProposalPart,
+    UiSourcePart,
+    UiTextPart,
 )
-from acervo.schemas.events import ChatEvent, MessageEvent
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.file_service import read_hash
 from acervo.services.storage import Storage
@@ -101,7 +106,7 @@ class ConversationService:
             change.title = (text.splitlines()[0] if text else attachments[0].name)[:TITLE_LENGTH]
         await self._uow.conversations.update(conversation.id, change)
         await self._uow.commit()
-        await self._run(conversation.id, message, reply, (message, reply))
+        await self._run(message, reply)
         return MessagePosted(message=message, reply=reply)
 
     async def retry(self, reply_id: UUID) -> MessageRead:
@@ -118,7 +123,7 @@ class ConversationService:
             )
         )
         await self._uow.commit()
-        await self._run(replaced.conversation_id, message, reply, (reply,))
+        await self._run(message, reply)
         return reply
 
     async def redo(self, proposal_id: UUID) -> MessageRead:
@@ -128,22 +133,42 @@ class ConversationService:
             raise ConflictError("só uma proposta desatualizada do chat pode ser refeita", {"id": str(proposal_id)})
         return await self.retry(proposal.message_id)
 
-    async def events(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
-        await self._live(conversation_id)
-        # A stream may stay open for hours: it must not hold a database connection meanwhile.
-        await self._uow.rollback()
-        return self._events.subscribe(conversation_id)
+    async def ui_messages(self, conversation_id: UUID) -> builtins.list[UiMessage]:
+        """The thread as the AI SDK's UI messages: a reply's text, its proposals as they stand, its citations."""
+        thread = await self.messages(conversation_id)
+        return [await self._ui_message(message) for message in thread]
 
-    async def _run(
-        self,
-        conversation_id: UUID,
-        message: MessageRead,
-        reply: MessageRead,
-        new: Sequence[MessageRead],
-    ) -> None:
+    async def stream(self, reply_id: UUID) -> AsyncIterator[str]:
+        """A reply's UI message stream: what was kept of it, then what comes live while it works."""
+        reply = await self._uow.messages.get(reply_id)
+        if reply.role != "acervo":
+            raise NotFoundError(f"reply {reply_id} not found", {"id": str(reply_id)})
+        await self._live(reply.conversation_id)
+        # A stream may stay open for minutes: it must not hold a database connection meanwhile.
+        await self._uow.rollback()
+        return self._events.follow(reply_id, reply.status == "working")
+
+    async def _ui_message(self, message: MessageRead) -> UiMessage:
+        metadata = UiMetadata(
+            status=message.status,
+            grounded=message.grounded,
+            error=message.error,
+            replaces_id=message.replaces_id,
+            attachments=message.attachments,
+            created_at=message.created_at,
+        )
+        if message.role == "person":
+            return UiMessage(id=message.id, role="user", metadata=metadata, parts=_text(message.text))
+        parts: builtins.list[UiPart] = []
+        if message.status != "working":
+            parts += _text(message.text)
+            proposals = await self._uow.proposals.of_message(message.id)
+            parts += [UiProposalPart(id=proposal.id, data=proposal) for proposal in proposals]
+            parts += [UiSourcePart.of(citation) for citation in message.citations]
+        return UiMessage(id=message.id, role="assistant", metadata=metadata, parts=parts)
+
+    async def _run(self, message: MessageRead, reply: MessageRead) -> None:
         await self._jobs.enqueue(HANDLE_MESSAGE, message_id=str(message.id), reply_id=str(reply.id))
-        for stored in new:
-            await self._events.publish(conversation_id, MessageEvent(message=stored))
 
     async def _live(self, conversation_id: UUID) -> ConversationRead:
         conversation = await self._uow.conversations.get(conversation_id)
@@ -170,6 +195,10 @@ class ConversationService:
         await self._storage.put(key, upload.source, size)
         mime = upload.mime or mimetypes.guess_type(upload.name)[0] or "application/octet-stream"
         return Attachment(storage_key=key, sha256=sha256, size=size, name=upload.name, mime=mime)
+
+
+def _text(text: str) -> list[UiPart]:
+    return [UiTextPart(text=text)] if text else []
 
 
 def _asked(thread: list[MessageRead], reply: MessageRead) -> MessageRead:

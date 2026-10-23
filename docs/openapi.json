@@ -659,34 +659,6 @@
         "title": "CreatePagePayload",
         "type": "object"
       },
-      "DeltaEvent": {
-        "description": "More of a reply's text as the chat writes it; the `message` event at the end carries the whole text.",
-        "properties": {
-          "message_id": {
-            "description": "The reply being written.",
-            "format": "uuid",
-            "title": "Message Id",
-            "type": "string"
-          },
-          "text": {
-            "description": "The text to add after what came before.",
-            "title": "Text",
-            "type": "string"
-          },
-          "type": {
-            "const": "delta",
-            "default": "delta",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id",
-          "text"
-        ],
-        "title": "DeltaEvent",
-        "type": "object"
-      },
       "DiffLine": {
         "description": "One line of a difference between two texts, in reading order.",
         "properties": {
@@ -711,62 +683,6 @@
           "text"
         ],
         "title": "DiffLine",
-        "type": "object"
-      },
-      "DoneEvent": {
-        "description": "The job of a reply ended; its message and proposals are final.",
-        "properties": {
-          "message_id": {
-            "description": "The reply.",
-            "format": "uuid",
-            "title": "Message Id",
-            "type": "string"
-          },
-          "type": {
-            "const": "done",
-            "default": "done",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id"
-        ],
-        "title": "DoneEvent",
-        "type": "object"
-      },
-      "ErrorEvent": {
-        "description": "The job of a reply failed; nothing it did was applied.",
-        "properties": {
-          "error": {
-            "description": "Error code, as in ErrorResponse.",
-            "title": "Error",
-            "type": "string"
-          },
-          "message": {
-            "description": "Human-readable explanation; the app shows the code's own text instead.",
-            "title": "Message",
-            "type": "string"
-          },
-          "message_id": {
-            "description": "The reply.",
-            "format": "uuid",
-            "title": "Message Id",
-            "type": "string"
-          },
-          "type": {
-            "const": "error",
-            "default": "error",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id",
-          "error",
-          "message"
-        ],
-        "title": "ErrorEvent",
         "type": "object"
       },
       "ErrorResponse": {
@@ -1394,25 +1310,6 @@
           }
         },
         "title": "MessageContext",
-        "type": "object"
-      },
-      "MessageEvent": {
-        "description": "A message stored or changed: the person's, or Acervo's reply.",
-        "properties": {
-          "message": {
-            "$ref": "#/components/schemas/MessageRead"
-          },
-          "type": {
-            "const": "message",
-            "default": "message",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message"
-        ],
-        "title": "MessageEvent",
         "type": "object"
       },
       "MessagePosted": {
@@ -2548,25 +2445,6 @@
         "title": "Placement",
         "type": "object"
       },
-      "ProposalEvent": {
-        "description": "A proposal created or changed by a reply.",
-        "properties": {
-          "proposal": {
-            "$ref": "#/components/schemas/ProposalRead"
-          },
-          "type": {
-            "const": "proposal",
-            "default": "proposal",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "proposal"
-        ],
-        "title": "ProposalEvent",
-        "type": "object"
-      },
       "ProposalRead": {
         "description": "A stored proposal: the only way an agent's change gets into a base.",
         "properties": {
@@ -3512,56 +3390,6 @@
         "title": "StagedFile",
         "type": "object"
       },
-      "StepEvent": {
-        "description": "A tool the chat calls while working on a reply, shown live in the thread.",
-        "properties": {
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "What it is done to: a path, a file's name, a fact.",
-            "title": "Detail"
-          },
-          "message_id": {
-            "description": "The reply being worked on.",
-            "format": "uuid",
-            "title": "Message Id",
-            "type": "string"
-          },
-          "step": {
-            "description": "The tool called; the app shows its own text for it.",
-            "enum": [
-              "list_folder",
-              "read_page",
-              "read_pdf_pages",
-              "file_fact",
-              "file_attachment",
-              "move",
-              "rename",
-              "undo_last"
-            ],
-            "title": "Step",
-            "type": "string"
-          },
-          "type": {
-            "const": "step",
-            "default": "step",
-            "title": "Type",
-            "type": "string"
-          }
-        },
-        "required": [
-          "message_id",
-          "step"
-        ],
-        "title": "StepEvent",
-        "type": "object"
-      },
       "TreeNode": {
         "description": "A node as the tree shows it.",
         "properties": {
@@ -3744,6 +3572,232 @@
           "size"
         ],
         "title": "TreeNode",
+        "type": "object"
+      },
+      "UiMessage": {
+        "description": "A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them.",
+        "properties": {
+          "id": {
+            "description": "Message ID; a reply's is also its stream's messageId.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/UiMetadata"
+          },
+          "parts": {
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "data-proposal": "#/components/schemas/UiProposalPart",
+                  "source-document": "#/components/schemas/UiSourcePart",
+                  "text": "#/components/schemas/UiTextPart"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/UiTextPart"
+                },
+                {
+                  "$ref": "#/components/schemas/UiProposalPart"
+                },
+                {
+                  "$ref": "#/components/schemas/UiSourcePart"
+                }
+              ]
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "role": {
+            "description": "user: the person; assistant: Acervo.",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "metadata",
+          "parts"
+        ],
+        "title": "UiMessage",
+        "type": "object"
+      },
+      "UiMetadata": {
+        "description": "What the app needs of a stored message besides its parts; a reply's stream sends it before `finish`.",
+        "properties": {
+          "attachments": {
+            "description": "Files sent with the message.",
+            "items": {
+              "$ref": "#/components/schemas/Attachment"
+            },
+            "title": "Attachments",
+            "type": "array"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When it was sent; only in the stored thread.",
+            "title": "Created At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why it failed; null unless status is failed.",
+            "title": "Error"
+          },
+          "grounded": {
+            "default": false,
+            "description": "A reply that used the base; else a general answer.",
+            "title": "Grounded",
+            "type": "boolean"
+          },
+          "replaces_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reply this one runs again.",
+            "title": "Replaces Id"
+          },
+          "status": {
+            "description": "A reply is working until its job ends.",
+            "enum": [
+              "done",
+              "working",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "UiMetadata",
+        "type": "object"
+      },
+      "UiProposalPart": {
+        "description": "A proposal of a reply, in its current state; a later part with the same id replaces it.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ProposalRead"
+          },
+          "id": {
+            "description": "The proposal's ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "data-proposal",
+            "default": "data-proposal",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "data"
+        ],
+        "title": "UiProposalPart",
+        "type": "object"
+      },
+      "UiSourceMetadata": {
+        "description": "Acervo's own fields of a source.",
+        "properties": {
+          "acervo": {
+            "$ref": "#/components/schemas/Citation"
+          }
+        },
+        "required": [
+          "acervo"
+        ],
+        "title": "UiSourceMetadata",
+        "type": "object"
+      },
+      "UiSourcePart": {
+        "description": "A source a reply cites, as the AI SDK's `source-document` part.",
+        "properties": {
+          "mediaType": {
+            "description": "text/markdown for a page, application/pdf for a PDF.",
+            "title": "Mediatype",
+            "type": "string"
+          },
+          "providerMetadata": {
+            "$ref": "#/components/schemas/UiSourceMetadata",
+            "description": "The citation: node, section or PDF page."
+          },
+          "sourceId": {
+            "description": "The marker the text writes: [n].",
+            "title": "Sourceid",
+            "type": "string"
+          },
+          "title": {
+            "description": "Its path.",
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "const": "source-document",
+            "default": "source-document",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sourceId",
+          "mediaType",
+          "title",
+          "providerMetadata"
+        ],
+        "title": "UiSourcePart",
+        "type": "object"
+      },
+      "UiTextPart": {
+        "description": "Text of a message, as the AI SDK's `text` part.",
+        "properties": {
+          "text": {
+            "description": "Markdown; a reply writes [n] after a claim taken from its source n.",
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "const": "text",
+            "default": "text",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "UiTextPart",
         "type": "object"
       },
       "UndoPayload": {
@@ -4049,139 +4103,6 @@
         ]
       }
     },
-    "/v1/conversations/{conversation_id}/events": {
-      "get": {
-        "description": "The conversation's live events, each a JSON `data:` line, for as long as the connection stays open.",
-        "operationId": "conversation_events_v1_conversations__conversation_id__events_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "conversation_id",
-            "required": true,
-            "schema": {
-              "format": "uuid",
-              "title": "Conversation Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "x-api-key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Api-Key"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "text/event-stream": {
-                "itemSchema": {
-                  "properties": {
-                    "data": {
-                      "contentMediaType": "application/json",
-                      "contentSchema": {
-                        "discriminator": {
-                          "mapping": {
-                            "delta": "#/components/schemas/DeltaEvent",
-                            "done": "#/components/schemas/DoneEvent",
-                            "error": "#/components/schemas/ErrorEvent",
-                            "message": "#/components/schemas/MessageEvent",
-                            "proposal": "#/components/schemas/ProposalEvent",
-                            "step": "#/components/schemas/StepEvent"
-                          },
-                          "propertyName": "type"
-                        },
-                        "oneOf": [
-                          {
-                            "$ref": "#/components/schemas/StepEvent"
-                          },
-                          {
-                            "$ref": "#/components/schemas/DeltaEvent"
-                          },
-                          {
-                            "$ref": "#/components/schemas/MessageEvent"
-                          },
-                          {
-                            "$ref": "#/components/schemas/ProposalEvent"
-                          },
-                          {
-                            "$ref": "#/components/schemas/DoneEvent"
-                          },
-                          {
-                            "$ref": "#/components/schemas/ErrorEvent"
-                          }
-                        ],
-                        "title": "Streamitem Conversation Events V1 Conversations  Conversation Id  Events Get"
-                      },
-                      "type": "string"
-                    },
-                    "event": {
-                      "type": "string"
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "retry": {
-                      "minimum": 0,
-                      "type": "integer"
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ],
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "401": {
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
-          },
-          "404": {
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Not Found"
-          },
-          "422": {
-            "content": {
-              "text/event-stream": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity"
-          }
-        },
-        "summary": "Conversation Events",
-        "tags": [
-          "conversations"
-        ]
-      }
-    },
     "/v1/conversations/{conversation_id}/messages": {
       "get": {
         "description": "The conversation's messages in the order they were sent.",
@@ -4266,7 +4187,7 @@
         ]
       },
       "post": {
-        "description": "Stores the message and a working reply; the reply's steps and result arrive on the events stream.",
+        "description": "Stores the message and a working reply; the reply streams from `/v1/messages/{reply_id}/stream`.",
         "operationId": "post_message_v1_conversations__conversation_id__messages_post",
         "parameters": [
           {
@@ -4348,6 +4269,90 @@
           }
         },
         "summary": "Post Message",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/v1/conversations/{conversation_id}/ui-messages": {
+      "get": {
+        "description": "The conversation as the AI SDK's UI messages (v6): text, proposals as they stand now, citations as sources.",
+        "operationId": "list_ui_messages_v1_conversations__conversation_id__ui_messages_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UiMessage"
+                  },
+                  "title": "Response List Ui Messages V1 Conversations  Conversation Id  Ui Messages Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Ui Messages",
         "tags": [
           "conversations"
         ]
@@ -6338,6 +6343,82 @@
           }
         },
         "summary": "Retry Message",
+        "tags": [
+          "conversations"
+        ]
+      }
+    },
+    "/v1/messages/{reply_id}/stream": {
+      "get": {
+        "description": "A reply as the AI SDK's UI message stream (v6), a `data:` line per chunk and `data: [DONE]` last: what it\nstreamed so far, then live until it ends; a reply already finished replays and ends.",
+        "operationId": "stream_reply_v1_messages__reply_id__stream_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "reply_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Reply Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {}
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Stream Reply",
         "tags": [
           "conversations"
         ]
