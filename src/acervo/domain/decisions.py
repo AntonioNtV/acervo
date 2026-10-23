@@ -27,11 +27,25 @@ class Choice(BaseModel):
     options: tuple[str, ...] = Field(min_length=1, max_length=255)
 
 
-Question = Annotated[Noul | Choice, Field(discriminator="type")]
+class Score(BaseModel):
+    """A level on a rubric of 2 to 10 levels, low to high; answered with the expected level, from 0."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["score"] = "score"
+    id: str
+    question: str
+    levels: tuple[str, ...] = Field(min_length=2, max_length=10)
+
+
+Question = Annotated[Noul | Choice | Score, Field(discriminator="type")]
 
 
 class Answers(BaseModel):
-    """What the decider answered for one state: per question, one probability per option (a Noul's is P(yes))."""
+    """What the decider answered for one state: per question, one probability per option.
+
+    A Noul's one value is P(yes); a Score's is its expected level, from 0 to the last level.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -47,6 +61,8 @@ class Answers(BaseModel):
             got = len(self.probs.get(question.id, ()))
             if got != expected:
                 raise ValueError(f"question {question.id!r} needs {expected} probabilities, got {got}")
+            if isinstance(question, Score) and not 0 <= self.probs[question.id][0] <= len(question.levels) - 1:
+                raise ValueError(f"score {question.id!r} is outside its {len(question.levels)} levels")
         return self
 
     def question(self, id: str) -> Question:
@@ -65,4 +81,9 @@ class Answers(BaseModel):
     def p_yes(self, id: str) -> float:
         if not isinstance(self.question(id), Noul):
             raise TypeError(f"question {id!r} is not a Noul")
+        return self.probs[id][0]
+
+    def score(self, id: str) -> float:
+        if not isinstance(self.question(id), Score):
+            raise TypeError(f"question {id!r} is not a Score")
         return self.probs[id][0]

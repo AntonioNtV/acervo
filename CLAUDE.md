@@ -15,9 +15,11 @@ navigating folders and the pages of PDFs. The LLM writes, Jev decides, code appl
 2. Pydantic for every type that crosses a boundary. ORM objects never leave `repositories/`; repositories never
    commit, services do. (skill `repositories`)
 3. **A PDF stays a PDF.** It is saved, moved, renamed or replaced by a newer version. It is never converted to
-   Markdown, never becomes a page, never gets copied into one. (skill `pdf-files`)
-4. **No chunks, no embeddings, no vector store.** Retrieval is navigation: descend folders, open a file, read whole
-   pages. (skill `navigator-agent`)
+   Markdown, never becomes a page, never gets copied into one, never edited. Its index keeps extracted text for
+   search only, never as content of the base. (skill `pdf-files`)
+4. **No embeddings, no vector store, nothing retrieved by similarity.** Retrieval is Jev descending the index's tree:
+   folders, documents, sections; passages are evidence units inside a section that Jev scores. (skill
+   `navigator-agent`)
 5. **Nothing is written without the person's say.** Agents, the chat's and external ones over MCP, produce proposals;
    only an accepted proposal changes a base, through `services/proposal_service.py`. The person accepts it, or an
    agent connection the person set to auto-approve does (`accepted_by = auto`, logged, undoable; a conflict or an
@@ -57,7 +59,7 @@ The flow also uses the `ponytail` plugin (`ponytail:ponytail` full, `ponytail:po
 | `jev-decisions` | adding or changing a decision (route, choose, judge) |
 | `llm-calls` | adding or changing something the LLM writes |
 | `curator-agent` | where and how a dropped PDF or a learned fact is filed |
-| `navigator-agent` | how a question is answered by navigation |
+| `navigator-agent` | how a question is answered by search over the index |
 | `pdf-files` | anything that touches a PDF: upload, map, reading pages, versions |
 | `markdown-pages` | pages, sections, versions, descriptions of nodes |
 | `proposals` | the proposal lifecycle, diffs, accept, reject, rebase |

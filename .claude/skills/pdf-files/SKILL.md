@@ -10,7 +10,8 @@ older files of the node live in `file_version`. Generic files follow every rule 
 pages are PDF-specific. `FileService` owns what happens to a file; the pipeline only reads it.
 
 **A PDF stays a PDF.** It is stored byte for byte as uploaded and shown as the original file. It is never converted
-to Markdown, never becomes a page, and its text is never stored as content of the base.
+to Markdown, never becomes a page, never edited, and its text is never stored as content of the base: its index
+keeps extracted text for search only.
 
 | Piece | File | What it is |
 |---|---|---|
@@ -46,6 +47,26 @@ in this order, recording `map_origin`:
 3. `generated`: only when neither exists, the LLM `pdf_map` role groups the titles detected per page.
 
 The map is what lets the Navigator go to pages 14–15 of a 180-page file without reading the rest.
+
+## The index
+
+Every PDF (and every page, skill `markdown-pages`) gets a structural index, `DocIndex` in `domain/index.py`, stored
+in `node_index` (one row per node, `repositories/node_index.py`, `uow.indexes`). It is built in the background, one
+job at a time per node, when the PDF is uploaded or replaced; nothing in it calls an LLM and no summary is stored.
+
+- **Sections**: from the PDF's bookmarks, else from headings detected by font size, else one section per page. A
+  section keeps its page range and continues across pages.
+- **Blocks**: paragraph, heading, table, figure, list, each with its page, its box in PDF points and the page's
+  size, so a citation opens the page with that block highlighted.
+- **Passages**: what Jev scores, inside one section, at most `RetrievalLimits.passage_chars` with
+  `passage_overlap` repeated; a passage never splits a table row and repeats the table's header.
+- **Outline** (the titles, for folder descriptions and the menu) and **stats** (pages, words, tables, figures), so
+  "how many" is answered from counts, never from samples.
+- A PDF with a password or no text is indexed by its name and outline only; `note` says so.
+
+An index belongs to one version (`version_key`, the file's sha256). A new version is built under `building_key`
+while the previous index stays readable; `finish` swaps it in only if no later build superseded it. The row's
+status (`building`, `ready`, `failed`) is the tree's `index_state`.
 
 ## Reading pages
 

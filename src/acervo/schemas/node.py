@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
+from acervo.schemas.index import IndexState
+
 NodeKind = Literal["folder", "page", "file"]
 
 
@@ -64,6 +66,7 @@ class NodeRead(BaseModel):
         description="`gallery:<slug>` from the gallery or `image:<sha256>` uploaded; null for none."
     )
     favorite: bool = Field(description="Whether it is in the person's favorites.")
+    index_state: IndexState = Field(default="none", description="Its search index; none for a folder.")
     created_at: datetime = Field(description="When the node was created.")
     updated_at: datetime = Field(description="When the node last changed.")
 

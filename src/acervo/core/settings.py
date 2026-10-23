@@ -26,14 +26,41 @@ class Thresholds(BaseModel):
     sufficient: float = 0.80
     # Below: the claim is removed from the answer.
     claim_supported: float = 0.70
+    # Below, on Jev's 0-3 usefulness score: the passage is dropped from a search's evidence.
+    evidence_min: float = 1.5
+    # At or above: the passage fully answers; the search stops.
+    evidence_enough: float = 2.75
 
 
-class NavigatorBudget(BaseModel):
-    """What one question may spend before the Navigator says "Não encontrei" (skill `navigator-agent`)."""
+class RetrievalLimits(BaseModel):
+    """What one search and one chat reply may spend, and how the index cuts text (skill `navigator-agent`)."""
 
-    expansion_rounds: int = 3
-    pages_read: int = 25
-    jev_questions: int = 30
+    # Options in one Jev menu, besides "none"; more siblings are grouped.
+    menu: int = 64
+    # Menus sent in one Jev call.
+    menus_per_call: int = 4
+    # Routes kept open at each level of the descent.
+    beam: int = 4
+    # Nodes and sections opened before the search gives up.
+    expansions: int = 96
+    # Passages scored by Jev in one search.
+    passages: int = 96
+    # Passages scored in one Jev call.
+    per_score_call: int = 16
+    # Evidence returned to the LLM.
+    results: int = 12
+    # Characters of evidence returned to the LLM.
+    result_chars: int = 24000
+    # Sections of one document scored before other documents get priority.
+    sections_per_document: int = 8
+    # Characters of a built description Jev sees for one option.
+    description_chars: int = 1200
+    # Characters of one passage, and how many the next one repeats.
+    passage_chars: int = 2400
+    passage_overlap: int = 200
+    # Steps of the chat's LLM in one reply, and how many of them may call tools.
+    llm_steps: int = 6
+    llm_tool_steps: int = 5
 
 
 class LlmRoles(BaseModel):
@@ -45,7 +72,7 @@ class LlmRoles(BaseModel):
     # The LLM decider, until Jev's client exists: probabilities per option through structured output.
     decide: str = "anthropic:claude-opus-5-5"
     # The chat: it converses and chooses when to use the base's tools; it never decides where anything goes.
-    chat: str = "anthropic:claude-opus-5-5"
+    chat: str = "anthropic:claude-sonnet-5-5"
 
 
 class Settings(BaseSettings):
@@ -62,10 +89,13 @@ class Settings(BaseSettings):
     s3_bucket: str = "acervo"
     cors_origins: list[str] = ["http://localhost:5173"]
     thresholds: Thresholds = Thresholds()
-    navigator_budget: NavigatorBudget = NavigatorBudget()
+    retrieval_limits: RetrievalLimits = RetrievalLimits()
     llm_roles: LlmRoles = LlmRoles()
     # Who answers decisions: Jev (refused as not configured until its client exists), the LLM, or the tests' fake.
     decider: Literal["jev", "llm", "fake"] = "llm"
+    jev_api_key: SecretStr | None = None
+    jev_url: str = "https://api.typesafe.ai/v1/systemone"
+    jev_model: str = "jev-latest"
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024

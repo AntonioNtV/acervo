@@ -1,31 +1,37 @@
 """Stand-ins for the decision model and the LLM: tests never call either (skill `testing`)."""
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
 from acervo.domain.decisions import Answers, Choice, Question
 
-# A Noul's P(yes); a Choice's probabilities in its options' order, or by option text (missing options get 0).
+# A Noul's P(yes) or a Score's expected level; a Choice's probabilities in its options' order, or by option text
+# (missing options get 0).
 FakeProbs = float | Sequence[float] | Mapping[str, float]
 
 
 @dataclass
 class FakeDecider:
-    """Answers from a table keyed by question id and records every call as (state, questions)."""
+    """Answers from a table keyed by question id, else from `answer(state, question)` for ids made at run time
+    (a search's menus and passages); records every call as (state, questions)."""
 
     table: dict[str, FakeProbs] = field(default_factory=dict)
+    answer: Callable[[str, Question], FakeProbs] | None = None
     calls: list[tuple[str, list[Question]]] = field(default_factory=list)
 
     async def ask(self, state: str, questions: Sequence[Question]) -> Answers:
         self.calls.append((state, list(questions)))
-        return Answers(questions=tuple(questions), probs={q.id: self._probs(q) for q in questions})
+        return Answers(questions=tuple(questions), probs={q.id: self._probs(state, q) for q in questions})
 
-    def _probs(self, question: Question) -> tuple[float, ...]:
-        if question.id not in self.table:
+    def _probs(self, state: str, question: Question) -> tuple[float, ...]:
+        if question.id in self.table:
+            answer = self.table[question.id]
+        elif self.answer is not None:
+            answer = self.answer(state, question)
+        else:
             raise KeyError(f"FakeDecider has no answer for question {question.id!r}")
-        answer = self.table[question.id]
         if isinstance(answer, int | float):
             return (float(answer),)
         if isinstance(answer, Mapping):

@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
+from acervo.domain.index import SearchStage
 from acervo.schemas.proposal import ProposalRead, StagedFile
 
 MessageRole = Literal["person", "acervo"]
@@ -75,6 +76,10 @@ class Citation(BaseModel):
     path: str = Field(description="Its path, joined by /.")
     anchor: str | None = Field(default=None, description="The section of the page; null for the whole page.")
     page: int | None = Field(default=None, description="The PDF's page, counted from 1; null for a page.")
+    block_id: str | None = Field(default=None, description="The smallest block of its index that supports the claim.")
+    highlight: tuple[float, float, float, float] | None = Field(
+        default=None, description="That block's box on `page`, in PDF points (x0, y0, x1, y1); null for a page."
+    )
 
 
 class MessageUpdate(BaseModel):
@@ -163,7 +168,22 @@ class UiSourcePart(_Camel):
         )
 
 
-UiPart = Annotated[UiTextPart | UiProposalPart | UiSourcePart, Field(discriminator="type")]
+class UiActivity(BaseModel):
+    """Where a reply's search is now."""
+
+    label: str = Field(description='What the activity line shows, such as "Lendo Tabela auto 2026, p. 4".')
+    stage: SearchStage = Field(description="folder, document, section or passage.")
+
+
+class UiActivityPart(_Camel):
+    """The reply's activity line while it works; never stored with the message."""
+
+    type: Literal["data-activity"] = "data-activity"
+    transient: bool = Field(default=True, description="Shown while streaming, never kept in the message.")
+    data: UiActivity
+
+
+UiPart = Annotated[UiTextPart | UiProposalPart | UiSourcePart | UiActivityPart, Field(discriminator="type")]
 
 
 class UiMetadata(BaseModel):

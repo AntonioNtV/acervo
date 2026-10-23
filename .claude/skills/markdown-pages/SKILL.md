@@ -19,7 +19,7 @@ original files.
 | sections | `domain/sections.py` (parse `##` headings into anchors) |
 | diff | `domain/diff.py` |
 | patch | `domain/patch.py` (`Patch`, `apply`, `rebase`; F2) |
-| descriptions | `node.description`, written by `TreeService`; the folder refresh is a worker job (F2) |
+| descriptions | `node.description`, the person's own; the rest is built at search time (below) |
 
 ## Sections and anchors
 
@@ -57,16 +57,17 @@ Patch(page_id, base_version, anchor, op, lines)   # op: append | insert_after | 
 
 ## Descriptions
 
-Every node (folder, page, PDF) has a `description` of at most 200 characters. They are the text of Jev's options,
-so placement is only as good as they are.
+What Jev sees of a node is built at search time, never written by the LLM and never stored as a summary
+(`RetrievalLimits.description_chars` at most):
 
-| Node | Description comes from |
+| Node | Built from |
 |---|---|
-| folder | LLM `describe` over its children, refreshed by a debounced job when children change |
-| page | its first paragraph, else its `##` headings |
-| PDF | the card made at intake |
+| folder | its children's titles and their index outlines |
+| page or PDF | its index outline (skill `pdf-files`) |
+| section | its title, page range and up to 3 excerpts chosen for the question |
 
-A description the person edits is locked (`description_locked`) and never rewritten by the job.
+A description the person wrote (`node.description`, locked once they edit it) comes first and is kept; the built
+part follows it. A page's index is rebuilt when its version is cut, not on every keystroke.
 
 ## The person's edits
 

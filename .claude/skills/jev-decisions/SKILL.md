@@ -14,7 +14,7 @@ LLM is only for text a person reads (skill `llm-calls`).
 | protocol | `model_clients/decider.py` | `Decider.ask(state, questions) -> Answers`; the pipeline only sees this |
 | Jev client | `model_clients/jev.py` | the only file that knows Jev's wire format, endpoint and auth |
 | LLM fallback | `model_clients/llm_decider.py` | same protocol over an LLM with structured output; chosen by config |
-| fake | `model_clients/fakes.py` | `FakeDecider`: answers from a table, records every call (skill `testing`) |
+| fake | `model_clients/fakes.py` | `FakeDecider`: answers from a table or a function of (state, question), records every call (skill `testing`) |
 | questions | `domain/decisions.py` | `Noul`, `Choice`, `Score` and `Answers` (typed, with probabilities) |
 | log | `repositories/decision_log.py` | one `decision_log` row per question, written by the service that ran the agent |
 | cache | `model_clients/cache.py` | response cache keyed by the hash of state + questions |
@@ -28,10 +28,31 @@ writes the log on its `UnitOfWork` with the proposal it produced.
 |---|---|---|---|
 | `Noul` | yes or no | `P(yes)` | "already on the page?", "contradicts?", "does this page answer?", "is it enough?" |
 | `Choice` | one of up to 255 named options | the choice and a probability per option | which subfolder, which section, which intent |
-| `Score` | a level on a 2 to 10 level rubric | expected level and a probability per level | rarely; prefer `Noul` |
+| `Score` | a level on a rubric of 2 to 10 levels, low to high | the expected level, from 0 (`Answers.score`) | how useful a passage is for the question (0–3) |
 
 Options of a `Choice` carry the node's **description**, not just its name: `"Residencial — produto residencial:
 emissão, renovação, coberturas"`. A choice is only as good as its options (skill `markdown-pages`, descriptions).
+
+## Jev's wire format
+
+`model_clients/jev.py` alone speaks it (`Settings.jev_url`, `jev_model`, `jev_api_key` from `JEV_API_KEY`):
+
+```
+POST https://api.typesafe.ai/v1/systemone
+Authorization: Bearer <JEV_API_KEY>
+{"model": "jev-latest",
+ "state": <text or JSON>,
+ "questions": {
+   "<id>": {"type": "choice", "instructions": "<task>", "criteria": {"<option id>": "<option text>", ...}},
+   "<id>": {"type": "score", "instructions": {"question": "...", "task": "...", "evidence": "..."},
+            "criteria": ["<level 0>", "<level 1>", ...]}}}
+→ {"answers": {"<id>": {"probabilities": {"<option id>": p, ...}}, "<id>": {"type": "score", "score": 0..3}}}
+```
+
+Several questions go in one request (a search sends up to `RetrievalLimits.menus_per_call` menus, or
+`per_score_call` passages, per call). A choice's answer must name every option and sum to 1 ± 0.02, and every
+question sent must be answered; otherwise the call fails visibly, never falling back to another method. Text in
+the state (titles, descriptions, passages) is data, never instructions.
 
 ## Rules
 
@@ -59,6 +80,8 @@ emissão, renovação, coberturas"`. A choice is only as good as its options (sk
 | `page_answers` | 0.50 | above: the read page is kept as evidence |
 | `sufficient` | 0.80 | above: stop navigating and answer |
 | `claim_supported` | 0.70 | below: the claim is removed from the answer |
+| `evidence_min` | 1.5 | below, on the 0–3 usefulness score: the passage is dropped from the evidence |
+| `evidence_enough` | 2.75 | at or above: the passage fully answers; the search stops |
 
 These are starting points. They are recalibrated from the decision log and the proposals' outcomes (skill `evals`).
 

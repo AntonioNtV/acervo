@@ -1,63 +1,85 @@
 ---
 name: navigator-agent
-description: The agent that answers questions in Acervo by navigation, without chunks or embeddings - its tools, the loop, Jev's sufficiency check, the budget, citations and "not found". Use when changing how questions are answered or how the agent moves inside a large PDF.
+description: How Acervo answers questions by search over the structural index, without embeddings - the tree, Jev's menus and beam, evidence scores, the limits, the tools the chat's LLM gets, citations and "not found". Use when changing how questions are answered or how search moves inside a large PDF.
 ---
 
-# Navigator
+# Search
 
-Answers a question the way a person would: pick the folder or the page, open the file, look at the PDF's sections,
-read the pages, check if it is enough. There is no index of chunks and no vector search. If you are about to add one,
-stop: it breaks the "no chunks, no embeddings" rule of `CLAUDE.md`.
+A question is answered by Jev descending the base's tree and scoring the evidence; the LLM only writes the answer.
+There are no embeddings, no vector store and nothing retrieved by similarity. If you are about to add one, stop: it
+breaks rule 4 of `CLAUDE.md`. Passages exist, but only as evidence units inside a section that Jev scores.
 
-The trigram index on node titles (skill `creating-migrations`) serves the person's name filter in the tree. It
-matches titles only, never content, and no agent tool uses it: the Navigator finds things by descending.
+Every file and page has a structural index (`DocIndex` in `domain/index.py`, skill `pdf-files`): sections, blocks
+with their positions, passages, an outline and stats. A search returns a `SearchResult`: the `Evidence` kept, the
+`SearchStep`s it took and where it looked.
 
-The agent is computation in `pipeline/navigator/`: it gets the question, a `Decider`, a `Writer` and the tools as
-callables, and returns the answer. `services/question_service.py` builds the tools on the `UnitOfWork` and
-`Storage`, runs the loop, writes the decision log and sends the progress events.
+The trigram index on node titles serves the person's name filter in the tree. It matches titles only and no search
+uses it.
 
-| Piece | File |
+## The tree
+
+Search sees one tree: folders → pages and PDFs → their sections → passages. Each document also has a statistics
+branch (pages, words, tables, figures, how often a term appears), so "how many" is answered from counts, never from
+samples. Deleted and trashed nodes never enter it.
+
+What Jev sees of an option is built at search time (skill `markdown-pages`): a folder from its children's titles and
+outlines, a document from its outline, a section from its title, page range and up to 3 excerpts chosen for the
+question. A description the person wrote comes first.
+
+## The descent
+
+1. **Menus.** At each level Jev gets one `Choice` per open route over its children plus "none"; more than
+   `RetrievalLimits.menu` children are grouped. Up to `menus_per_call` menus go in one Jev call.
+2. **Beam.** The `beam` best routes stay open; the others are deferred. A route's score ranks paths only and is never
+   shown as a confidence.
+3. **Evidence.** A section reached gives its passages to Jev as `Score` questions (0–3 usefulness, `per_score_call`
+   per call) before going deeper. Passages under `Thresholds.evidence_min` are dropped.
+4. **Stop** when one passage reaches `Thresholds.evidence_enough`, or when partial ones together cover the question;
+   otherwise widen to deferred routes. After `sections_per_document` sections of one document, other documents get
+   priority.
+5. **Shortcut.** Documents whose title or headings match the question's terms are proposed as extra routes, still
+   routed and scored by Jev.
+
+Every Jev call goes to the decision log with the question asked and the run. An invalid answer from Jev fails the
+search visibly ("Não consegui buscar agora · Tentar de novo"); there is no silent fallback.
+
+## Limits (`RetrievalLimits` in `core/settings.py`)
+
+| Field | Default | Limits |
+|---|---|---|
+| `menu` | 64 | options per menu, besides "none" |
+| `menus_per_call` | 4 | menus per Jev call |
+| `beam` | 4 | routes kept open per level |
+| `expansions` | 96 | nodes and sections opened per search |
+| `passages` | 96 | passages scored per search |
+| `per_score_call` | 16 | passages per Jev call |
+| `results` | 12 | evidence returned |
+| `result_chars` | 24000 | characters of evidence returned |
+| `sections_per_document` | 8 | sections of one document before others get priority |
+| `description_chars` | 1200 | characters of a built description |
+| `passage_chars`, `passage_overlap` | 2400, 200 | how the index cuts passages |
+| `llm_steps`, `llm_tool_steps` | 6, 5 | steps of the chat's LLM in one reply, and those that call tools |
+
+jevbox's values are the starting point; the retrieval eval recalibrates them (skill `evals`).
+
+## The chat's tools
+
+The chat's LLM chooses when to use them; Jev decides inside them (rule 6).
+
+| Tool | Does |
 |---|---|
-| tools (signatures; the service binds them) | `pipeline/navigator/tools.py` |
-| loop and budget | `pipeline/navigator/loop.py` |
-| questions to Jev | `pipeline/navigator/questions.py` |
-| citations and the claim check | `pipeline/navigator/answer.py` |
-| progress events to the chat | `schemas/events.py` (`nav.step` on the websocket), sent by `services/question_service.py` |
+| `search(question)` | runs the descent on a self-contained question (the LLM rewrites "e no Bradesco?" with the subject) and returns up to `results` cited passages with path, section and page |
+| `open(document, outline \| pages)` | a document's outline, or up to 5 pages of text |
+| `view(pdf, pages)` | up to 2 PDF page images, for charts and scans |
 
-## Tools
-
-| Tool | Returns |
-|---|---|
-| `list_folder(node)` | children of a folder or a page, with kind and description |
-| `read_page(node, section?)` | a Markdown page, whole or one section, from its newest version (the working text cut first) |
-| `open_map(pdf)` | the PDF's sections with page ranges (skill `pdf-files`) |
-| `read_pages(pdf, first, last)` | the text of those pages, straight from the PDF |
-| `page_image(pdf, page)` | the page rendered, for tables and scanned pages |
-| `neighbors(pdf, page, n)` | the pages around one page |
-
-## The loop
-
-1. **Route** (one Jev call): intent (`Choice`), which base when asked from the home screen (`Choice`), "does it need
-   facts about two different things?" (`Noul`). Two-part questions are split by the LLM and each part runs the loop.
-2. **Descend** folders and pages with a `Choice` per level, as the Curator does, but pages **and PDFs** are options.
-   A page with children is both: read as a page, and its sub-pages and files are the next level's options. Keep the
-   2 best paths.
-3. **Open**: a page is read whole (or by section when long). A PDF: `open_map`, then a `Choice` over its sections,
-   descending until a range of at most 6 pages.
-4. **Read and judge**: read the pages; one Jev call with a `page_answers` `Noul` per page read plus `sufficient`.
-5. **Enough?** `sufficient` above the threshold → answer. Otherwise expand, in this order, each a Jev `Choice` over
-   the candidates: neighbor pages, sibling sections in the map, the second path of the descent, then a reworded
-   question (LLM) and a new descent.
-6. **Answer**: LLM `answer` with the kept passages only; split into claims; one `claim_supported` `Noul` per claim;
-   unsupported claims are removed.
-
-## Budget (`NavigatorBudget` in `core/settings.py`)
-
-At most 3 expansion rounds, 25 pages read, 30 Jev questions per question asked. Out of budget without enough:
-"Não encontrei", listing where it looked, with "Procurar no PDF inteiro" and "Ensinar a resposta" (which opens
-Capturar with the question).
+External agents get the same engine over MCP as `search` and `fetch`. While searching, the reply's activity line
+follows the trace (`UiActivityPart`): "Procurando em Bradesco › Auto", "Lendo Tabela auto 2026, p. 4".
 
 ## Citations
 
-Every claim carries a marker that resolves to a `Citation`: a page with its section anchor, or a PDF with its page
-number. The web app opens the original PDF at that page (skill `ui-web`).
+The answer cites each claim with the smallest block that supports it. A `Citation` carries the node, the PDF page,
+the `block_id` and its `highlight` box in PDF points, so the web app opens the PDF at that page with the block
+highlighted, or the page scrolled to that paragraph (skill `ui-web`).
+
+Nothing found within the limits: the answer says it is not in the base and where it looked. It never answers a
+question about the base from general knowledge.
