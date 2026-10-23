@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_uow, require_api_key
+from acervo.api.deps import get_favorite_service, require_api_key
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.favorite import FavoritePlace
 from acervo.schemas.node import NodeRead, NodeWithPath
@@ -17,11 +17,6 @@ router = APIRouter(
     dependencies=[Depends(require_api_key)],
     responses={401: ERROR, 422: ERROR},
 )
-
-
-# Typed loosely: only api/deps.py may import the UnitOfWork (tests/unit/test_layering.py).
-def get_favorite_service(uow: Annotated[Any, Depends(get_uow)]) -> FavoriteService:
-    return FavoriteService(uow)
 
 
 Service = Annotated[FavoriteService, Depends(get_favorite_service)]

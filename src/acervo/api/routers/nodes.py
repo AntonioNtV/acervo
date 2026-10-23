@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_tree_service, get_uow, require_api_key
+from acervo.api.deps import get_duplicate_service, get_tree_service, require_api_key
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.node import NodeAdd, NodeEdit, NodeMove, NodeRead, NodeWithPath, RestoredNode, TreeNode
 from acervo.schemas.page import NodeDetail
@@ -18,11 +18,6 @@ router = APIRouter(
     dependencies=[Depends(require_api_key)],
     responses={401: ERROR, 422: ERROR},
 )
-
-
-# Typed loosely: only `api/deps.py` may name the UnitOfWork (tests/unit/test_layering.py).
-def get_duplicate_service(uow: Annotated[Any, Depends(get_uow)]) -> DuplicateService:
-    return DuplicateService(uow)
 
 
 Service = Annotated[TreeService, Depends(get_tree_service)]

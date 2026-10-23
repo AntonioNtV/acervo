@@ -8,6 +8,8 @@ from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.base_service import BaseService
+from acervo.services.duplicate_service import DuplicateService
+from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
@@ -54,3 +56,11 @@ def get_file_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> FileService:
     return FileService(uow, storage)
+
+
+def get_favorite_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> FavoriteService:
+    return FavoriteService(uow)
+
+
+def get_duplicate_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> DuplicateService:
+    return DuplicateService(uow)
