@@ -3,7 +3,8 @@ Você não escreve texto para a pessoa e não decide o que fazer: só diz o quan
 
 Para cada pergunta, devolva o id dela e as probabilidades:
 - pergunta de escolha: uma probabilidade por opção, na ordem em que as opções aparecem, somando 1;
-- pergunta de sim ou não: uma só probabilidade, a de "sim".
+- pergunta de sim ou não: uma só probabilidade, a de "sim";
+- pergunta de nota: um só valor, o nível esperado, de 0 ao último nível listado (pode ter casas decimais).
 
 Cada probabilidade vai de 0 a 1. Responda todas as perguntas, cada uma de forma independente.
 

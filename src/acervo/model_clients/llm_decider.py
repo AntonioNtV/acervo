@@ -1,4 +1,4 @@
-"""The `Decider` over an LLM with structured output, until Jev's client exists (skill `jev-decisions`)."""
+"""The `Decider` over an LLM with structured output, the fallback to Jev chosen by config (skill `jev-decisions`)."""
 
 import time
 from collections.abc import Sequence
@@ -8,15 +8,16 @@ from pydantic import BaseModel, Field
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.models import Model
 
-from acervo.domain.decisions import Answers, Choice, Question
+from acervo.domain.decisions import Answers, Choice, Question, Score
 from acervo.model_clients.cache import DecisionCache
 from acervo.model_clients.llm_writer import make_agent, prompt, run
 
 
 class _Answer(BaseModel):
     id: str = Field(description="The question's id.")
-    probabilities: list[Annotated[float, Field(ge=0, le=1)]] = Field(
-        description="A choice: one per option, in the options' order. A yes-or-no question: only P(yes)."
+    probabilities: list[Annotated[float, Field(ge=0)]] = Field(
+        description="A choice: one per option, in the options' order. A yes-or-no question: only P(yes). "
+        "A score: only the expected level, from 0."
     )
 
 
@@ -33,6 +34,9 @@ def _check(ctx: RunContext[Sequence[Question]], output: _Answers) -> _Answers:
             raise ModelRetry(f"question {question.id!r} needs exactly {expected} probabilities")
         if isinstance(question, Choice) and sum(probs) == 0:
             raise ModelRetry(f"question {question.id!r}: the probabilities cannot all be 0")
+        top = len(question.levels) - 1 if isinstance(question, Score) else 1
+        if not all(p <= top for p in probs):
+            raise ModelRetry(f"question {question.id!r}: each value goes from 0 to {top}")
     return output
 
 
@@ -76,6 +80,9 @@ def _render(questions: Sequence[Question]) -> str:
         if isinstance(question, Choice):
             lines.append(f"[{question.id}] (escolha) {question.question}")
             lines.extend(f"  {number}. {option}" for number, option in enumerate(question.options, 1))
+        elif isinstance(question, Score):
+            lines.append(f"[{question.id}] (nota) {question.question}")
+            lines.extend(f"  {level}. {text}" for level, text in enumerate(question.levels))
         else:
             lines.append(f"[{question.id}] (sim ou não) {question.question}")
     return "\n".join(lines)

@@ -3,11 +3,12 @@ from typing import Any
 from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 
-from acervo.domain.decisions import Choice, Noul
+from acervo.domain.decisions import Choice, Noul, Score
 from acervo.model_clients.llm_decider import LlmDecider
 
 FOLDER = Choice(id="folder", question="Em qual pasta?", options=("Residencial — apólices", "Auto — sinistros", "Vida"))
 COVERED = Noul(id="covered", question="Já está escrito na página?")
+USEFUL = Score(id="useful", question="Quão útil é o trecho?", levels=("nada", "pouco", "parte", "tudo"))
 
 
 def answering(answers: list[dict[str, Any]], calls: list[str]) -> FunctionModel:
@@ -49,3 +50,13 @@ async def test_a_cached_state_is_not_sent_again() -> None:
 
     assert len(calls) == 1
     assert second.cached and second.probs == first.probs
+
+
+async def test_a_score_is_the_expected_level() -> None:
+    calls: list[str] = []
+    model = answering([{"id": "useful", "probabilities": [2.456]}], calls)
+
+    answers = await LlmDecider(model).ask("Emissão leva 3 dias úteis", [USEFUL])
+
+    assert answers.score("useful") == 2.46
+    assert "3. tudo" in calls[0]
