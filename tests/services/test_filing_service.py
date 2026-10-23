@@ -1,3 +1,4 @@
+import io
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,7 @@ from acervo.services.storage import Storage
 
 MakeTree = Callable[..., Awaitable[Any]]
 SIMPLE = Path(__file__).parent.parent / "fixtures" / "pdfs" / "simple.pdf"
+PROTECTED = SIMPLE.with_name("protected.pdf")
 PAGE = "Bradesco/Residencial/Emissão de apólice.md"
 TEXT = "# Emissão de apólice\n\n## Documentos\n- RG\n\n## Prazos\nCinco dias.\n"
 TREE = {"Bradesco": {"Residencial": ["Emissão de apólice.md"]}, "Arquivo": None}
@@ -157,6 +159,19 @@ async def test_a_pdf_becomes_save_pdf_with_its_staged_file(env: Env) -> None:
     [read] = env.writer.inputs["card"]
     assert "Condições Gerais 2026 - página 1" in read.text and read.file_name == "Condições Gerais 2026.pdf"
     assert await env.session.scalar(select(Node).where(Node.title == "Condições Gerais 2026.pdf")) is None
+
+
+@pytest.mark.parametrize(("name", "content"), [("Protegido.pdf", PROTECTED.read_bytes()), ("Notas.txt", b"texto")])
+async def test_a_protected_pdf_or_a_non_pdf_is_filed_by_its_name_alone(env: Env, name: str, content: bytes) -> None:
+    env.decider.table.update({"descent:": {"Arquivo (pasta)": 1.0}, "descent:Arquivo": {"salvar aqui": 1.0}})
+    upload = Upload(name=name, mime=None, source=io.BytesIO(content))
+    [attachment] = (await env.conversations.post(env.conversation_id, "", [upload], None)).message.attachments
+
+    filed = await env.filing.attachment(attachment, env.origin)
+
+    assert filed.proposal is not None and filed.proposal.kind == "save_pdf"
+    [read] = env.writer.inputs["card"]
+    assert (read.text, read.outline, read.file_name) == ("", [], name)
 
 
 async def test_a_failure_logs_the_decisions_asked_once_and_stores_no_proposal(env: Env) -> None:

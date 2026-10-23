@@ -27,23 +27,25 @@ const RENAME_DELAY_MS = 1000;
 type Page = NonNullable<NodeDetail["page"]>;
 
 /**
- * The title as the page's first line: it renames the node a second after the person stops typing in it. Until they
- * type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
+ * The title as the page's first line: it renames the node a second after the person stops typing in it, or at once
+ * when they leave it. Until they type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
  */
 function Title({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const { mutate: rename, error } = useRenameNode();
 
   useEffect(() => {
     const next = draft?.trim();
     if (!next || next === node.title) return;
-    const timer = setTimeout(
-      () => rename({ nodeId: node.id, title: next }, { onSuccess: () => setDraft((typed) => (typed === next ? null : typed)) }),
-      RENAME_DELAY_MS,
-    );
+    const send = () =>
+      rename({ nodeId: node.id, title: next }, { onSuccess: () => setDraft((typed) => (typed === next ? null : typed)) });
+    // Not after a timer: leaving the title to leave the page unmounts it, and a pending timer with it.
+    if (!focused) return send();
+    const timer = setTimeout(send, RENAME_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [draft, node.id, node.title, rename]);
+  }, [draft, focused, node.id, node.title, rename]);
 
   return (
     <>
@@ -53,7 +55,11 @@ function Title({ node }: { node: NodeDetail }) {
           value={draft ?? node.title}
           placeholder={t("page.untitled")}
           onChange={(event) => setDraft(event.target.value)}
-          onBlur={() => setDraft((typed) => (typed?.trim() === node.title ? null : typed))}
+          onFocus={() => setFocused(true)}
+          onBlur={() => {
+            setFocused(false);
+            setDraft((typed) => (typed?.trim() === node.title ? null : typed));
+          }}
           className="w-full border-0 bg-transparent p-0 text-32 font-medium tracking-[-0.025em] text-text outline-none placeholder:text-ghost"
         />
       </h1>

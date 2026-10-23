@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
@@ -36,21 +37,7 @@ from acervo.services.tree_service import TreeService
 OPEN = ("pending", "stale")
 REFRESH_DESCRIPTIONS = "refresh_descriptions"
 
-
-def changed_parent(payload: ProposalPayload) -> UUID | None:
-    """The folder or page that got, lost or renamed a child, whose description follows its children."""
-    match payload:
-        case CreatePagePayload() | SavePdfPayload() | MovePayload():
-            return payload.parent_id
-        case _:
-            return None
-
-
-async def enqueue_refresh(jobs: JobQueue, proposal: ProposalRead) -> None:
-    """An applied proposal's changed parent describes its children again, in the worker."""
-    parent = changed_parent(proposal.edited_payload or proposal.payload)
-    if proposal.status == "applied" and parent is not None:
-        await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
+logger = logging.getLogger(__name__)
 
 
 class ProposalService:
@@ -114,7 +101,7 @@ class ProposalService:
     async def accept(self, id: UUID, by: AcceptedBy = "person") -> ProposalRead:
         """Applies the proposal, its edited version if any, in one transaction. Accepting an applied one changes
         nothing; one whose section or line is gone becomes `stale` and changes nothing."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         if proposal.status == "applied":
             return proposal
         self._open(proposal)
@@ -129,18 +116,20 @@ class ProposalService:
             id, ProposalUpdate(status="applied", accepted_by=by, applied_at=datetime.now(UTC))
         )
         await self._uow.commit()
+        await self._discard(applied.staged)
         return applied
 
     async def reject(self, id: UUID, reason: RejectReason) -> ProposalRead:
         """The base stays as it was; a staged file is never saved into it."""
-        self._open(await self._uow.proposals.get(id))
+        self._open(await self._uow.proposals.locked(id))
         rejected = await self._uow.proposals.update(id, ProposalUpdate(status="rejected", reject_reason=reason))
         await self._uow.commit()
+        await self._discard(rejected.staged)
         return rejected
 
     async def edit(self, id: UUID, payload: ProposalPayload) -> ProposalRead:
         """The person's version, applied in place of the original, which is kept."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         self._open(proposal)
         if payload.kind != proposal.kind:
             raise ValidationError("uma edição não muda o tipo da proposta", {"kind": payload.kind})
@@ -150,7 +139,7 @@ class ProposalService:
 
     async def other_place(self, id: UUID) -> ProposalRead:
         """A new page or a file under the second place the Curator logged, without running it again."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         self._open(proposal)
         payload = proposal.edited_payload or proposal.payload
         if not proposal.alternatives or not isinstance(payload, CreatePagePayload | SavePdfPayload):
@@ -171,19 +160,55 @@ class ProposalService:
         """A new `undo` proposal of an applied one, by `agent_id` or else by the agent that made it, in that agent's
         mode: a page back to its version before, a file back to its place or content before."""
         original = await self._uow.proposals.get(id)
-        if original.status != "applied" or original.kind == "undo":
-            raise ConflictError("só uma mudança aplicada pode ser desfeita", {"id": str(id)})
-        path = await self._uow.nodes.path(await self._target(original))
         return await self.create(
             ProposalCreate(
                 kb_id=original.kb_id,
                 agent_id=agent_id or original.agent_id,
                 conversation_id=conversation_id,
                 message_id=message_id,
-                payload=UndoPayload(proposal_id=original.id, path=path),
+                payload=await self.undo_payload(original),
                 undo_of=original.id,
             )
         )
+
+    async def undo_payload(self, original: ProposalRead) -> UndoPayload:
+        """What undoing an applied proposal changes back, at the path it has now."""
+        if original.status != "applied" or original.kind == "undo":
+            raise ConflictError("só uma mudança aplicada pode ser desfeita", {"id": str(original.id)})
+        return UndoPayload(proposal_id=original.id, path=await self._uow.nodes.path(await self._target(original)))
+
+    async def enqueue_refresh(self, jobs: JobQueue, proposal: ProposalRead) -> None:
+        """The parents an applied proposal changed describe their children again, in the worker."""
+        if proposal.status != "applied":
+            return
+        parents = [str(parent) for parent in dict.fromkeys(await self._changed_parents(proposal)) if parent]
+        if parents:
+            await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=parents)
+
+    async def _changed_parents(self, proposal: ProposalRead) -> list[UUID | None]:
+        """The folders or pages that got, lost or renamed a child, whose descriptions follow their children."""
+        payload = proposal.edited_payload or proposal.payload
+        match payload:
+            case CreatePagePayload() | SavePdfPayload():
+                return [payload.parent_id]
+            case MovePayload():
+                return [payload.parent_id, payload.from_parent_id]
+            case RenamePayload():
+                return [(await self._uow.nodes.get(payload.node_id)).parent_id]
+            case UndoPayload():
+                return await self._changed_parents(await self._uow.proposals.get(payload.proposal_id))
+            case _:
+                return []
+
+    async def _discard(self, staged: StagedFile | None) -> None:
+        """A staged file no open proposal waits on any more is deleted: a saved one has its own copy in the base.
+        The proposal is settled already, so a failed delete only leaves the file behind."""
+        if staged is None or await self._uow.proposals.waits_on(staged.storage_key):
+            return
+        try:
+            await self._storage.delete(staged.storage_key)
+        except Exception:
+            logger.exception("staged file %s was not deleted", staged.storage_key)
 
     def _open(self, proposal: ProposalRead) -> None:
         if proposal.status not in OPEN:

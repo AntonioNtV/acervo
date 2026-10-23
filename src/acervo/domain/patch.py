@@ -35,7 +35,8 @@ def apply(markdown: str, patch: Patch, origin: str) -> str:
     lines = markdown.splitlines()
     start, end = span(lines, patch.anchor)
     added = [_marked(line, origin) for line in patch.lines]
-    if patch.op == "append":
+    # A replace with no line is a conflict where no line was found: its text goes in, nothing is taken out.
+    if patch.op == "append" or (patch.op == "replace" and not patch.line):
         while end > start + 1 and not lines[end - 1].strip():
             end -= 1
         at, cut = end, end

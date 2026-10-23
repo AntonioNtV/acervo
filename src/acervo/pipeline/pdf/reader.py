@@ -25,10 +25,16 @@ FIRST_PAGES = 3
 
 
 def first_pages(path: Path, pages: int = FIRST_PAGES) -> tuple[str, list[str]]:
-    """The text of the first `pages` pages and the outline's titles, in order."""
-    with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
-        text = "\n".join(document[number].get_text() for number in range(min(pages, document.page_count)))
-        return text, [title for _, title, *_ in document.get_toc()]
+    """The text of the first `pages` pages and the outline's titles, in order; nothing of a file that needs a
+    password or is no PDF, which is then filed by its name alone."""
+    try:
+        with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
+            if document.needs_pass:
+                return "", []
+            text = "\n".join(document[number].get_text() for number in range(min(pages, document.page_count)))
+            return text, [title for _, title, *_ in document.get_toc()]
+    except (pymupdf.FileDataError, RuntimeError):
+        return "", []
 
 
 def page_text(path: Path, first: int, last: int) -> tuple[list[str], int]:

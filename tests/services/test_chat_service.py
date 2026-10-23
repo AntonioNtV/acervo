@@ -24,6 +24,7 @@ from acervo.schemas.proposal import ProposalRead
 from acervo.services.chat_service import INTERRUPTED, ChatService
 from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
+from acervo.services.file_service import FileService
 from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 
@@ -191,6 +192,28 @@ async def test_a_question_reads_the_base_and_cites_it(env: Env) -> None:
     assert await env.proposals(reply) == []
 
 
+async def test_a_read_out_of_range_is_told_to_the_model_which_tries_again(env: Env, storage: Settings) -> None:
+    with SIMPLE.open("rb") as source:
+        pdf = await FileService(env.uow, Storage(storage)).save(env.tree.kb.id, None, "CG 2026.pdf", source)
+
+    reply = await env.send(
+        "o que diz a página 10?",
+        [("read_pdf_pages", {"node_id": str(pdf.id), "first": 10, "last": 10})],
+        [("read_pdf_pages", {"node_id": str(pdf.id), "first": 3, "last": 3})],
+        "O PDF tem 3 páginas; a última diz isto [1].",
+    )
+
+    retried = [
+        part.content
+        for message in env.script.sent[1]
+        if isinstance(message, ModelRequest)
+        for part in message.parts
+        if isinstance(part, ToolReturnPart) and part.outcome == "retried"
+    ]
+    assert retried == ["o PDF tem 3 páginas"]
+    assert (reply.status, [c.page for c in reply.citations]) == ("done", [3])
+
+
 async def test_a_fact_calls_file_fact_and_becomes_an_append_with_its_decisions_logged(env: Env) -> None:
     reply = await env.send(FACT, [("file_fact", {"text": FACT})], "Propus um acréscimo em Prazos.")
 
@@ -272,7 +295,10 @@ async def test_a_tool_error_fails_the_reply_with_nothing_applied(env: Env) -> No
     await env.auto()
 
     reply = await env.send(
-        FACT, [("file_fact", {"text": FACT})], [("read_page", {"node_id": str(uuid4())})], "Não chega aqui."
+        FACT,
+        [("file_fact", {"text": FACT})],
+        [("move", {"node_id": str(uuid4()), "parent_id": None})],
+        "Não chega aqui.",
     )
 
     assert reply.status == "failed" and "not found" in (reply.error or "")
@@ -291,7 +317,7 @@ async def test_a_tool_error_fails_the_reply_with_nothing_applied(env: Env) -> No
 
 
 async def test_retry_runs_the_message_again(env: Env) -> None:
-    failed = await env.send("qual o prazo?", [("read_page", {"node_id": str(uuid4())})])
+    failed = await env.send("qual o prazo?", [("move", {"node_id": str(uuid4()), "parent_id": None})])
     env.script.turns.append("Cinco dias.")
 
     retry = await env.conversations.retry(failed.id)
@@ -304,7 +330,7 @@ async def test_retry_runs_the_message_again(env: Env) -> None:
 
 
 async def test_a_reply_already_replaced_is_not_retried_again(env: Env) -> None:
-    failed = await env.send("qual o prazo?", [("read_page", {"node_id": str(uuid4())})])
+    failed = await env.send("qual o prazo?", [("move", {"node_id": str(uuid4()), "parent_id": None})])
     await env.conversations.retry(failed.id)
 
     with pytest.raises(ConflictError):

@@ -195,3 +195,20 @@ async def test_no_mentions_is_empty(client: httpx.AsyncClient) -> None:
     response = await client.get(f"/v1/pages/{emission}/mentions")
 
     assert (response.status_code, response.json()) == (200, [])
+
+
+async def test_nul_is_stripped_from_page_text_titles_and_base_names(client: httpx.AsyncClient) -> None:
+    kb = (await client.post("/v1/kbs", json={"name": "Seg\x00uros", "description": "Ope\x00ração"})).json()
+    response = await client.post(f"/v1/kbs/{kb['id']}/nodes", json={"kind": "page", "title": "Pra\x00zos"})
+    assert response.status_code == 201, response.text
+    node_id = response.json()["id"]
+
+    await _type(client, node_id, "Cinco\x00 dias.\n")
+
+    renamed = await client.patch(
+        f"/v1/nodes/{node_id}", json={"title": "Novos\x00 prazos", "description": "Pra\x00zos"}
+    )
+    assert renamed.status_code == 200, renamed.text
+    page = (await client.get(f"/v1/nodes/{node_id}")).json()
+    assert (kb["name"], page["title"], page["page"]["markdown"]) == ("Seguros", "Novos prazos", "Cinco dias.\n")
+    assert (kb["description"], page["description"]) == ("Operação", "Prazos")

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { api } from "../api/client";
+import { api, type NodeDetail } from "../api/client";
 import { call, invalidate, refreshContent } from "./request";
 
 /** The key the API gives each `[[…]]` target in `page.links`: whitespace collapsed, lowercased. */
@@ -8,13 +8,17 @@ export function normalizeLinkTarget(title: string): string {
   return title.split(/\s+/).filter(Boolean).join(" ").toLowerCase();
 }
 
+// The server's rule (domain/links.py): no brackets inside the target.
+const PAGE_LINKS = /\[\[([^[\]]+)\]\]/g;
+
 /** The `details` of a `stale_page` error: the newest text and its revision. */
 export type StaleText = { markdown: string; revision: number };
 
 /**
  * The autosave of the working text. A `stale_page` rejects with an `ApiError` whose `details` is a `StaleText`.
- * The request goes out as soon as the function is called, so one sent right after it goes out after it. It refreshes
- * the node so new `[[…]]` links resolve, without waiting for that; the editor only reads the text it opened with.
+ * The request goes out as soon as the function is called, so one sent right after it goes out after it. A text with a
+ * `[[…]]` target the node does not know refreshes the node, without waiting for that, so the link resolves; the editor
+ * only reads the text it opened with.
  * `keepalive` lets the request outlive a closing tab; the browser refuses it for a body over 64 KB.
  */
 export function useSavePageText(nodeId: string) {
@@ -23,7 +27,9 @@ export function useSavePageText(nodeId: string) {
     async (body: { markdown: string; revision: number }, keepalive = false) => {
       const path = { node_id: nodeId };
       const saved = await call(api.PUT("/v1/pages/{node_id}/text", { params: { path }, body, keepalive }));
-      void invalidate(queryClient, ["node", nodeId]);
+      const known = queryClient.getQueryData<NodeDetail>(["node", nodeId])?.page?.links ?? {};
+      const targets = Array.from(body.markdown.matchAll(PAGE_LINKS), ([, target]) => normalizeLinkTarget(target!));
+      if (targets.some((target) => target && !(target in known))) void invalidate(queryClient, ["node", nodeId]);
       return saved;
     },
     [queryClient, nodeId],

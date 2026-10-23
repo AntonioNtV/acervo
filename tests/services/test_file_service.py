@@ -23,6 +23,7 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileContent, FileNodeRead
 from acervo.services.file_service import FileService
 from acervo.services.storage import PART_SIZE, Storage
+from acervo.services.tree_service import TreeService
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
 SIMPLE = FIXTURES / "pdfs" / "simple.pdf"
@@ -43,8 +44,8 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-async def _read(files: FileService, content: FileContent, byte_range: tuple[int, int] | None = None) -> bytes:
-    return b"".join([chunk async for chunk in files.stream(content, byte_range)])
+async def _read(storage: Settings, content: FileContent, byte_range: tuple[int, int] | None = None) -> bytes:
+    return b"".join([chunk async for chunk in Storage(storage).stream(content.storage_key, byte_range)])
 
 
 async def _save(files: FileService, tree: Any, folder: str | None, fixture: Path, filename: str) -> FileNodeRead:
@@ -61,7 +62,7 @@ async def _live_files(session: AsyncSession, kb_id: uuid.UUID) -> int:
     return await session.scalar(select(func.count()).where(Node.kb_id == kb_id, Node.kind == "file")) or 0
 
 
-async def test_save_pdf_round_trip(files: FileService, make_tree: MakeTree) -> None:
+async def test_save_pdf_round_trip(files: FileService, make_tree: MakeTree, storage: Settings) -> None:
     tree = await make_tree({"Bradesco": {"Residencial": ["Emissão de apólice.md"]}})
 
     saved = await _save(files, tree, "Bradesco/Residencial", SIMPLE, "Condições Gerais 2026.pdf")
@@ -83,7 +84,7 @@ async def test_save_pdf_round_trip(files: FileService, make_tree: MakeTree) -> N
     )
     assert saved.file.sha256 == hashlib.sha256(content).hexdigest()
     node, opened = await files.open(saved.id)
-    assert (node.id, await _read(files, opened), await _read(files, opened, (2, 5))) == (
+    assert (node.id, await _read(storage, opened), await _read(storage, opened, (2, 5))) == (
         saved.id,
         content,
         content[2:6],
@@ -211,7 +212,7 @@ async def test_replace_with_another_files_content_is_refused(files: FileService,
     assert (current.sha256, await files.versions(saved.id)) == (_sha256(SIMPLE), [])
 
 
-async def test_restore_old_version_keeps_every_file(files: FileService, make_tree: MakeTree) -> None:
+async def test_restore_old_version_keeps_every_file(files: FileService, make_tree: MakeTree, storage: Settings) -> None:
     tree = await make_tree({"Bradesco": None})
     saved = await _save(files, tree, "Bradesco", SIMPLE, "CG 2026.pdf")
     await _replace(files, saved.id, PROTECTED)
@@ -224,7 +225,7 @@ async def test_restore_old_version_keeps_every_file(files: FileService, make_tre
     assert sorted(version.sha256 for version in history) == sorted([_sha256(SIMPLE), _sha256(PROTECTED)])
     for version in [None, *history]:
         _, content = await files.open(saved.id, version and version.id)
-        assert hashlib.sha256(await _read(files, content)).hexdigest() == content.sha256
+        assert hashlib.sha256(await _read(storage, content)).hexdigest() == content.sha256
 
 
 @dataclass
@@ -311,3 +312,25 @@ async def test_storage_keeps_the_first_content_of_a_key(storage: Settings) -> No
     await bucket.put("kb/once/key", io.BytesIO(b"other"), 5)
 
     assert b"".join([chunk async for chunk in bucket.stream("kb/once/key")]) == b"same content"
+
+
+async def test_trash_and_restore_take_the_base_lock(
+    files: FileService, uow: UnitOfWork, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = await make_tree({"Bradesco": None})
+    saved = await _save(files, tree, "Bradesco", SIMPLE, "CG 2026.pdf")
+    await _replace(files, saved.id, PROTECTED)
+    [first] = await files.versions(saved.id)
+    locked: list[uuid.UUID] = []
+    lock = uow.kbs.lock
+
+    async def spy(kb_id: uuid.UUID) -> None:
+        locked.append(kb_id)
+        await lock(kb_id)
+
+    monkeypatch.setattr(uow.kbs, "lock", spy)
+
+    await files.restore(saved.id, first.id)
+    await TreeService(uow).trash(saved.id)
+
+    assert locked == [tree.kb.id, tree.kb.id]

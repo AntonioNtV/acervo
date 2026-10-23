@@ -1888,6 +1888,11 @@ export interface components {
          */
         MovePayload: {
             /**
+             * From Parent Id
+             * @description Its parent now; null for the base's root.
+             */
+            from_parent_id?: string | null;
+            /**
              * From Path
              * @description Its path now.
              */
@@ -2439,10 +2444,10 @@ export interface components {
         Placement: {
             /**
              * Landing
-             * @description Into that page's text, under that node (save or stay here), or a new page or folder under it.
+             * @description Into that page's text, under that node (save or stay here), or a new page under it.
              * @enum {string}
              */
-            landing: "page" | "here" | "new_page" | "new_folder";
+            landing: "page" | "here" | "new_page";
             /**
              * Node Id
              * @description The folder or page it stopped at; null for the base's root.

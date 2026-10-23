@@ -21,11 +21,14 @@ from acervo.schemas.page import NodeDetail, PageRead
 from acervo.services.page_service import PageService
 
 
-def _title(title: str) -> str:
-    # Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar".
-    title = " ".join(title.split())
+def clean_title(title: str) -> str:
+    """A new name for a node. Collapsed as link targets are, so `[[Foo  Bar]]` resolves to a page named "Foo  Bar";
+    Postgres refuses NUL; a `/` would split its path, which undo and the agents read back."""
+    title = " ".join(title.replace("\x00", "").split())
     if not title:
         raise ValidationError("a title cannot be empty", {"title": title})
+    if "/" in title:
+        raise ValidationError("um título não pode ter /", {"title": title})
     return title
 
 
@@ -56,24 +59,19 @@ class TreeService:
         return await self._uow.nodes.children(kb_id, parent_id)
 
     async def snapshot(self, kb_id: UUID) -> TreeSnapshot:
-        """Every live node of the base with its description, parents before children, siblings in their order: what
-        the pipeline decides over."""
-        nodes: list[SnapshotNode] = []
-        parents: list[UUID | None] = [None]
-        while parents:
-            for child in await self._uow.nodes.children(kb_id, parents.pop(0)):
-                nodes.append(
-                    SnapshotNode(
-                        id=child.id,
-                        parent_id=child.parent_id,
-                        kind=child.kind,
-                        title=child.title,
-                        description=child.description,
-                        active_at=child.updated_at,
-                    )
-                )
-                if child.child_count:
-                    parents.append(child.id)
+        """Every live node of the base with its description, siblings in their order: what the pipeline decides
+        over."""
+        nodes = [
+            SnapshotNode(
+                id=node.id,
+                parent_id=node.parent_id,
+                kind=node.kind,
+                title=node.title,
+                description=node.description,
+                active_at=node.updated_at,
+            )
+            for node in await self._uow.nodes.live_in(kb_id)
+        ]
         return TreeSnapshot(nodes=nodes)
 
     async def create(
@@ -81,7 +79,7 @@ class TreeService:
     ) -> NodeRead:
         """A new folder, or a page whose first version is `markdown`, by the agent of `proposal_id` when given.
         Without `commit`, in the caller's transaction."""
-        title = _title(data.title)
+        title = clean_title(data.title)
         await self._uow.kbs.lock(kb_id)
         await self._uow.nodes.live_parent(kb_id, data.parent_id)
         await self._ensure_title_free(kb_id, data.parent_id, data.kind, title)
@@ -105,7 +103,7 @@ class TreeService:
             node = await self._rename(node, data.title)
         change = NodeUpdate(**data.model_dump(include={"icon", "cover"} & data.model_fields_set))
         if data.description is not None:
-            description = data.description.strip()
+            description = data.description.replace("\x00", "").strip()
             change.description = description
             change.description_locked = bool(description)
         if change.model_fields_set:
@@ -125,7 +123,7 @@ class TreeService:
 
     async def _rename(self, node: NodeRead, title: str, proposal_id: UUID | None = None) -> NodeRead:
         node_id = node.id
-        title = _title(title)
+        title = clean_title(title)
         await self._uow.kbs.lock(node.kb_id)
         if title.lower() != node.title.lower():
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
@@ -180,7 +178,8 @@ class TreeService:
 
     async def trash(self, node_id: UUID, *, commit: bool = True) -> NodeRead:
         """Without `commit`, in the caller's transaction."""
-        await self._uow.nodes.live(node_id)
+        node = await self._uow.nodes.live(node_id)
+        await self._uow.kbs.lock(node.kb_id)
         await self._uow.nodes.trash_subtree(node_id)
         trashed = await self._uow.nodes.trashed_root(node_id)
         if commit:

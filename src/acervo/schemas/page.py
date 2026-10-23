@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from acervo.schemas.file import FileResponse
 from acervo.schemas.node import NodeRead, NodeWithPath
@@ -100,7 +100,10 @@ class PageRead(BaseModel):
 class PageTextPut(BaseModel):
     """The page's whole text as the person typed it."""
 
-    markdown: str = Field(description="The page's whole text.")
+    # Postgres refuses NUL in text.
+    markdown: Annotated[str, AfterValidator(lambda text: text.replace("\x00", ""))] = Field(
+        description="The page's whole text."
+    )
     revision: int = Field(description="The revision the person was editing, from the last read or save.")
 
 
