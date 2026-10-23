@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -6,14 +7,17 @@ from typing import Any
 from uuid import UUID
 
 import pytest
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
+from acervo.core.errors import ConflictError
 from acervo.core.settings import Settings
-from acervo.db.models import File, Node, PageVersion
+from acervo.db.models import Agent, File, Kb, Node, PageLink, PageVersion, Proposal
 from acervo.domain.cards import Placement
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate, AgentMode
+from acervo.schemas.kb import KbCreate
 from acervo.schemas.page import PageTextPut
 from acervo.schemas.proposal import (
     ConflictPayload,
@@ -309,3 +313,47 @@ async def test_undo_puts_a_moved_node_back_in_its_place(env: Env) -> None:
     assert undo.status == "applied"
     node = await env.session.get_one(Node, folder, populate_existing=True)
     assert node.parent_id == env.node("Bradesco")
+
+
+@pytest.fixture
+async def committed(test_settings: Settings) -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], ProposalRead]]:
+    """A pending create_page written by sessions that commit, as parallel requests do; removed after."""
+    engine = create_async_engine(test_settings.database_url, poolclass=NullPool)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with UnitOfWork(sessions) as uow:
+        kb = await uow.kbs.create(KbCreate(name="Decisões em paralelo"))
+        agent = await uow.agents.create(AgentCreate(name="Chat do Acervo"), kb_id=kb.id, built_in=True)
+        payload = CreatePagePayload(parent_id=None, parent_path="", title="Prazos", markdown="# Prazos\n")
+        proposal = await uow.proposals.create(ProposalCreate(kb_id=kb.id, agent_id=agent.id, payload=payload))
+        await uow.commit()
+    yield sessions, proposal
+    async with sessions() as session:
+        of_base = select(Node.id).where(Node.kb_id == kb.id)
+        await session.execute(delete(PageLink).where(PageLink.from_node_id.in_(of_base)))
+        await session.execute(delete(PageVersion).where(PageVersion.node_id.in_(of_base)))
+        await session.execute(delete(Proposal).where(Proposal.kb_id == kb.id))
+        await session.execute(delete(Node).where(Node.kb_id == kb.id))
+        await session.execute(delete(Agent).where(Agent.kb_id == kb.id))
+        await session.execute(delete(Kb).where(Kb.id == kb.id))
+        await session.commit()
+    await engine.dispose()
+
+
+async def test_a_concurrent_accept_and_reject_settle_it_once(
+    committed: tuple[async_sessionmaker[AsyncSession], ProposalRead], test_settings: Settings
+) -> None:
+    sessions, proposal = committed
+
+    async def settle(accept: bool) -> ProposalRead:
+        async with UnitOfWork(sessions) as uow:
+            service = ProposalService(uow, Storage(test_settings))
+            return await (service.accept(proposal.id) if accept else service.reject(proposal.id, "wrong_place"))
+
+    results = await asyncio.gather(settle(True), settle(False), return_exceptions=True)
+
+    [settled] = [result for result in results if isinstance(result, ProposalRead)]
+    assert [type(result) for result in results if not isinstance(result, ProposalRead)] == [ConflictError]
+    async with sessions() as session:
+        pages = await session.scalar(select(func.count()).where(Node.kb_id == proposal.kb_id))
+        stored = await session.get_one(Proposal, proposal.id)
+    assert (stored.status, pages) == (settled.status, 1 if settled.status == "applied" else 0)

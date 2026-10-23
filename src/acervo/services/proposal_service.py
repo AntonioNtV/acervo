@@ -114,7 +114,7 @@ class ProposalService:
     async def accept(self, id: UUID, by: AcceptedBy = "person") -> ProposalRead:
         """Applies the proposal, its edited version if any, in one transaction. Accepting an applied one changes
         nothing; one whose section or line is gone becomes `stale` and changes nothing."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         if proposal.status == "applied":
             return proposal
         self._open(proposal)
@@ -133,14 +133,14 @@ class ProposalService:
 
     async def reject(self, id: UUID, reason: RejectReason) -> ProposalRead:
         """The base stays as it was; a staged file is never saved into it."""
-        self._open(await self._uow.proposals.get(id))
+        self._open(await self._uow.proposals.locked(id))
         rejected = await self._uow.proposals.update(id, ProposalUpdate(status="rejected", reject_reason=reason))
         await self._uow.commit()
         return rejected
 
     async def edit(self, id: UUID, payload: ProposalPayload) -> ProposalRead:
         """The person's version, applied in place of the original, which is kept."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         self._open(proposal)
         if payload.kind != proposal.kind:
             raise ValidationError("uma edição não muda o tipo da proposta", {"kind": payload.kind})
@@ -150,7 +150,7 @@ class ProposalService:
 
     async def other_place(self, id: UUID) -> ProposalRead:
         """A new page or a file under the second place the Curator logged, without running it again."""
-        proposal = await self._uow.proposals.get(id)
+        proposal = await self._uow.proposals.locked(id)
         self._open(proposal)
         payload = proposal.edited_payload or proposal.payload
         if not proposal.alternatives or not isinstance(payload, CreatePagePayload | SavePdfPayload):
