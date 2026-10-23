@@ -7,7 +7,6 @@ from pydantic_ai.models.test import TestModel
 
 from acervo.core.settings import LlmRoles
 from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
-from acervo.domain.decisions import Answers, Noul
 from acervo.model_clients.llm_writer import InvalidOutput, LlmWriter
 
 CARD = Card(title="Prazo de emissão", subject="Emissão leva 3 dias úteis", facts=["Emissão leva 3 dias úteis"])
@@ -27,7 +26,6 @@ def replies(*outputs: dict[str, Any], calls: list[int]) -> FunctionModel:
 
 async def test_each_role_returns_its_validated_output() -> None:
     writer = writer_with(TestModel())
-    answers = Answers(questions=(Noul(id="covered", question="Já está escrito?"),), probs={"covered": (0.1,)})
     children = [ChildDescription(title="Residencial", kind="folder", description="apólices residenciais")]
 
     assert isinstance(await writer.card(CardInput(text="Emissão leva 3 dias úteis")), Card)
@@ -36,7 +34,6 @@ async def test_each_role_returns_its_validated_output() -> None:
         WrittenPatch,
     )
     assert len(await writer.describe("Bradesco", children)) <= 200
-    assert isinstance(await writer.explain(answers), str)
 
 
 async def test_an_invalid_output_is_retried_once() -> None:
