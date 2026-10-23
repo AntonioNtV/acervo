@@ -1,0 +1,43 @@
+{"id": "vistoria-0km", "question": "Carro 0 km precisa de vistoria prévia no Bradesco?", "expect": {"node": "Bradesco/Auto/Vistoria prévia"}}
+{"id": "vistoria-laudo", "question": "Por quanto tempo vale o laudo da vistoria prévia do Bradesco?", "expect": {"node": "Bradesco/Auto/Vistoria prévia"}}
+{"id": "renovacao-tolerancia", "question": "Depois que a apólice do Bradesco Auto vence, quanto tempo tenho para renovar sem perder o bônus?", "expect": {"node": "Bradesco/Auto/Renovação"}}
+{"id": "emissao-prazo", "question": "Em quanto tempo o Bradesco emite a apólice residencial?", "expect": {"node": "Bradesco/Residencial/Emissão de apólice"}}
+{"id": "emissao-impressa", "question": "O cliente recebe a apólice residencial do Bradesco impressa?", "expect": {"node": "Bradesco/Residencial/Emissão de apólice"}}
+{"id": "sinistro-residencial-pagamento", "question": "Qual o prazo do Bradesco para pagar a indenização de um sinistro residencial?", "expect": {"node": "Bradesco/Residencial/Sinistros residenciais"}}
+{"id": "porto-carro-antigo", "question": "A Porto aceita cotar um carro de 1998 no auto?", "expect": {"node": "Porto Seguro/Auto/Cotação"}}
+{"id": "porto-condutor-jovem", "question": "Um condutor de 22 anos pode ser cotado no Porto Seguro Auto?", "expect": {"node": "Porto Seguro/Auto/Cotação"}}
+{"id": "porto-guincho-basico", "question": "Quantos km de guincho a Porto cobre no plano básico do auto?", "expect": {"node": "Porto Seguro/Auto/Assistência 24h"}}
+{"id": "porto-chaveiro", "question": "Quantas visitas de chaveiro a assistência 24h da Porto dá no plano básico?", "expect": {"node": "Porto Seguro/Auto/Assistência 24h"}}
+{"id": "vida-sem-beneficiario", "question": "Se o segurado do Porto Vida não indicou beneficiário, para quem vai o capital?", "expect": {"node": "Porto Seguro/Vida/Beneficiários"}}
+{"id": "allianz-cotacao-validade", "question": "Por quantos dias vale uma cotação do Allianz Auto?", "expect": {"node": "Allianz/Auto/Cotação Allianz Auto"}}
+{"id": "allianz-desconto-residencial", "question": "Quem tem seguro residencial na Allianz ganha desconto no auto?", "expect": {"node": "Allianz/Auto/Cotação Allianz Auto"}}
+{"id": "empresarial-vistoria", "question": "Quando a Allianz exige vistoria no seguro empresarial?", "expect": {"node": "Allianz/Empresarial/Seguro empresarial"}}
+{"id": "comissao-vida", "question": "Qual a comissão do seguro de vida?", "expect": {"node": "Processos internos/Comissões"}}
+{"id": "onboarding-crm", "question": "Em quanto tempo um cliente novo precisa estar cadastrado no CRM?", "expect": {"node": "Processos internos/Onboarding de clientes"}}
+{"id": "tabela-franquia-importado", "question": "Qual a franquia majorada de um carro de passeio importado no Bradesco Auto 2026?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 1}}
+{"id": "tabela-bonus-classe-7", "question": "Qual o desconto da classe 7 de bônus no Bradesco Auto?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 2}}
+{"id": "tabela-carro-reserva", "question": "Quanto custa por ano a cobertura de carro reserva no Bradesco Auto?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 3}}
+{"id": "tabela-guincho-intermediario", "question": "Quantos km de guincho tem o plano intermediário do Bradesco Auto?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 4}}
+{"id": "tabela-franquia-moto", "question": "Qual a franquia normal de motocicleta no Bradesco Auto?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 1}}
+{"id": "tabela-franquia-moto-reduzida", "after": "tabela-franquia-moto", "question": "E a reduzida?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf", "page": 1}}
+{"id": "allianz-aviso-roubo", "question": "Quantos dias o segurado da Allianz tem para comunicar o roubo do carro?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 137}}
+{"id": "allianz-perda-total", "question": "A partir de que percentual da FIPE a Allianz considera perda total?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 88}}
+{"id": "allianz-para-brisa", "question": "Qual a franquia para trocar o para-brisa no Allianz Auto?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 47}}
+{"id": "allianz-farois", "after": "allianz-para-brisa", "question": "E para faróis?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 47}}
+{"id": "allianz-carro-reserva", "question": "Quantos dias de carro reserva o plano Premium da Allianz dá?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 12}}
+{"id": "allianz-enchente", "question": "A Allianz indeniza um carro alagado numa enchente?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 156}}
+{"id": "allianz-cancelamento", "question": "Como é devolvido o prêmio quando o cliente cancela o Allianz Auto?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 184}}
+{"id": "allianz-foro", "question": "Qual o foro das condições gerais do Allianz Auto?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf", "page": 199}}
+{"id": "porto-danos-eletricos", "question": "Qual o limite de danos elétricos no Porto Residencial?", "expect": {"node": "Porto Seguro/Residencial/Manual do corretor residencial.pdf", "page": 6}}
+{"id": "porto-encanador", "question": "Quantos atendimentos de encanador a assistência do Porto Residencial inclui?", "expect": {"node": "Porto Seguro/Residencial/Manual do corretor residencial.pdf", "page": 10}}
+{"id": "porto-casa-madeira", "question": "A Porto aceita segurar uma casa de madeira no residencial?", "expect": {"node": "Porto Seguro/Residencial/Manual do corretor residencial.pdf", "page": 14}}
+{"id": "porto-orcamento-reparo", "question": "Quanto tempo o cliente tem para mandar o orçamento do reparo num sinistro do Porto Residencial?", "expect": {"node": "Porto Seguro/Residencial/Manual do corretor residencial.pdf", "page": 18}}
+{"id": "porto-comissao-residencial", "question": "Qual a comissão do corretor no Porto Residencial?", "expect": {"node": "Porto Seguro/Residencial/Manual do corretor residencial.pdf", "page": 23}}
+{"id": "comissao-auto", "after": "porto-comissao-residencial", "question": "E no auto?", "expect": {"node": "Processos internos/Comissões"}}
+{"id": "tabela-quantas", "question": "Quantas tabelas tem a Tabela auto 2026 do Bradesco?", "expect": {"node": "Bradesco/Auto/Tabela auto 2026.pdf"}}
+{"id": "allianz-capitulos", "question": "Quantos capítulos têm as condições gerais do Allianz Auto 2026?", "expect": {"node": "Allianz/Auto/Condições Gerais Auto 2026.pdf"}}
+{"id": "sulamerica-franquia", "question": "Qual a franquia do seguro auto da SulAmérica?", "expect": "not_found"}
+{"id": "bradesco-saude-carencia", "question": "Qual a carência do seguro saúde do Bradesco?", "expect": "not_found"}
+{"id": "allianz-empresarial-comissao", "question": "Qual a comissão do seguro empresarial da Allianz?", "expect": "not_found"}
+{"id": "porto-carro-reserva", "question": "Quantos dias de carro reserva o Porto Seguro Auto dá?", "expect": "not_found"}
+{"id": "allianz-empresarial-emissao", "question": "Em quanto tempo a Allianz emite a apólice do seguro empresarial?", "expect": "not_found"}

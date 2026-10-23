@@ -1,4 +1,4 @@
-.PHONY: up down migrate revision worker test lint openapi web-check eval-ai1
+.PHONY: up down migrate revision worker test lint openapi web-check eval-ai1 eval-retrieval
 
 up:
 	docker compose up -d --build --wait
@@ -21,6 +21,10 @@ test:
 # The AI-1 synthetic cases with the LLM decider, in a database and bucket of their own; skipped without an LLM key.
 eval-ai1:
 	uv run python evals/ai1/run.py
+
+# The retrieval questions through the chat, with the configured models; skipped without an LLM key.
+eval-retrieval:
+	uv run python evals/retrieval/run.py
 
 lint:
 	uv run ruff check .

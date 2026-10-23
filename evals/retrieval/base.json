@@ -1,0 +1,41 @@
+{
+  "name": "Seguros · Corretora (evals retrieval)",
+  "tree": {
+    "Bradesco": {
+      "Auto": {
+        "Vistoria prévia.md": "# Vistoria prévia\n\n## Quando é exigida\n- Em todo seguro novo de carro usado.\n- É dispensada para carros 0 km com nota fiscal de até 30 dias.\n\n## Como agendar\n- Pelo portal do corretor, escolhendo uma das empresas credenciadas.\n- O laudo vale por 15 dias depois da vistoria.\n",
+        "Renovação.md": "# Renovação\n\n## Prazos\n- A renovação é oferecida 30 dias antes do fim da vigência.\n- Depois do vencimento, há 30 dias de tolerância para renovar sem perder o bônus.\n\n## Bônus\n- A classe de bônus sobe uma classe por ano sem sinistro, até a classe 10.\n",
+        "Tabela auto 2026.pdf": "bradesco_tabela_auto"
+      },
+      "Residencial": {
+        "Emissão de apólice.md": "# Emissão de apólice\n\nComo emitir a apólice residencial Bradesco depois da proposta aceita.\n\n## Documentos\n- RG e CPF do segurado.\n- Endereço completo do imóvel segurado.\n\n## Prazos\n- A apólice é emitida em cinco dias úteis após a aceitação da proposta.\n\n## Envio ao cliente\n- A apólice vai por e-mail em PDF; a via impressa só a pedido do cliente.\n",
+        "Sinistros residenciais.md": "# Sinistros residenciais\n\n## Abertura\n- O aviso de sinistro é feito pelo 0800 do Bradesco ou pelo portal do corretor.\n\n## Documentos\n- Boletim de ocorrência em caso de roubo ou furto.\n- Fotos dos danos e orçamento de reparo.\n\n## Prazos\n- A seguradora tem até 30 dias para pagar a indenização após a entrega dos documentos.\n"
+      }
+    },
+    "Porto Seguro": {
+      "Auto": {
+        "Cotação.md": "# Cotação\n\nComo cotar o Porto Seguro Auto no portal Corretor Online.\n\n## Dados do condutor\n- Idade, CEP de pernoite e uso do veículo (particular ou trabalho).\n\n## Regras de aceitação\n- Veículos com mais de 20 anos não são aceitos.\n- Condutor com menos de 25 anos precisa de aprovação da subscrição.\n",
+        "Assistência 24h.md": "# Assistência 24h\n\n## Guincho\n- Acionado pelo 0800 da Porto ou pelo aplicativo.\n- Cobre até 400 km no plano completo e 200 km no básico.\n\n## Chaveiro\n- Uma visita por vigência no plano básico.\n"
+      },
+      "Residencial": {
+        "Manual do corretor residencial.pdf": "porto_residencial"
+      },
+      "Vida": {
+        "Beneficiários.md": "# Beneficiários\n\n## Indicação\n- O segurado indica os beneficiários na proposta e pode trocá-los a qualquer momento pelo portal.\n\n## Sem indicação\n- Sem beneficiário indicado, o capital vai metade ao cônjuge e metade aos herdeiros, conforme o Código Civil.\n\n## Carência\n- Suicídio tem carência de 24 meses; morte por acidente não tem carência.\n"
+      }
+    },
+    "Allianz": {
+      "Auto": {
+        "Condições Gerais Auto 2026.pdf": "allianz_auto",
+        "Cotação Allianz Auto.md": "# Cotação Allianz Auto\n\n## Portal\n- As cotações são feitas no Allianz Next com o login do corretor.\n\n## Validade\n- Uma cotação vale por 7 dias corridos.\n\n## Descontos\n- Cliente com seguro residencial Allianz ganha 8% de desconto no auto.\n"
+      },
+      "Empresarial": {
+        "Seguro empresarial.md": "# Seguro empresarial\n\n## Público\n- Comércios e escritórios com faturamento anual de até R$ 10 milhões.\n\n## Coberturas\n- Incêndio, roubo de bens, danos elétricos e lucros cessantes.\n\n## Vistoria\n- Exigida para importância segurada acima de R$ 2 milhões.\n"
+      }
+    },
+    "Processos internos": {
+      "Comissões.md": "# Comissões\n\n## Percentuais\n- Seguro de vida: 25% sobre o prêmio líquido.\n- Auto: 15% sobre o prêmio líquido em todas as seguradoras.\n\n## Pagamento\n- As comissões são pagas pela corretora todo dia 20.\n",
+      "Onboarding de clientes.md": "# Onboarding de clientes\n\n## Cadastro\n- Todo cliente novo é cadastrado no CRM em até 2 dias úteis após a primeira apólice.\n\n## Boas-vindas\n- O kit de boas-vindas vai por e-mail com os contatos de sinistro de cada seguradora.\n"
+    }
+  }
+}
