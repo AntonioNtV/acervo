@@ -128,3 +128,41 @@ async def test_every_jev_call_of_a_search_is_logged_with_the_run(env: Env) -> No
     logged = await env.uow.decisions.of_run(run_id)
     assert len(logged) == sum(len(questions) for _, questions in env.decider.calls)
     assert {decision.step for decision in logged} == {"route", "evidence"}
+
+
+async def test_what_jev_answered_before_a_failure_is_still_logged(env: Env) -> None:
+    run_id = uuid7()
+    calls = 0
+
+    def failing(state: str, question: Question) -> FakeProbs:
+        nonlocal calls
+        calls += 1
+        if calls > 3:
+            raise RuntimeError("Jev is down")
+        return jev(state, question)
+
+    env.decider.answer = failing
+    with pytest.raises(RuntimeError):
+        await env.search(run_id)
+
+    logged = await env.uow.decisions.of_run(run_id)
+    assert logged and all(decision.step == "route" for decision in logged)
+
+
+async def test_a_pdf_read_by_its_name_only_gives_no_counts(env: Env) -> None:
+    def counts() -> int:
+        return sum(option.startswith("Estatísticas do documento") for option in env.options())
+
+    await env.search()
+    before = counts()
+    env.decider.calls.clear()
+    async with env.uow:
+        index = (await env.uow.indexes.get(env.tree[PDF].id)).parsed  # type: ignore[union-attr]
+        assert index is not None
+        await env.uow.indexes.start(env.tree[PDF].id, "v2")
+        await env.uow.indexes.finish(env.tree[PDF].id, "v2", index.model_copy(update={"note": "sem texto"}))
+        await env.uow.commit()
+
+    await env.search()
+
+    assert counts() == before - 1

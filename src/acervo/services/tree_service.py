@@ -2,7 +2,6 @@ from uuid import UUID
 
 from acervo.core.errors import ConflictError, TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
-from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileResponse
 from acervo.schemas.node import (
@@ -69,22 +68,6 @@ class TreeService:
         await index_service.request(self._uow, node)
         await self._uow.commit()
         return node.model_copy(update={"index_state": "building"})
-
-    async def snapshot(self, kb_id: UUID) -> TreeSnapshot:
-        """Every live node of the base with its description, siblings in their order: what the pipeline decides
-        over."""
-        nodes = [
-            SnapshotNode(
-                id=node.id,
-                parent_id=node.parent_id,
-                kind=node.kind,
-                title=node.title,
-                description=node.description,
-                active_at=node.updated_at,
-            )
-            for node in await self._uow.nodes.live_in(kb_id)
-        ]
-        return TreeSnapshot(nodes=nodes)
 
     async def create(
         self, kb_id: UUID, data: NodeAdd, *, markdown: str = "", proposal_id: UUID | None = None, commit: bool = True

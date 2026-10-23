@@ -38,10 +38,12 @@ async def request(uow: UnitOfWork, node: NodeRead) -> None:
 
 
 class IndexService:
-    def __init__(self, uow: UnitOfWork, storage: Storage, limits: RetrievalLimits) -> None:
+    def __init__(self, uow: UnitOfWork, storage: Storage, limits: RetrievalLimits, timeout: float = 540) -> None:
         self._uow = uow
         self._storage = storage
         self._limits = limits
+        # Under the job's own timeout, so a cancelled job never leaves the build asked for forever.
+        self._timeout = timeout
 
     async def build(self, node_id: UUID, key: str) -> None:
         """Indexes version `key` of the node; the previous index stays readable until this one is ready."""
@@ -60,7 +62,7 @@ class IndexService:
         # The database is not held while a long PDF is read.
         await self._uow.rollback()
         try:
-            index = await self._index(storage_key, markdown)
+            index = await asyncio.wait_for(self._index(storage_key, markdown), self._timeout)
         except Exception:
             logger.exception("index of node %s at %s failed", node.id, key)
             await self._uow.indexes.fail(node.id, key, FAILED)

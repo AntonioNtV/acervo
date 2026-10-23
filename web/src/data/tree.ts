@@ -14,6 +14,8 @@ export function useChildren(kbId: string, parentId: string | null = null, enable
   return useQuery({
     queryKey: ["children", kbId, parentId],
     enabled,
+    // An index builds in the background: ask again until none of these rows is building.
+    refetchInterval: (query) => (query.state.data?.some((node) => node.index_state === "building") ? 3000 : false),
     queryFn: () =>
       call(
         api.GET("/v1/kbs/{kb_id}/children", {

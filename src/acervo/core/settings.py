@@ -61,6 +61,10 @@ class RetrievalLimits(BaseModel):
     # Steps of the chat's LLM in one reply, and how many of them may call tools.
     llm_steps: int = 6
     llm_tool_steps: int = 5
+    # Partial passages kept before one Score asks whether together they answer the question.
+    set_check: int = 3
+    # Documents the title/heading shortcut may propose; still routed and scored by Jev.
+    candidates: int = 8
 
 
 class LlmRoles(BaseModel):

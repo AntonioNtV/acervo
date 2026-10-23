@@ -3,13 +3,18 @@
 from acervo.domain.decisions import Answers, Choice
 from acervo.schemas.proposal import Decision
 
+LOGGED = 300
+
 
 def record(answers: Answers, id: str, step: str, action: str, threshold: float | None = None) -> Decision:
     question = answers.question(id)
     return Decision(
         step=step,
         question_type=question.type,
-        options=list(question.options) if isinstance(question, Choice) else [question.question],
+        # Cut: a route option or a scored passage is found again by the run; the full text would grow the log fast.
+        options=[option[:LOGGED] for option in question.options]
+        if isinstance(question, Choice)
+        else [question.question[:LOGGED]],
         probs=list(answers.probs[id]),
         threshold=threshold,
         action=action,

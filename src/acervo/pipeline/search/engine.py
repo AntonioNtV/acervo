@@ -20,8 +20,6 @@ from acervo.schemas.proposal import Decision
 
 OnStep = Callable[[SearchStep], Awaitable[None]]
 
-# From this many partial passages on, one Score asks whether together they answer the question.
-SET_CHECK = 3
 # A chosen route never scores 0: its log stays finite and it can still be reached when the beam runs dry.
 FLOOR = 1e-6
 _STAGE: dict[SearchKind, SearchStage] = {
@@ -262,7 +260,7 @@ class _Search:
             results += await self.score(batch)
             if any(e.score >= self.thresholds.evidence_enough for e in results):
                 break
-            if len(results) >= SET_CHECK:
+            if len(results) >= self.limits.set_check:
                 top = self.ranked(results)
                 if [e.ref for e in top] != checked:
                     checked = [e.ref for e in top]
@@ -278,8 +276,12 @@ async def search(
     limits: RetrievalLimits,
     thresholds: Thresholds,
     on_step: OnStep | None = None,
+    decisions: list[Decision] | None = None,
 ) -> tuple[SearchResult, list[Decision]]:
     """Every Jev call's decisions come back for the log. An invalid answer from the decider propagates: there is no
     fallback to another way of searching."""
     run = _Search(query, roots, decider, limits, thresholds, on_step)
+    if decisions is not None:
+        # The caller's list, so what was answered before a failure still reaches the log (rule 7).
+        run.decisions = decisions
     return await run.run(), run.decisions

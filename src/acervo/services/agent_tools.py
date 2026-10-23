@@ -26,6 +26,7 @@ from acervo.domain.sections import sections
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.factory import build_decider as build_decider
 from acervo.pipeline.pdf import reader
+from acervo.pipeline.pdf.reader import PYMUPDF
 from acervo.pipeline.search.engine import OnStep
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
@@ -289,6 +290,8 @@ class AgentTools:
             return Fetched(node_id=node.id, path=pages.path, kind=kind, first=pages.first, last=pages.last, text=text)
         found = await self._uow.indexes.get(node.id)
         index = found.parsed if found else None
+        if passage_id == "stats":
+            passage_id = ""  # The statistics branch has no section to read: the outline follows.
         if passage_id:
             passage = next((p for p in index.passages if p.id == passage_id), None) if index else None
             if passage is None:
@@ -495,7 +498,7 @@ def _section_text(
 
 def _render(path: Path, first: int, last: int) -> tuple[list[bytes], int]:
     """Each page from `first` to `last` as a PNG, up to the PDF's last page; and how many pages it has."""
-    with pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
+    with PYMUPDF, pymupdf.open(path, filetype="pdf") as document:  # type: ignore[no-untyped-call]
         last = min(last, document.page_count)
         pages = [document[number - 1].get_pixmap(dpi=IMAGE_DPI).tobytes("png") for number in range(first, last + 1)]
         return pages, document.page_count

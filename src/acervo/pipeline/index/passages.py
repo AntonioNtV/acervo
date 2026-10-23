@@ -6,7 +6,7 @@ from typing import Literal
 from acervo.core.settings import RetrievalLimits
 from acervo.domain.index import Block, DocIndex, DocStats, Passage, Section
 
-# The shape of `DocIndex`; an index built with an older one is rebuilt.
+# The shape of `DocIndex`; after a bump, run `make reindex` on every base.
 VERSION = 1
 
 

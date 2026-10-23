@@ -236,6 +236,9 @@ class FileService:
         """A PDF's new content is indexed once committed; its previous index stays readable meanwhile."""
         if content.mime == PDF:
             await self._uow.indexes.start(node_id, content.sha256)
+        else:
+            # The node no longer holds that PDF: its index must not answer for it.
+            await self._uow.indexes.drop(node_id)
 
     async def _refuse_duplicate(self, kb_id: UUID, sha256: str, other_than: UUID | None = None) -> None:
         """Refuses content the base already holds: in a file, in the trash, or in any file's history."""

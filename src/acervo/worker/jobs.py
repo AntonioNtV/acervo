@@ -35,4 +35,6 @@ async def index_pending(ctx: dict[str, Any]) -> None:
 
 async def index_node(ctx: dict[str, Any], node_id: str, key: str) -> None:
     async with UnitOfWork(ctx["session_factory"]) as uow:
-        await IndexService(uow, ctx["storage"], ctx["settings"].retrieval_limits).build(UUID(node_id), key)
+        await IndexService(
+            uow, ctx["storage"], ctx["settings"].retrieval_limits, ctx["settings"].job_timeout_seconds - 60
+        ).build(UUID(node_id), key)

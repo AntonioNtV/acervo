@@ -1,7 +1,7 @@
 from typing import cast
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
@@ -64,6 +64,10 @@ class NodeIndexRepository:
         await self._session.flush()
         return True
 
+    async def drop(self, node_id: UUID) -> None:
+        """Forgets the node's index, e.g. when its PDF was replaced by something that is not indexed."""
+        await self._session.execute(delete(NodeIndex).where(NodeIndex.node_id == node_id))
+
     async def _building(self, node_id: UUID, key: str) -> NodeIndex | None:
-        row = await self._session.get(NodeIndex, node_id, populate_existing=True)
+        row = await self._session.get(NodeIndex, node_id, populate_existing=True, with_for_update=True)
         return row if row is not None and row.building_key == key else None

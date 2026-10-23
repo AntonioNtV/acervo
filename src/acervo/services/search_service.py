@@ -18,7 +18,7 @@ from acervo.pipeline.search.previews import folder_description, section_previews
 from acervo.pipeline.search.tree import SearchNode, stats_node
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.node import NodeRead
-from acervo.schemas.proposal import DecisionLogCreate
+from acervo.schemas.proposal import Decision, DecisionLogCreate
 
 
 class Cited(Evidence):
@@ -99,13 +99,18 @@ class SearchService:
             return document
 
         roots = [build(node, []) for node in under[None]]
-        if branch := candidate_branch(documents, query, chars):
+        if branch := candidate_branch(documents, query, chars, self._limits.candidates):
             roots.insert(0, branch)
-        result, decisions = await engine.search(query, roots, self._decider, self._limits, self._thresholds, on_step)
-        await self._uow.decisions.create_many(
-            [DecisionLogCreate(run_id=run_id, message_id=message_id, **decision.model_dump()) for decision in decisions]
-        )
-        await self._uow.commit()
+        decisions: list[Decision] = []
+        try:
+            result, _ = await engine.search(
+                query, roots, self._decider, self._limits, self._thresholds, on_step, decisions
+            )
+        finally:
+            await self._uow.decisions.create_many(
+                [DecisionLogCreate(run_id=run_id, message_id=message_id, **d.model_dump()) for d in decisions]
+            )
+            await self._uow.commit()
         kinds = {node.id: node.kind for node in nodes}
         return Searched(
             evidence=[_cited(found, kinds[found.node_id], indexes[found.node_id]) for found in result.evidence],
@@ -143,7 +148,9 @@ class SearchService:
             )
 
         counts = {term: term_count(index, term) for term in dict.fromkeys(terms(query))}
-        return [*map(section, index.sections), stats_node(node_id, path, index.stats, counts)]
+        # A PDF read by its name only has no counts to give: "0 tabelas" would be a wrong answer, not a count.
+        stats = [] if index.note else [stats_node(node_id, path, index.stats, counts)]
+        return [*map(section, index.sections), *stats]
 
 
 def _cited(evidence: Evidence, kind: Literal["folder", "page", "file"], index: DocIndex) -> Cited:

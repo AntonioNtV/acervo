@@ -12,6 +12,7 @@ from acervo.core.settings import RetrievalLimits
 from acervo.domain.index import Block, BlockKind, DocIndex, DocStats
 from acervo.pipeline.index.passages import VERSION, Start, assemble
 from acervo.pipeline.index.stats import doc_stats, tokens
+from acervo.pipeline.pdf.reader import PYMUPDF
 
 _LIST = re.compile(r"^\s*([•·▪‣◦*\-–]|\d+[.)])\s")
 _BOLD = 16
@@ -25,6 +26,11 @@ NO_TEXT = "PDF sem texto extraível: indexado só pelo nome e pelo sumário."
 
 
 def index_pdf(path: Path, limits: RetrievalLimits) -> DocIndex:
+    with PYMUPDF:
+        return _index_pdf(path, limits)
+
+
+def _index_pdf(path: Path, limits: RetrievalLimits) -> DocIndex:
     try:
         document = pymupdf.open(path, filetype="pdf")  # type: ignore[no-untyped-call]
     except (pymupdf.FileDataError, RuntimeError):
