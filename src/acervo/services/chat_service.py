@@ -77,6 +77,7 @@ class _Outcome:
     line: str = ""
     proposal: ProposalCreate | None = None
     placed: bool = True
+    ask: tuple[Route, Route] | None = None
 
 
 @dataclass
@@ -122,7 +123,7 @@ def _undone_path(payload: ProposalPayload) -> str:
             return _where(payload)
 
 
-def _changed_parent(payload: ProposalPayload) -> UUID | None:
+def changed_parent(payload: ProposalPayload) -> UUID | None:
     """The folder or page that got, lost or renamed a child, whose description follows its children."""
     match payload:
         case CreatePagePayload() | SavePdfPayload() | MovePayload():
@@ -174,8 +175,9 @@ class ChatService:
         except Exception as exc:
             logger.exception("message %s failed", message_id)
             return await self._fail(run, exc)
+        ask = next((list(outcome.ask) for outcome in outcomes if outcome.ask), None)
         done = await self._uow.messages.update(
-            reply.id, MessageUpdate(text="\n".join(lines), understood_as=understood, status="done")
+            reply.id, MessageUpdate(text="\n".join(lines), understood_as=understood, ask=ask, status="done")
         )
         await self._uow.commit()
         await self._events.publish(conversation.id, MessageEvent(message=done))
@@ -217,7 +219,7 @@ class ChatService:
         for part in parts:
             if isinstance(part, router.AskFirst):
                 first, second = (ASK_FIRST[option] for option in part.options)
-                outcomes.append(_Outcome(line=f"{first[0].upper()}{first[1:]} ou {second}?"))
+                outcomes.append(_Outcome(line=f"{first[0].upper()}{first[1:]} ou {second}?", ask=part.options))
             elif part.route in ("guardar", "organizar"):
                 tree = tree or await self._described(run.conversation.kb_id)
                 if part.route == "guardar":
@@ -355,7 +357,7 @@ class ChatService:
         await self._events.publish(run.conversation.id, ProposalEvent(proposal=proposal))
         payload = proposal.edited_payload or proposal.payload
         if proposal.status == "applied":
-            if (parent := _changed_parent(payload)) is not None:
+            if (parent := changed_parent(payload)) is not None:
                 await self._jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
             return f"{KIND[proposal.kind]}: {_where(payload)} · aplicada."
         if not outcome.placed:

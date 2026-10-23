@@ -1332,6 +1332,27 @@
       "MessageRead": {
         "description": "A stored message.",
         "properties": {
+          "ask": {
+            "anyOf": [
+              {
+                "items": {
+                  "enum": [
+                    "perguntar",
+                    "guardar",
+                    "organizar",
+                    "conversar"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A reply that asks first: the two readings, likeliest first; null otherwise.",
+            "title": "Ask"
+          },
           "attachments": {
             "description": "Files sent with it.",
             "items": {

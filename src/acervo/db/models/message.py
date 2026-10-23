@@ -22,6 +22,8 @@ class Message(UUIDPkMixin, TimestampMixin, Base):
     # The open page and the selected text the person kept as context.
     context: Mapped[dict[str, Any] | None]
     understood_as: Mapped[str | None] = mapped_column(Text)
+    # A reply that asks first: the two readings, likeliest first, the person picks between.
+    ask: Mapped[list[Any] | None]
     run_id: Mapped[UUID | None] = mapped_column(index=True)
     status: Mapped[str] = mapped_column(Text, server_default="done", default="done")
     error: Mapped[str | None] = mapped_column(Text)

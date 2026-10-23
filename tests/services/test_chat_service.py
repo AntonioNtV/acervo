@@ -158,6 +158,7 @@ async def test_an_ambiguous_message_asks_first_and_proposes_nothing(env: Env) ->
 
     assert await env.proposals(reply) == []
     assert (reply.text, reply.understood_as) == ("Procurar a resposta ou guardar isso na base?", None)
+    assert reply.ask == ["perguntar", "guardar"]
 
 
 async def test_two_subjects_give_two_results_in_one_reply(env: Env) -> None:

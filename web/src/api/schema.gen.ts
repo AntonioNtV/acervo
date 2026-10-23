@@ -1759,6 +1759,11 @@ export interface components {
          */
         MessageRead: {
             /**
+             * Ask
+             * @description A reply that asks first: the two readings, likeliest first; null otherwise.
+             */
+            ask?: ("perguntar" | "guardar" | "organizar" | "conversar")[] | null;
+            /**
              * Attachments
              * @description Files sent with it.
              */

@@ -3,9 +3,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
 
-from acervo.api.deps import get_proposal_service, require_api_key
+from acervo.api.deps import get_job_queue, get_proposal_service, require_api_key
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.proposal import ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
+from acervo.services.chat_service import REFRESH_DESCRIPTIONS, changed_parent
+from acervo.services.events import JobQueue
 from acervo.services.proposal_service import ProposalService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -34,10 +36,16 @@ async def get_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
 
 
 @router.post("/proposals/{proposal_id}/accept", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
-async def accept_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
+async def accept_proposal(
+    proposal_id: UUID, service: Service, jobs: Annotated[JobQueue, Depends(get_job_queue)]
+) -> ProposalRead:
     """Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
     gone it comes back `stale` and nothing changes."""
-    return await service.accept(proposal_id)
+    proposal = await service.accept(proposal_id)
+    parent = changed_parent(proposal.edited_payload or proposal.payload)
+    if proposal.status == "applied" and parent is not None:
+        await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=[str(parent)])
+    return proposal
 
 
 @router.post("/proposals/{proposal_id}/reject", response_model=ProposalRead, responses={404: ERROR, 409: ERROR})
