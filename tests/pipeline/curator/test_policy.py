@@ -31,7 +31,7 @@ PDF = CardInput(text="Condições gerais 2027", file_name="cg.pdf", outline=["Co
 TO_PAGE = {
     "descent:": {"Bradesco (pasta)": 1.0},
     "descent:Bradesco": {"Residencial (pasta)": 1.0},
-    "descent:Bradesco/Residencial": {"Emissão de apólice (página)": 0.95, "ficar neste nível": 0.05},
+    "descent:Bradesco/Residencial": {"Emissão de apólice (página)": 0.95, "nova página aqui": 0.05},
 }
 TO_FOLDER = {"descent:": {"Bradesco (pasta)": 1.0}, "descent:Bradesco": {"Residencial (pasta)": 1.0}}
 
@@ -59,9 +59,9 @@ async def test_below_place_min_asks_with_the_top_3(
 ) -> None:
     snap = make_snapshot(TREE)
     fake_decider.table = {
-        "descent:": {"Bradesco (pasta)": 0.4, "Itaú (pasta)": 0.35, "ficar neste nível": 0.25},
-        "descent:Bradesco": {"ficar neste nível": 1.0},
-        "descent:Itaú": {"ficar neste nível": 1.0},
+        "descent:": {"Bradesco (pasta)": 0.4, "Itaú (pasta)": 0.35, "nova página aqui": 0.25},
+        "descent:Bradesco": {"nova página aqui": 1.0},
+        "descent:Itaú": {"nova página aqui": 1.0},
     }
     log: list[Decision] = []
 
@@ -69,9 +69,9 @@ async def test_below_place_min_asks_with_the_top_3(
 
     assert filed == NotSure(
         options=[
-            Placement(node_id=snap["Bradesco"].id, path="Bradesco", landing="here", probability=0.4),
-            Placement(node_id=snap["Itaú"].id, path="Itaú", landing="here", probability=0.35),
-            Placement(node_id=None, path="", landing="here", probability=0.25),
+            Placement(node_id=snap["Bradesco"].id, path="Bradesco", landing="new_page", probability=0.4),
+            Placement(node_id=snap["Itaú"].id, path="Itaú", landing="new_page", probability=0.35),
+            Placement(node_id=None, path="", landing="new_page", probability=0.25),
         ]
     )
     assert (log[-1].threshold, log[-1].action) == (thresholds.place_min, "ask_top_3")
@@ -182,7 +182,7 @@ async def test_a_pdf_that_is_a_new_version_replaces_it(
 ) -> None:
     snap = make_snapshot(TREE)
     pdf = "Bradesco/Residencial/CG 2026.pdf"
-    fake_decider.table = {**TO_FOLDER, "descent:Bradesco/Residencial": [1.0], f"new_version:{pdf}": 0.75}
+    fake_decider.table = {**TO_FOLDER, "descent:Bradesco/Residencial": {"salvar aqui": 1.0}, f"new_version:{pdf}": 0.75}
 
     filed = await file_pdf(PDF, snap.tree, fake_decider, fake_writer, thresholds, [])
 
@@ -195,7 +195,7 @@ async def test_a_pdf_otherwise_is_saved_with_the_suggested_name(
 ) -> None:
     snap = make_snapshot(TREE)
     pdf = "Bradesco/Residencial/CG 2026.pdf"
-    fake_decider.table = {**TO_FOLDER, "descent:Bradesco/Residencial": [1.0], f"new_version:{pdf}": 0.7}
+    fake_decider.table = {**TO_FOLDER, "descent:Bradesco/Residencial": {"salvar aqui": 1.0}, f"new_version:{pdf}": 0.7}
     fake_writer.card_output = Card(title="CG", subject="Condições gerais", file_name="CG Residencial 2027.pdf")
 
     filed = await file_pdf(PDF, snap.tree, fake_decider, fake_writer, thresholds, [])
@@ -215,12 +215,12 @@ async def test_below_place_show_second_the_second_path_comes_along(
     snap = make_snapshot(TREE)
     fake_decider.table = {
         "descent:": {"Bradesco (pasta)": 0.8, "Itaú (pasta)": 0.2},
-        "descent:Bradesco": {"ficar neste nível": 1.0},
-        "descent:Itaú": {"ficar neste nível": 1.0},
+        "descent:Bradesco": {"nova página aqui": 1.0},
+        "descent:Itaú": {"nova página aqui": 1.0},
     }
 
     filed = await _text(snap, fake_decider, fake_writer, thresholds)
 
     assert isinstance(filed, Propose) and isinstance(filed.payload, CreatePagePayload)
     assert filed.payload.parent_id == snap["Bradesco"].id
-    assert filed.alternatives == [Placement(node_id=snap["Itaú"].id, path="Itaú", landing="here", probability=0.2)]
+    assert filed.alternatives == [Placement(node_id=snap["Itaú"].id, path="Itaú", landing="new_page", probability=0.2)]

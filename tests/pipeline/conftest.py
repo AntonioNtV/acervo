@@ -35,7 +35,8 @@ def _children(spec: Any) -> list[tuple[str, Any]]:
 @pytest.fixture
 def make_snapshot() -> Callable[[Any], Snapshot]:
     """A tree snapshot from a dict, as `make_tree` takes it: `.md` names are pages, other names with an extension
-    are files, names without one are folders. Later siblings are more recently active."""
+    are files, names without one are folders; a page given children holds them. Later siblings are more recently
+    active."""
 
     def make(spec: Any) -> Snapshot:
         snapshot = Snapshot(TreeSnapshot(nodes=[]))
@@ -54,7 +55,7 @@ def make_snapshot() -> Callable[[Any], Snapshot]:
                 )
                 snapshot.tree.nodes.append(node)
                 snapshot.nodes[f"{prefix}{name}"] = node
-                if kind == "folder":
+                if kind != "file":
                     add(node, f"{prefix}{name}/", children)
 
         add(None, "", spec)

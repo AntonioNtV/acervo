@@ -26,6 +26,7 @@ KIND = Choice(
     ),
 )
 THIS_FOLDER = Option("esta própria pasta", landing="here")
+THIS_PAGE = Option("esta própria página", landing="here")
 MOVE_HERE = Option("mover para cá", landing="here")
 # The new name is what follows the last "para", "pra" or "como": "renomeia a tabela para Tabela 2026".
 _NEW_TITLE = re.compile(r".*\s(?:para|pra|como)\s+(.+)$", re.IGNORECASE | re.DOTALL)
@@ -53,13 +54,16 @@ Organized = Propose | NotSure | NeedsTitle | NothingToUndo
 
 
 def target_options(tree: TreeSnapshot, at: SnapshotNode | None) -> list[Option]:
-    """Any child, a folder to go into; inside a folder, the folder itself comes first."""
+    """Any child, a folder or a page with children to go into; inside one, that folder or page comes first."""
 
     def child(node: SnapshotNode) -> Option:
-        return Option(label(node), node, None if node.kind == "folder" else "node")
+        container = node.kind == "folder" or bool(tree.children(node))
+        return Option(label(node), node, None if container else "node")
 
     options = level(tree, at, child, [])
-    return [THIS_FOLDER, *options] if at else options
+    if at is None:
+        return options
+    return [THIS_FOLDER if at.kind == "folder" else THIS_PAGE, *options]
 
 
 def _destination_options(target: SnapshotNode) -> Options:
