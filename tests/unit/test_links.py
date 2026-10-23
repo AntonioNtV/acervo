@@ -1,7 +1,7 @@
 import uuid
 from dataclasses import dataclass, field
 
-from acervo.domain.links import normalize, resolve, rewrite, targets
+from acervo.domain.links import normalize, resolve, rewrite, targets, unlink
 
 BRADESCO, PORTO = uuid.uuid4(), uuid.uuid4()
 
@@ -48,4 +48,12 @@ def test_rewrite_whatever_the_case_and_spacing() -> None:
 
     assert rewrite(markdown, "Renovação", "Renovação anual") == (
         "Antes da [[Renovação anual]], ver [[Renovação anual]] e [[Renovação anual antiga]].\n"
+    )
+
+
+def test_unlink_turns_the_given_targets_into_text() -> None:
+    markdown = "Ver [[Renovação]] e [[ renovação  anual ]], [[Sinistro]] e [[Renovação]].\n[[Vistoria]]\n"
+
+    assert unlink(markdown, {"renovação", "renovação anual", "vistoria"}) == (
+        "Ver Renovação e renovação  anual, [[Sinistro]] e Renovação.\nVistoria\n"
     )

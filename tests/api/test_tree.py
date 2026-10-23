@@ -392,3 +392,15 @@ async def test_an_invalid_icon_or_cover_is_422(client: httpx.AsyncClient, make_t
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(422, "validation")] * len(bodies)
     opened = (await client.get(f"/v1/nodes/{page}")).json()
     assert (opened["icon"], opened["cover"]) == (None, None)
+
+
+async def test_move_into_a_trashed_base_is_404(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Emissão.md": None})
+    other = await make_tree(None, name="Porto")
+    assert (await client.delete(f"/v1/kbs/{other.kb.id}")).status_code == 200
+    page = tree["Emissão.md"].id
+
+    response = await client.post(f"/v1/nodes/{page}/move", json={"kb_id": str(other.kb.id), "parent_id": None})
+
+    assert (response.status_code, response.json()["error"]) == (404, "not_found")
+    assert (await client.get(f"/v1/nodes/{page}")).json()["kb_id"] == str(tree.kb.id)

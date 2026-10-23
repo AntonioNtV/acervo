@@ -38,3 +38,18 @@ class FileRepository(BaseRepository[File, FileRead, FileCreate, FileContent]):
         )
         node = await self._session.scalar(query)
         return None if node is None else NodeRead.model_validate(node)
+
+    async def held_in(self, kb_id: UUID, node_ids: list[UUID]) -> list[str]:
+        """Titles of the files among `node_ids` whose current content a live file of the base already has."""
+        live = (
+            select(File.sha256)
+            .join(Node, Node.id == File.node_id)
+            .where(Node.kb_id == kb_id, Node.deleted_at.is_(None))
+        )
+        query = (
+            select(Node.title)
+            .join(File, File.node_id == Node.id)
+            .where(Node.id.in_(node_ids), File.sha256.in_(live))
+            .order_by(Node.title)
+        )
+        return list(await self._session.scalars(query))
