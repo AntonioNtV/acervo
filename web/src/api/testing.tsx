@@ -84,6 +84,9 @@ export function renderInBase(ui: ReactNode, path = "/kbs/kb-1") {
 export const nodeFields = {
   description: "",
   description_locked: false,
+  icon: null,
+  cover: null,
+  favorite: false,
   sort: "a0",
   trashed_with: null,
   created_at: "2026-10-14T10:00:00Z",
