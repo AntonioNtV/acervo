@@ -178,7 +178,7 @@ class Decision(BaseModel):
     """One question asked of the decider, with its answer and what code did with it (rule 7)."""
 
     step: str = Field(description="The step that asked: route, descent, page_check, pdf_check, organize.")
-    question_type: Literal["noul", "choice"] = Field(description="The kind of question.")
+    question_type: Literal["noul", "choice", "score"] = Field(description="The kind of question.")
     options: list[str] = Field(description="A Choice's options in order; a Noul's question.")
     probs: list[float] = Field(description="One probability per option; a Noul's P(yes).")
     threshold: float | None = Field(default=None, description="The cut-off the answer was compared to, if any.")

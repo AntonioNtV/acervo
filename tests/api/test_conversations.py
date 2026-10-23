@@ -140,7 +140,7 @@ async def test_ui_messages_return_the_thread_with_proposals_and_citations(
     kb_id, conversation_id, reply_id = await _reply(client, session, "done")
     [conversation] = (await client.get(f"/v1/kbs/{kb_id}/conversations")).json()
     citation = {"marker": 1, "node_id": str(uuid.uuid4()), "kind": "file", "path": "Arquivo/CG.pdf"}
-    citation |= {"anchor": None, "page": 3}
+    citation |= {"anchor": None, "page": 3, "block_id": None, "highlight": None}
     await session.execute(
         update(Message).where(Message.id == reply_id).values(text="Anotado [1].", citations=[citation], grounded=True)
     )

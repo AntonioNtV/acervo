@@ -1204,6 +1204,16 @@ export interface components {
              */
             anchor?: string | null;
             /**
+             * Block Id
+             * @description The smallest block of its index that supports the claim.
+             */
+            block_id?: string | null;
+            /**
+             * Highlight
+             * @description That block's box on `page`, in PDF points (x0, y0, x1, y1); null for a page.
+             */
+            highlight?: number[] | null;
+            /**
              * Kind
              * @description A page, or a PDF.
              * @enum {string}
@@ -1491,6 +1501,13 @@ export interface components {
              * @description Node ID.
              */
             id: string;
+            /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
             /**
              * Kb Id
              * Format: uuid
@@ -1991,6 +2008,13 @@ export interface components {
              */
             id: string;
             /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
+            /**
              * Kb Id
              * Format: uuid
              * @description Base the node belongs to.
@@ -2136,6 +2160,13 @@ export interface components {
              */
             id: string;
             /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
+            /**
              * Kb Id
              * Format: uuid
              * @description Base the node belongs to.
@@ -2221,6 +2252,13 @@ export interface components {
              * @description Node ID.
              */
             id: string;
+            /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
             /**
              * Kb Id
              * Format: uuid
@@ -2783,6 +2821,13 @@ export interface components {
              */
             id: string;
             /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
+            /**
              * Kb Id
              * Format: uuid
              * @description Base the node belongs to.
@@ -2947,6 +2992,13 @@ export interface components {
              */
             id: string;
             /**
+             * Index State
+             * @description Its search index; none for a folder.
+             * @default none
+             * @enum {string}
+             */
+            index_state: "building" | "ready" | "failed" | "none";
+            /**
              * Kb Id
              * Format: uuid
              * @description Base the node belongs to.
@@ -3001,6 +3053,41 @@ export interface components {
             updated_at: string;
         };
         /**
+         * UiActivity
+         * @description Where a reply's search is now.
+         */
+        UiActivity: {
+            /**
+             * Label
+             * @description What the activity line shows, such as "Lendo Tabela auto 2026, p. 4".
+             */
+            label: string;
+            /**
+             * Stage
+             * @description folder, document, section or passage.
+             * @enum {string}
+             */
+            stage: "folder" | "document" | "section" | "passage";
+        };
+        /**
+         * UiActivityPart
+         * @description The reply's activity line while it works; never stored with the message.
+         */
+        UiActivityPart: {
+            data: components["schemas"]["UiActivity"];
+            /**
+             * Transient
+             * @description Shown while streaming, never kept in the message.
+             * @default true
+             */
+            transient: boolean;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "data-activity";
+        };
+        /**
          * UiMessage
          * @description A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them.
          */
@@ -3013,7 +3100,7 @@ export interface components {
             id: string;
             metadata: components["schemas"]["UiMetadata"];
             /** Parts */
-            parts: (components["schemas"]["UiTextPart"] | components["schemas"]["UiProposalPart"] | components["schemas"]["UiSourcePart"])[];
+            parts: (components["schemas"]["UiTextPart"] | components["schemas"]["UiProposalPart"] | components["schemas"]["UiSourcePart"] | components["schemas"]["UiActivityPart"])[];
             /**
              * Role
              * @description user: the person; assistant: Acervo.

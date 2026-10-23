@@ -77,8 +77,11 @@ class Citation(BaseModel):
     anchor: str | None = Field(default=None, description="The section of the page; null for the whole page.")
     page: int | None = Field(default=None, description="The PDF's page, counted from 1; null for a page.")
     block_id: str | None = Field(default=None, description="The smallest block of its index that supports the claim.")
-    highlight: tuple[float, float, float, float] | None = Field(
-        default=None, description="That block's box on `page`, in PDF points (x0, y0, x1, y1); null for a page."
+    highlight: list[float] | None = Field(
+        default=None,
+        min_length=4,
+        max_length=4,
+        description="That block's box on `page`, in PDF points (x0, y0, x1, y1); null for a page.",
     )
 
 

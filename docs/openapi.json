@@ -417,6 +417,35 @@
             "description": "The section of the page; null for the whole page.",
             "title": "Anchor"
           },
+          "block_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The smallest block of its index that supports the claim.",
+            "title": "Block Id"
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 4,
+                "minItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "That block's box on `page`, in PDF points (x0, y0, x1, y1); null for a page.",
+            "title": "Highlight"
+          },
           "kind": {
             "description": "A page, or a PDF.",
             "enum": [
@@ -823,6 +852,18 @@
             "description": "Node ID.",
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
             "type": "string"
           },
           "kb_id": {
@@ -1635,6 +1676,18 @@
             "title": "Id",
             "type": "string"
           },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
+            "type": "string"
+          },
           "kb_id": {
             "description": "Base the node belongs to.",
             "format": "uuid",
@@ -1909,6 +1962,18 @@
             "title": "Id",
             "type": "string"
           },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
+            "type": "string"
+          },
           "kb_id": {
             "description": "Base the node belongs to.",
             "format": "uuid",
@@ -2053,6 +2118,18 @@
             "description": "Node ID.",
             "format": "uuid",
             "title": "Id",
+            "type": "string"
+          },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
             "type": "string"
           },
           "kb_id": {
@@ -3222,6 +3299,18 @@
             "title": "Id",
             "type": "string"
           },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
+            "type": "string"
+          },
           "kb_id": {
             "description": "Base the node belongs to.",
             "format": "uuid",
@@ -3474,6 +3563,18 @@
             "title": "Id",
             "type": "string"
           },
+          "index_state": {
+            "default": "none",
+            "description": "Its search index; none for a folder.",
+            "enum": [
+              "building",
+              "ready",
+              "failed",
+              "none"
+            ],
+            "title": "Index State",
+            "type": "string"
+          },
           "kb_id": {
             "description": "Base the node belongs to.",
             "format": "uuid",
@@ -3586,6 +3687,58 @@
         "title": "TreeNode",
         "type": "object"
       },
+      "UiActivity": {
+        "description": "Where a reply's search is now.",
+        "properties": {
+          "label": {
+            "description": "What the activity line shows, such as \"Lendo Tabela auto 2026, p. 4\".",
+            "title": "Label",
+            "type": "string"
+          },
+          "stage": {
+            "description": "folder, document, section or passage.",
+            "enum": [
+              "folder",
+              "document",
+              "section",
+              "passage"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "stage"
+        ],
+        "title": "UiActivity",
+        "type": "object"
+      },
+      "UiActivityPart": {
+        "description": "The reply's activity line while it works; never stored with the message.",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/UiActivity"
+          },
+          "transient": {
+            "default": true,
+            "description": "Shown while streaming, never kept in the message.",
+            "title": "Transient",
+            "type": "boolean"
+          },
+          "type": {
+            "const": "data-activity",
+            "default": "data-activity",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data"
+        ],
+        "title": "UiActivityPart",
+        "type": "object"
+      },
       "UiMessage": {
         "description": "A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them.",
         "properties": {
@@ -3602,6 +3755,7 @@
             "items": {
               "discriminator": {
                 "mapping": {
+                  "data-activity": "#/components/schemas/UiActivityPart",
                   "data-proposal": "#/components/schemas/UiProposalPart",
                   "source-document": "#/components/schemas/UiSourcePart",
                   "text": "#/components/schemas/UiTextPart"
@@ -3617,6 +3771,9 @@
                 },
                 {
                   "$ref": "#/components/schemas/UiSourcePart"
+                },
+                {
+                  "$ref": "#/components/schemas/UiActivityPart"
                 }
               ]
             },
