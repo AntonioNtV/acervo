@@ -1,7 +1,7 @@
 import { Placeholder } from "@tiptap/extensions";
 import type { Transaction } from "@tiptap/pm/state";
 import { EditorContent, ReactNodeViewRenderer, useEditor, type Editor } from "@tiptap/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useI18n } from "../i18n";
 import { BlockHandle, blockAt, measureBlock, type HoveredBlock } from "./BlockHandle";
 import { BLOCK_KINDS, findKinds, findPages } from "./blocks";
@@ -29,6 +29,27 @@ type Props = {
 };
 
 const PageLinkWithView = PageLink.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) });
+
+// The text selected in the open page, for the chat to take as context; one editor is open at a time.
+let selected = "";
+const selectionListeners = new Set<() => void>();
+
+function publishSelection(text: string) {
+  if (text === selected) return;
+  selected = text;
+  selectionListeners.forEach((listener) => listener());
+}
+
+/** The text selected in the open page; empty when nothing is. */
+export function useEditorSelection(): string {
+  return useSyncExternalStore(
+    (listener) => {
+      selectionListeners.add(listener);
+      return () => selectionListeners.delete(listener);
+    },
+    () => selected,
+  );
+}
 
 export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, pageTitles = [], onPageQuery }: Props) {
   const { t } = useI18n();
@@ -102,6 +123,11 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
       written.current = next;
       latest.current.onChange(next);
     },
+    onSelectionUpdate: ({ editor }) => {
+      const { from, to, empty } = editor.state.selection;
+      publishSelection(empty ? "" : editor.state.doc.textBetween(from, to, "\n").trim());
+    },
+    onDestroy: () => publishSelection(""),
   });
 
   // An edit moves blocks: the hovered one is followed to where it went, or let go when it was deleted.

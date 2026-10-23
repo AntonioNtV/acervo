@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 from acervo.core.errors import Duplicate, SameFile, TitleTaken
 from acervo.core.settings import Settings
 from acervo.db.base import Base
-from acervo.db.models import File, Kb, Node
+from acervo.db.models import Agent, File, Kb, Node
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileContent, FileNodeRead
 from acervo.services.file_service import FileService
@@ -247,6 +247,7 @@ async def committed(test_settings: Settings) -> AsyncIterator[Committed]:
         of_base = select(Node.id).where(Node.kb_id == kb.id)
         await session.execute(delete(File).where(File.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
+        await session.execute(delete(Agent).where(Agent.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
         await session.commit()
     await engine.dispose()

@@ -8,7 +8,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
-      proxy: { "/v1": { target: env.VITE_API_URL || "http://localhost:8000", changeOrigin: true } },
+      // /mcp too, so the address the Agentes screen shows works from the dev server.
+      proxy: Object.fromEntries(
+        ["/v1", "/mcp"].map((path) => [path, { target: env.VITE_API_URL || "http://localhost:8000", changeOrigin: true }]),
+      ),
     },
     test: {
       environment: "jsdom",

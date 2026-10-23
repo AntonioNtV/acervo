@@ -1,7 +1,10 @@
 from collections.abc import Awaitable, Callable
 from typing import Any
+from uuid import UUID
 
 import httpx
+
+from acervo.repositories.uow import UnitOfWork
 
 MakeTree = Callable[..., Awaitable[Any]]
 
@@ -48,6 +51,14 @@ async def test_create_list_counts_rename_trash_restore(client: httpx.AsyncClient
     assert (await client.get("/v1/kbs/trash")).json() == []
     again = await client.post(f"/v1/kbs/{kb_id}/restore")
     assert (again.status_code, again.json()["error"]) == (404, "not_found")
+
+
+async def test_a_new_base_gets_its_chat_agent(client: httpx.AsyncClient, uow: UnitOfWork) -> None:
+    kb = (await client.post("/v1/kbs", json={"name": "Saúde"})).json()
+
+    async with uow:
+        agents = await uow.agents.of_kb(UUID(kb["id"]))
+    assert [(agent.name, agent.mode, agent.built_in) for agent in agents] == [("Chat do Acervo", "ask", True)]
 
 
 async def test_name_filter_ignores_case_and_accents(client: httpx.AsyncClient) -> None:

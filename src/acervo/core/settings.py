@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic import BaseModel, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -15,6 +16,8 @@ class Thresholds(BaseModel):
     covered: float = 0.80
     # Above: a conflict proposal instead of an edit.
     contradicts: float = 0.60
+    # Above, for the page line about the same thing as the input: edit that line instead of appending a new one.
+    same_line: float = 0.70
     # Above: propose replacing the existing PDF with the new one.
     pdf_new_version: float = 0.70
     # Above: the read page is kept as evidence.
@@ -33,6 +36,19 @@ class NavigatorBudget(BaseModel):
     jev_questions: int = 30
 
 
+class LlmRoles(BaseModel):
+    """The model serving each role, as a PydanticAI model string `<provider>:<model>` (skill `llm-calls`)."""
+
+    card: str = "anthropic:claude-haiku-5-5"
+    patch: str = "anthropic:claude-opus-5-5"
+    describe: str = "anthropic:claude-haiku-5-5"
+    explain: str = "anthropic:claude-haiku-5-5"
+    # The LLM decider, until Jev's client exists: probabilities per option through structured output.
+    decide: str = "anthropic:claude-opus-5-5"
+    # The chat: it converses and chooses when to use the base's tools; it never decides where anything goes.
+    chat: str = "anthropic:claude-opus-5-5"
+
+
 class Settings(BaseSettings):
     """Configuration read from the environment and `.env`."""
 
@@ -48,9 +64,18 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     thresholds: Thresholds = Thresholds()
     navigator_budget: NavigatorBudget = NavigatorBudget()
+    llm_roles: LlmRoles = LlmRoles()
+    # Who answers decisions: Jev (refused as not configured until its client exists), the LLM, or the tests' fake.
+    decider: Literal["jev", "llm", "fake"] = "llm"
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024
+    # A message's job is cancelled past this, and its reply marked failed.
+    job_timeout_seconds: int = 600
+    # How many earlier messages of a conversation the chat reads as its history.
+    chat_history: int = 20
+    # The list of applied proposals, where an agent's automatic changes are undone, goes back this many days.
+    applied_list_days: int = 7
 
     @field_validator("api_key")
     @classmethod

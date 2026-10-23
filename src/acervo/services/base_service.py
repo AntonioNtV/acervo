@@ -4,6 +4,7 @@ from uuid import UUID
 
 from acervo.core.errors import ValidationError
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.agent import AgentCreate
 from acervo.schemas.kb import KbCreate, KbEdit, KbRead, KbSummary, KbUpdate
 
 
@@ -25,6 +26,7 @@ class BaseService:
 
     async def create(self, data: KbCreate) -> KbRead:
         kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=data.description.strip()))
+        await self._uow.agents.create(AgentCreate(name="Chat do Acervo"), kb_id=kb.id, built_in=True)
         await self._uow.commit()
         return kb
 

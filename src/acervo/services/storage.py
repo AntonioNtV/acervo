@@ -1,5 +1,8 @@
+import tempfile
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, BinaryIO
 
 import aioboto3
@@ -74,3 +77,13 @@ class Storage:
                     yield chunk
             finally:
                 body.close()
+
+    @asynccontextmanager
+    async def download(self, key: str) -> AsyncIterator[Path]:
+        """The stored bytes in a local temporary file, for what reads a file from disk; removed on exit."""
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "download"
+            with path.open("wb") as target:
+                async for chunk in self.stream(key):
+                    target.write(chunk)
+            yield path

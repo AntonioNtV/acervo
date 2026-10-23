@@ -4,6 +4,92 @@
  */
 
 export interface paths {
+    "/v1/agents/{agent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Agent
+         * @description Its token stops working at once; the agent is kept, so its proposals keep its name. The built-in chat: 409.
+         */
+        delete: operations["revoke_agent_v1_agents__agent_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Agent */
+        patch: operations["update_agent_v1_agents__agent_id__patch"];
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Conversation
+         * @description Leaves the list and its messages are no longer served; what it proposed stays, pending or in the history. A
+         *     conversation still working: 409.
+         */
+        delete: operations["delete_conversation_v1_conversations__conversation_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Messages
+         * @description The conversation's messages in the order they were sent.
+         */
+        get: operations["list_messages_v1_conversations__conversation_id__messages_get"];
+        put?: never;
+        /**
+         * Post Message
+         * @description Stores the message and a working reply; the reply streams from `/v1/messages/{reply_id}/stream`.
+         */
+        post: operations["post_message_v1_conversations__conversation_id__messages_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/conversations/{conversation_id}/ui-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Ui Messages
+         * @description The conversation as the AI SDK's UI messages (v6): text, proposals as they stand now, citations as sources.
+         */
+        get: operations["list_ui_messages_v1_conversations__conversation_id__ui_messages_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/favorites": {
         parameters: {
             query?: never;
@@ -179,6 +265,30 @@ export interface paths {
         patch: operations["update_kb_v1_kbs__kb_id__patch"];
         trace?: never;
     };
+    "/v1/kbs/{kb_id}/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Agents
+         * @description The base's built-in chat first, then the agents connected to it.
+         */
+        get: operations["list_agents_v1_kbs__kb_id__agents_get"];
+        put?: never;
+        /**
+         * Connect Agent
+         * @description A new agent of the base; its token is in this response only.
+         */
+        post: operations["connect_agent_v1_kbs__kb_id__agents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kbs/{kb_id}/children": {
         parameters: {
             query?: never;
@@ -193,6 +303,27 @@ export interface paths {
         get: operations["list_children_v1_kbs__kb_id__children_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Conversations
+         * @description The conversations with an agent of the base, the built-in chat when omitted; the most recent first.
+         */
+        get: operations["list_conversations_v1_kbs__kb_id__conversations_get"];
+        put?: never;
+        /** Start Conversation */
+        post: operations["start_conversation_v1_kbs__kb_id__conversations_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -230,6 +361,28 @@ export interface paths {
          * @description A new folder, or a page with an empty first version.
          */
         post: operations["create_node_v1_kbs__kb_id__nodes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/proposals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Proposals
+         * @description The base's proposals waiting for the person, from any conversation or agent, newest first; with
+         *     `status=applied`, those applied in the last days, most recent first (`accepted_by=auto`: by an agent in auto
+         *     mode), each with its agent's name, to undo.
+         */
+        get: operations["list_proposals_v1_kbs__kb_id__proposals_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -285,6 +438,48 @@ export interface paths {
          * @description One item per trashing, most recent first, with where it was; what was under it went with it.
          */
         get: operations["list_trash_v1_kbs__kb_id__trash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{message_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry Message
+         * @description A new reply that runs a finished reply's message again ("Tentar de novo"); what the old one left waiting is
+         *     dropped.
+         */
+        post: operations["retry_message_v1_messages__message_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messages/{reply_id}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream Reply
+         * @description A reply as the AI SDK's UI message stream (v6), a `data:` line per chunk and `data: [DONE]` last: what it
+         *     streamed so far, then live until it ends; a reply already finished replays and ends.
+         */
+        get: operations["stream_reply_v1_messages__reply_id__stream_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -650,10 +845,334 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/proposals/{proposal_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Proposal */
+        get: operations["get_proposal_v1_proposals__proposal_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit Proposal
+         * @description The person's version of what it does, of the same kind; the original is kept.
+         */
+        patch: operations["edit_proposal_v1_proposals__proposal_id__patch"];
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Proposal
+         * @description Applies it, its edited version if any; accepting an applied one changes nothing. When its section or line is
+         *     gone it comes back `stale` and nothing changes.
+         */
+        post: operations["accept_proposal_v1_proposals__proposal_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/other-place": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Other Place
+         * @description A new page or a file goes to the second place that was close instead.
+         */
+        post: operations["other_place_v1_proposals__proposal_id__other_place_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/redo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redo Proposal
+         * @description A stale proposal's message run again into a new reply, whose events arrive on the conversation's stream;
+         *     the stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise.
+         */
+        post: operations["redo_proposal_v1_proposals__proposal_id__redo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject Proposal */
+        post: operations["reject_proposal_v1_proposals__proposal_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/proposals/{proposal_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Proposal
+         * @description A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode.
+         */
+        post: operations["undo_proposal_v1_proposals__proposal_id__undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AgentConnected
+         * @description A new agent with its token, shown this once: only its hash is kept.
+         */
+        AgentConnected: {
+            /**
+             * Built In
+             * @description The base's own chat, which has no token and cannot be revoked.
+             */
+            built_in: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was connected.
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Agent ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description The only base it sees.
+             */
+            kb_id: string;
+            /**
+             * Last Used At
+             * @description When its token was last accepted; null if never.
+             */
+            last_used_at: string | null;
+            /**
+             * Mode
+             * @description ask: its proposals wait for the person; auto: applied when created, except a conflict or an input with no clear place.
+             * @enum {string}
+             */
+            mode: "ask" | "auto";
+            /**
+             * Name
+             * @description Shown on every proposal it makes.
+             */
+            name: string;
+            /**
+             * Revoked At
+             * @description When its token stopped working; null while it works.
+             */
+            revoked_at: string | null;
+            /**
+             * Token
+             * @description Sent as `Authorization: Bearer <token>`; it sees only this agent's base.
+             */
+            token: string;
+            /**
+             * Token Hint
+             * @description The token's last 4 characters; null for the built-in chat.
+             */
+            token_hint: string | null;
+        };
+        /**
+         * AgentCreate
+         * @description An agent to connect to a base.
+         */
+        AgentCreate: {
+            /**
+             * Mode
+             * @description ask: its proposals wait; auto: applied when created.
+             * @default ask
+             * @enum {string}
+             */
+            mode: "ask" | "auto";
+            /**
+             * Name
+             * @description Shown on every proposal it makes.
+             */
+            name: string;
+        };
+        /**
+         * AgentEdit
+         * @description What the person changes on an agent; omitted fields keep their value.
+         */
+        AgentEdit: {
+            /**
+             * Mode
+             * @description ask: its proposals wait; auto: applied when created.
+             */
+            mode?: ("ask" | "auto") | null;
+            /**
+             * Name
+             * @description New name.
+             */
+            name?: string | null;
+        };
+        /**
+         * AgentRead
+         * @description A connection that files into one base: the built-in chat, or an external agent over MCP.
+         */
+        AgentRead: {
+            /**
+             * Built In
+             * @description The base's own chat, which has no token and cannot be revoked.
+             */
+            built_in: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was connected.
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Agent ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description The only base it sees.
+             */
+            kb_id: string;
+            /**
+             * Last Used At
+             * @description When its token was last accepted; null if never.
+             */
+            last_used_at: string | null;
+            /**
+             * Mode
+             * @description ask: its proposals wait for the person; auto: applied when created, except a conflict or an input with no clear place.
+             * @enum {string}
+             */
+            mode: "ask" | "auto";
+            /**
+             * Name
+             * @description Shown on every proposal it makes.
+             */
+            name: string;
+            /**
+             * Revoked At
+             * @description When its token stopped working; null while it works.
+             */
+            revoked_at: string | null;
+            /**
+             * Token Hint
+             * @description The token's last 4 characters; null for the built-in chat.
+             */
+            token_hint: string | null;
+        };
+        /**
+         * Attachment
+         * @description A file attached to a message, waiting in storage; never in the base's tree until a proposal is accepted.
+         */
+        Attachment: {
+            /**
+             * Mime
+             * @description Media type as received.
+             */
+            mime: string;
+            /**
+             * Name
+             * @description The file's name as received.
+             */
+            name: string;
+            /**
+             * Sha256
+             * @description Hash of the bytes.
+             */
+            sha256: string;
+            /**
+             * Size
+             * @description Size in bytes.
+             */
+            size: number;
+            /**
+             * Storage Key
+             * @description Where the bytes wait.
+             */
+            storage_key: string;
+        };
+        /** Body_post_message_v1_conversations__conversation_id__messages_post */
+        Body_post_message_v1_conversations__conversation_id__messages_post: {
+            /**
+             * Files
+             * @description Files sent with it; staged, not in the tree.
+             */
+            files?: string[] | null;
+            /**
+             * Page Id
+             * @description The page open in the app, kept as context.
+             */
+            page_id?: string | null;
+            /**
+             * Selection
+             * @description The text selected on that page.
+             */
+            selection?: string | null;
+            /**
+             * Text
+             * @description What the person wrote.
+             * @default
+             */
+            text: string;
+        };
         /** Body_replace_file_v1_nodes__node_id__file_post */
         Body_replace_file_v1_nodes__node_id__file_post: {
             /** File */
@@ -673,6 +1192,187 @@ export interface components {
              * @description Folder to save into; omitted for the base's root.
              */
             parent_id?: string | null;
+        };
+        /**
+         * Citation
+         * @description Where a claim of a reply came from: a page, one of its sections, or a page of a PDF.
+         */
+        Citation: {
+            /**
+             * Anchor
+             * @description The section of the page; null for the whole page.
+             */
+            anchor?: string | null;
+            /**
+             * Kind
+             * @description A page, or a PDF.
+             * @enum {string}
+             */
+            kind: "page" | "file";
+            /**
+             * Marker
+             * @description The number the reply's text writes as [n] after the claim.
+             */
+            marker: number;
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The page or the PDF.
+             */
+            node_id: string;
+            /**
+             * Page
+             * @description The PDF's page, counted from 1; null for a page.
+             */
+            page?: number | null;
+            /**
+             * Path
+             * @description Its path, joined by /.
+             */
+            path: string;
+        };
+        /**
+         * ConflictPayload
+         * @description A fact that contradicts a page: both texts, for the person to choose.
+         */
+        ConflictPayload: {
+            /**
+             * Anchor
+             * @description The section's anchor.
+             */
+            anchor: string;
+            /**
+             * Base Version Id
+             * Format: uuid
+             * @description The version the current text comes from.
+             */
+            base_version_id: string;
+            /**
+             * Current
+             * @description What the page says now.
+             */
+            current: string;
+            /**
+             * Heading
+             * @description The section's heading, to show.
+             */
+            heading: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "conflict";
+            /**
+             * New
+             * @description What the input says.
+             */
+            new: string;
+            /**
+             * Page Id
+             * Format: uuid
+             * @description The page.
+             */
+            page_id: string;
+            /**
+             * Path
+             * @description The page's path, joined by /.
+             */
+            path: string;
+        };
+        /**
+         * ConversationRead
+         * @description A conversation of a base, kept to reopen.
+         */
+        ConversationRead: {
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent it talks to: the built-in chat or an external agent.
+             */
+            agent_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it started.
+             */
+            created_at: string;
+            /**
+             * Deleted At
+             * @description When the person deleted it: out of the list, its messages no longer served.
+             */
+            deleted_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Conversation ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it belongs to.
+             */
+            kb_id: string;
+            /**
+             * Title
+             * @description Shown in the list of past conversations.
+             * @default
+             */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * ConversationStart
+         * @description A conversation to start in a base.
+         */
+        ConversationStart: {
+            /**
+             * Agent Id
+             * @description The agent it talks to; omitted for the built-in chat.
+             */
+            agent_id?: string | null;
+            /**
+             * Title
+             * @description Shown in the list of past conversations.
+             * @default
+             */
+            title: string;
+        };
+        /**
+         * CreatePagePayload
+         * @description A new page under a folder or page.
+         */
+        CreatePagePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "create_page";
+            /**
+             * Markdown
+             * @description Its first version.
+             */
+            markdown: string;
+            /**
+             * Parent Id
+             * @description Where it goes; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Parent Path
+             * @description The parent's path, joined by /; empty for the root.
+             */
+            parent_path: string;
+            /**
+             * Title
+             * @description The page's title.
+             */
+            title: string;
         };
         /**
          * DiffLine
@@ -1081,6 +1781,138 @@ export interface components {
             line: string;
             /** @description The linking page. */
             node: components["schemas"]["NodeWithPath"];
+        };
+        /**
+         * MessageContext
+         * @description What the person kept as context when sending.
+         */
+        MessageContext: {
+            /**
+             * Page Id
+             * @description The page open in the app.
+             */
+            page_id?: string | null;
+            /**
+             * Selection
+             * @description The text selected on that page.
+             */
+            selection?: string | null;
+        };
+        /**
+         * MessagePosted
+         * @description The person's message, stored, and Acervo's reply, working until its job ends.
+         */
+        MessagePosted: {
+            message: components["schemas"]["MessageRead"];
+            reply: components["schemas"]["MessageRead"];
+        };
+        /**
+         * MessageRead
+         * @description A stored message.
+         */
+        MessageRead: {
+            /**
+             * Attachments
+             * @description Files sent with it.
+             */
+            attachments?: components["schemas"]["Attachment"][];
+            /**
+             * Citations
+             * @description A reply's sources, one per marker [n] its text writes, in order.
+             */
+            citations?: components["schemas"]["Citation"][];
+            /** @description The open page and selection, if kept. */
+            context?: components["schemas"]["MessageContext"] | null;
+            /**
+             * Conversation Id
+             * Format: uuid
+             * @description Conversation it belongs to.
+             */
+            conversation_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was sent.
+             */
+            created_at: string;
+            /**
+             * Error
+             * @description Why it failed; null unless status is failed.
+             */
+            error: string | null;
+            /**
+             * Grounded
+             * @description A reply that used the base: it cites it or filed or organized; else general.
+             * @default false
+             */
+            grounded: boolean;
+            /**
+             * Id
+             * Format: uuid
+             * @description Message ID.
+             */
+            id: string;
+            /**
+             * Replaces Id
+             * @description The reply this one runs again.
+             */
+            replaces_id?: string | null;
+            /**
+             * Role
+             * @description Who wrote it: the person, or Acervo replying.
+             * @enum {string}
+             */
+            role: "person" | "acervo";
+            /**
+             * Run Id
+             * @description The run that handles it, linking the decision log.
+             */
+            run_id?: string | null;
+            /**
+             * Status
+             * @description A reply is working until its job ends.
+             * @default done
+             * @enum {string}
+             */
+            status: "done" | "working" | "failed";
+            /**
+             * Text
+             * @description The message's text.
+             * @default
+             */
+            text: string;
+        };
+        /**
+         * MovePayload
+         * @description A node moved under another folder or page of the same base.
+         */
+        MovePayload: {
+            /**
+             * From Path
+             * @description Its path now.
+             */
+            from_path: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "move";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The node moved.
+             */
+            node_id: string;
+            /**
+             * Parent Id
+             * @description Its new parent; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * To Path
+             * @description The new parent's path; empty for the root.
+             */
+            to_path: string;
         };
         /**
          * NodeAdd
@@ -1547,6 +2379,358 @@ export interface components {
             id: string;
         };
         /**
+         * PatchPayload
+         * @description Lines added to a section of a page, or one line changed in it (skill `markdown-pages`).
+         */
+        PatchPayload: {
+            /**
+             * Anchor
+             * @description The section's anchor; empty for the text before the first ##.
+             */
+            anchor: string;
+            /**
+             * Base Version Id
+             * Format: uuid
+             * @description The version the lines were written against.
+             */
+            base_version_id: string;
+            /**
+             * Heading
+             * @description The section's heading, to show.
+             */
+            heading: string;
+            /**
+             * @description append adds lines to the section; edit changes a line. (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            kind: "append" | "edit";
+            /**
+             * Line
+             * @description For insert_after and replace: the exact text of the line it refers to.
+             */
+            line?: string | null;
+            /**
+             * Lines
+             * @description The lines to add, each followed by its provenance comment.
+             */
+            lines: string[];
+            /**
+             * Op
+             * @description How the lines go in.
+             * @enum {string}
+             */
+            op: "append" | "insert_after" | "replace" | "new_section";
+            /**
+             * Page Id
+             * Format: uuid
+             * @description The page.
+             */
+            page_id: string;
+            /**
+             * Path
+             * @description The page's path from the base's root, joined by /.
+             */
+            path: string;
+        };
+        /**
+         * Placement
+         * @description A place the descent reached, as the proposal shows it and as "Outro lugar" swaps to.
+         */
+        Placement: {
+            /**
+             * Landing
+             * @description Into that page's text, under that node (save or stay here), or a new page or folder under it.
+             * @enum {string}
+             */
+            landing: "page" | "here" | "new_page" | "new_folder";
+            /**
+             * Node Id
+             * @description The folder or page it stopped at; null for the base's root.
+             */
+            node_id: string | null;
+            /**
+             * Path
+             * @description Titles from the root down to that node, joined by /; empty for the root.
+             */
+            path: string;
+            /**
+             * Probability
+             * @description The product of the chosen options' probabilities along the path.
+             */
+            probability: number;
+        };
+        /**
+         * ProposalRead
+         * @description A stored proposal: the only way an agent's change gets into a base.
+         */
+        ProposalRead: {
+            /**
+             * Accepted By
+             * @description The person, or auto for an agent in auto mode.
+             */
+            accepted_by: ("person" | "auto") | null;
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent that made it.
+             */
+            agent_id: string;
+            /**
+             * Alternatives
+             * @description Other places that were close: the second path, or the top 3 when unsure.
+             */
+            alternatives?: components["schemas"]["Placement"][] | null;
+            /**
+             * Applied At
+             * @description When it changed the base; null until then.
+             */
+            applied_at: string | null;
+            /**
+             * Conversation Id
+             * @description Conversation it came from.
+             */
+            conversation_id?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was made.
+             */
+            created_at: string;
+            /**
+             * Edited Payload
+             * @description The person's edited version; the original stays.
+             */
+            edited_payload: (components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"]) | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Proposal ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it changes.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description What it does.
+             * @enum {string}
+             */
+            kind: "append" | "edit" | "create_page" | "conflict" | "save_pdf" | "replace_pdf" | "move" | "rename" | "undo";
+            /**
+             * Message Id
+             * @description The reply it belongs to.
+             */
+            message_id?: string | null;
+            /**
+             * Payload
+             * @description What it does; its `kind` is the proposal's kind.
+             */
+            payload: components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            /**
+             * Reject Reason
+             * @description Why the person rejected it.
+             */
+            reject_reason: ("wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping") | null;
+            /**
+             * Run Id
+             * @description The run whose decisions produced it.
+             */
+            run_id?: string | null;
+            /** @description The waiting PDF of a save_pdf or replace_pdf. */
+            staged?: components["schemas"]["StagedFile"] | null;
+            /**
+             * Status
+             * @description pending until accepted, rejected or stale.
+             * @enum {string}
+             */
+            status: "pending" | "applied" | "rejected" | "stale";
+            /**
+             * Undo Of
+             * @description The applied proposal an undo reverts.
+             */
+            undo_of?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * ProposalReject
+         * @description Rejecting a proposal; the reason labels it for calibration.
+         */
+        ProposalReject: {
+            /**
+             * Reason
+             * @description Why it is rejected.
+             * @enum {string}
+             */
+            reason: "wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping";
+        };
+        /**
+         * ProposalSummary
+         * @description A proposal as the chat's list shows it, with where it came from.
+         */
+        ProposalSummary: {
+            /**
+             * Accepted By
+             * @description The person, or auto for an agent in auto mode.
+             */
+            accepted_by: ("person" | "auto") | null;
+            /**
+             * Agent Id
+             * Format: uuid
+             * @description The agent that made it.
+             */
+            agent_id: string;
+            /**
+             * Agent Name
+             * @description The agent that made it.
+             */
+            agent_name: string;
+            /**
+             * Alternatives
+             * @description Other places that were close: the second path, or the top 3 when unsure.
+             */
+            alternatives?: components["schemas"]["Placement"][] | null;
+            /**
+             * Applied At
+             * @description When it changed the base; null until then.
+             */
+            applied_at: string | null;
+            /**
+             * Conversation Id
+             * @description Conversation it came from.
+             */
+            conversation_id?: string | null;
+            /**
+             * Conversation Title
+             * @description The conversation it came from; null when none or deleted.
+             */
+            conversation_title: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it was made.
+             */
+            created_at: string;
+            /**
+             * Edited Payload
+             * @description The person's edited version; the original stays.
+             */
+            edited_payload: (components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"]) | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description Proposal ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * Format: uuid
+             * @description Base it changes.
+             */
+            kb_id: string;
+            /**
+             * Kind
+             * @description What it does.
+             * @enum {string}
+             */
+            kind: "append" | "edit" | "create_page" | "conflict" | "save_pdf" | "replace_pdf" | "move" | "rename" | "undo";
+            /**
+             * Message Id
+             * @description The reply it belongs to.
+             */
+            message_id?: string | null;
+            /**
+             * Payload
+             * @description What it does; its `kind` is the proposal's kind.
+             */
+            payload: components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            /**
+             * Reject Reason
+             * @description Why the person rejected it.
+             */
+            reject_reason: ("wrong_place" | "already_there" | "wrong_info" | "not_worth_keeping") | null;
+            /**
+             * Run Id
+             * @description The run whose decisions produced it.
+             */
+            run_id?: string | null;
+            /** @description The waiting PDF of a save_pdf or replace_pdf. */
+            staged?: components["schemas"]["StagedFile"] | null;
+            /**
+             * Status
+             * @description pending until accepted, rejected or stale.
+             * @enum {string}
+             */
+            status: "pending" | "applied" | "rejected" | "stale";
+            /**
+             * Undo Of
+             * @description The applied proposal an undo reverts.
+             */
+            undo_of?: string | null;
+            /**
+             * Updated At
+             * Format: date-time
+             * @description When it last changed.
+             */
+            updated_at: string;
+        };
+        /**
+         * RenamePayload
+         * @description A node renamed; links to a renamed page are fixed.
+         */
+        RenamePayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "rename";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The node renamed.
+             */
+            node_id: string;
+            /**
+             * Path
+             * @description Its path now.
+             */
+            path: string;
+            /**
+             * Title
+             * @description The new title.
+             */
+            title: string;
+        };
+        /**
+         * ReplacePdfPayload
+         * @description A staged PDF as the new version of a file already in the base; the old one goes to its history.
+         */
+        ReplacePdfPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "replace_pdf";
+            /**
+             * Node Id
+             * Format: uuid
+             * @description The file replaced.
+             */
+            node_id: string;
+            /**
+             * Path
+             * @description The file's path, joined by /.
+             */
+            path: string;
+        };
+        /**
          * RestoredNode
          * @description A node back from the trash.
          */
@@ -1638,6 +2822,32 @@ export interface components {
             updated_at: string;
         };
         /**
+         * SavePdfPayload
+         * @description A staged PDF saved under a folder or page.
+         */
+        SavePdfPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "save_pdf";
+            /**
+             * Name
+             * @description The suggested name, ending in .pdf; editable before accepting.
+             */
+            name: string;
+            /**
+             * Parent Id
+             * @description Where it goes; null for the base's root.
+             */
+            parent_id: string | null;
+            /**
+             * Parent Path
+             * @description The parent's path, joined by /; empty for the root.
+             */
+            parent_path: string;
+        };
+        /**
          * Section
          * @description A `##` heading of a page.
          */
@@ -1652,6 +2862,32 @@ export interface components {
              * @description The heading's text.
              */
             heading: string;
+        };
+        /**
+         * StagedFile
+         * @description A file waiting in storage, outside the base's tree, search and Lixeira.
+         */
+        StagedFile: {
+            /**
+             * Name
+             * @description The file's name as received.
+             */
+            name: string;
+            /**
+             * Sha256
+             * @description Hash of the bytes.
+             */
+            sha256: string;
+            /**
+             * Size
+             * @description Size in bytes.
+             */
+            size: number;
+            /**
+             * Storage Key
+             * @description Where the bytes wait.
+             */
+            storage_key: string;
         };
         /**
          * TreeNode
@@ -1759,6 +2995,156 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * UiMessage
+         * @description A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them.
+         */
+        UiMessage: {
+            /**
+             * Id
+             * Format: uuid
+             * @description Message ID; a reply's is also its stream's messageId.
+             */
+            id: string;
+            metadata: components["schemas"]["UiMetadata"];
+            /** Parts */
+            parts: (components["schemas"]["UiTextPart"] | components["schemas"]["UiProposalPart"] | components["schemas"]["UiSourcePart"])[];
+            /**
+             * Role
+             * @description user: the person; assistant: Acervo.
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
+        /**
+         * UiMetadata
+         * @description What the app needs of a stored message besides its parts; a reply's stream sends it before `finish`.
+         */
+        UiMetadata: {
+            /**
+             * Attachments
+             * @description Files sent with the message.
+             */
+            attachments?: components["schemas"]["Attachment"][];
+            /**
+             * Created At
+             * @description When it was sent; only in the stored thread.
+             */
+            created_at?: string | null;
+            /**
+             * Error
+             * @description Why it failed; null unless status is failed.
+             */
+            error?: string | null;
+            /**
+             * Grounded
+             * @description A reply that used the base; else a general answer.
+             * @default false
+             */
+            grounded: boolean;
+            /**
+             * Replaces Id
+             * @description The reply this one runs again.
+             */
+            replaces_id?: string | null;
+            /**
+             * Status
+             * @description A reply is working until its job ends.
+             * @enum {string}
+             */
+            status: "done" | "working" | "failed";
+        };
+        /**
+         * UiProposalPart
+         * @description A proposal of a reply, in its current state; a later part with the same id replaces it.
+         */
+        UiProposalPart: {
+            data: components["schemas"]["ProposalRead"];
+            /**
+             * Id
+             * Format: uuid
+             * @description The proposal's ID.
+             */
+            id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "data-proposal";
+        };
+        /**
+         * UiSourceMetadata
+         * @description Acervo's own fields of a source.
+         */
+        UiSourceMetadata: {
+            acervo: components["schemas"]["Citation"];
+        };
+        /**
+         * UiSourcePart
+         * @description A source a reply cites, as the AI SDK's `source-document` part.
+         */
+        UiSourcePart: {
+            /**
+             * Mediatype
+             * @description text/markdown for a page, application/pdf for a PDF.
+             */
+            mediaType: string;
+            /** @description The citation: node, section or PDF page. */
+            providerMetadata: components["schemas"]["UiSourceMetadata"];
+            /**
+             * Sourceid
+             * @description The marker the text writes: [n].
+             */
+            sourceId: string;
+            /**
+             * Title
+             * @description Its path.
+             */
+            title: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "source-document";
+        };
+        /**
+         * UiTextPart
+         * @description Text of a message, as the AI SDK's `text` part.
+         */
+        UiTextPart: {
+            /**
+             * Text
+             * @description Markdown; a reply writes [n] after a claim taken from its source n.
+             */
+            text: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "text";
+        };
+        /**
+         * UndoPayload
+         * @description Undoing an applied proposal: a page back to its previous version, a file to its previous place or version.
+         */
+        UndoPayload: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "undo";
+            /**
+             * Path
+             * @description The path of what it changes back.
+             */
+            path: string;
+            /**
+             * Proposal Id
+             * Format: uuid
+             * @description The applied proposal it undoes.
+             */
+            proposal_id: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1768,6 +3154,338 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    revoke_agent_v1_agents__agent_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_agent_v1_agents__agent_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                agent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentEdit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_conversation_v1_conversations__conversation_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_messages_v1_conversations__conversation_id__messages_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_message_v1_conversations__conversation_id__messages_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_post_message_v1_conversations__conversation_id__messages_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagePosted"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_ui_messages_v1_conversations__conversation_id__ui_messages_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiMessage"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_favorites_v1_favorites_get: {
         parameters: {
             query?: never;
@@ -2297,6 +4015,112 @@ export interface operations {
             };
         };
     };
+    list_agents_v1_kbs__kb_id__agents_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    connect_agent_v1_kbs__kb_id__agents_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentConnected"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_children_v1_kbs__kb_id__children_get: {
         parameters: {
             query?: {
@@ -2319,6 +4143,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TreeNode"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_conversations_v1_kbs__kb_id__conversations_get: {
+        parameters: {
+            query?: {
+                agent_id?: string | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_conversation_v1_kbs__kb_id__conversations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConversationStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConversationRead"];
                 };
             };
             /** @description Unauthorized */
@@ -2478,6 +4410,60 @@ export interface operations {
             };
         };
     };
+    list_proposals_v1_kbs__kb_id__proposals_get: {
+        parameters: {
+            query?: {
+                status?: "pending" | "applied";
+                accepted_by?: ("person" | "auto") | null;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalSummary"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     restore_kb_v1_kbs__kb_id__restore_post: {
         parameters: {
             query?: never;
@@ -2597,6 +4583,117 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    retry_message_v1_messages__message_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                message_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    stream_reply_v1_messages__reply_id__stream_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                reply_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3743,6 +5840,425 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_proposal_v1_proposals__proposal_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    edit_proposal_v1_proposals__proposal_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchPayload"] | components["schemas"]["CreatePagePayload"] | components["schemas"]["ConflictPayload"] | components["schemas"]["SavePdfPayload"] | components["schemas"]["ReplacePdfPayload"] | components["schemas"]["MovePayload"] | components["schemas"]["RenamePayload"] | components["schemas"]["UndoPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    accept_proposal_v1_proposals__proposal_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    other_place_v1_proposals__proposal_id__other_place_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    redo_proposal_v1_proposals__proposal_id__redo_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reject_proposal_v1_proposals__proposal_id__reject_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProposalReject"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    undo_proposal_v1_proposals__proposal_id__undo_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                proposal_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProposalRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

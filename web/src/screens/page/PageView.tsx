@@ -4,7 +4,7 @@ import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
-import { useChildren, useRenameNode, useSearch } from "../../data/tree";
+import { useChildren, useDebouncedSearch, useRenameNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
@@ -23,7 +23,6 @@ import { PageMenu } from "./PageMenu";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
-const SEARCH_DELAY_MS = 200;
 
 type Page = NonNullable<NodeDetail["page"]>;
 
@@ -79,13 +78,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const untitled = useCreateUntitledPage(kbId, node.id);
   const errorText = useTreeErrorText();
   const [pageQuery, setPageQuery] = useState<string | null>(null);
-  const [searched, setSearched] = useState("");
-  const found = useSearch(kbId, searched).data;
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSearched(pageQuery?.trim() ?? ""), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [pageQuery]);
+  const { searched, found } = useDebouncedSearch(kbId, pageQuery ?? "");
 
   const childPages = children.filter((child) => child.kind === "page");
   const href = (id: string) => `/kbs/${kbId}/n/${id}`;

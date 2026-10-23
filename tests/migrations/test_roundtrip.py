@@ -121,6 +121,7 @@ def at_head(migrations: Config, database_url: str) -> Iterator[None]:
         column = "from_node_id" if table == "page_link" else "node_id"
         _sql(database_url, f"delete from acervo.{table} where {column} in ({pages})")
     _sql(database_url, f"delete from acervo.node where id in ({pages})")
+    _sql(database_url, "delete from acervo.agent where kb_id in (select id from acervo.kb where name = 'Migração')")
     _sql(database_url, "delete from acervo.kb where name = 'Migração'")
 
 
@@ -178,3 +179,21 @@ def test_0002_downgrade_keeps_the_working_text_as_a_version(migrations: Config, 
     assert _versions(database_url, changed) == [("Igual\n", "user"), ("Digitado\n", "user")]
     assert _versions(database_url, same) == [("Igual\n", "user")]
     assert _drafts(database_url) == 0
+
+
+def _chat_agents(database_url: str) -> list[tuple[str, str, bool]]:
+    query = (
+        "select a.name, a.mode, a.built_in from acervo.agent a join acervo.kb k on k.id = a.kb_id "
+        "where k.name = 'Migração' order by k.created_at"
+    )
+    return [(row.name, row.mode, row.built_in) for row in _sql(database_url, query)]
+
+
+@pytest.mark.usefixtures("at_head")
+def test_0004_gives_every_base_its_chat_agent(migrations: Config, database_url: str) -> None:
+    command.downgrade(migrations, "0003")
+    _sql(database_url, "insert into acervo.kb (name) values ('Migração')")
+
+    command.upgrade(migrations, "0004")
+
+    assert _chat_agents(database_url) == [("Chat do Acervo", "ask", True)]

@@ -56,5 +56,7 @@ calibration (skill `evals`), so the UI always asks for one.
 - An edited proposal keeps the original payload and stores the edited one; both go to `evals` as data.
 - "Outro lugar" swaps the target for the second path the Curator logged; it does not run the Curator again.
 - Undo after accept is a restore of the previous version (pages) or of the previous location (files).
-- Auto-apply does not exist in the MVP. When it comes, it is a threshold in `Thresholds` and a per-base switch,
-  and the proposal still exists with `accepted_by = auto`.
+- Every agent connection (the web chat, each MCP client) has a mode set by the person: **ask** (proposals wait) or
+  **auto-approve** (accepted on creation, `accepted_by = auto`). Even in auto-approve, a `conflict` and an input with
+  no place above `place_min` wait for the person. An auto-approved proposal still exists, is in the decision log with
+  its connection, and is undone like any other.

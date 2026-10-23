@@ -14,17 +14,7 @@ export const ptBR = {
   "trash.noBases": "Nenhuma base na Lixeira.",
   path: "Caminho",
   "chat.label": "Chat",
-  "chat.mode": "Modo do chat",
-  "chat.capture": "Capturar",
-  "chat.ask": "Perguntar",
   "chat.close": "Fechar o chat",
-  "chat.soon": "Disponível em breve",
-  "chat.soonText":
-    "Aqui você vai contar o que aprendeu ou soltar um PDF para o Acervo guardar no lugar certo, e perguntar algo desta base.",
-  "chat.message": "Mensagem",
-  "chat.placeholder": "Conte o que aprendeu, ou solte um arquivo",
-  "chat.shortcut": "⌘J abre e fecha o chat",
-  "chat.send": "Enviar",
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
@@ -43,15 +33,5 @@ export const en: Record<keyof typeof ptBR, string> = {
   "trash.noBases": "No base in the Trash.",
   path: "Path",
   "chat.label": "Chat",
-  "chat.mode": "Chat mode",
-  "chat.capture": "Capture",
-  "chat.ask": "Ask",
   "chat.close": "Close the chat",
-  "chat.soon": "Coming soon",
-  "chat.soonText":
-    "Here you will tell what you learned or drop a PDF for Acervo to file in the right place, and ask about this base.",
-  "chat.message": "Message",
-  "chat.placeholder": "Tell what you learned, or drop a file",
-  "chat.shortcut": "⌘J opens and closes the chat",
-  "chat.send": "Send",
 };

@@ -10,13 +10,17 @@ from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
+from acervo.services.agent_service import AgentService
 from acervo.services.base_service import BaseService
+from acervo.services.conversation_service import ConversationService
 from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
+from acervo.services.events import ArqJobQueue, EventBus, JobQueue, RedisEventBus
 from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
+from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -110,3 +114,37 @@ def get_export_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> ExportService:
     return ExportService(uow, storage)
+
+
+def get_job_queue(request: Request) -> JobQueue:
+    # Built on first use, so the app starts without Redis and a test can put its fake in first.
+    if not hasattr(request.app.state, "job_queue"):
+        request.app.state.job_queue = ArqJobQueue(request.app.state.settings.redis_url)
+    queue: JobQueue = request.app.state.job_queue
+    return queue
+
+
+def get_event_bus(request: Request) -> EventBus:
+    if not hasattr(request.app.state, "event_bus"):
+        request.app.state.event_bus = RedisEventBus(request.app.state.settings.redis_url)
+    bus: EventBus = request.app.state.event_bus
+    return bus
+
+
+def get_agent_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> AgentService:
+    return AgentService(uow)
+
+
+def get_conversation_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    jobs: Annotated[JobQueue, Depends(get_job_queue)],
+    events: Annotated[EventBus, Depends(get_event_bus)],
+) -> ConversationService:
+    return ConversationService(uow, storage, jobs, events)
+
+
+def get_proposal_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
+) -> ProposalService:
+    return ProposalService(uow, storage)

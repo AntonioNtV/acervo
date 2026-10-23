@@ -40,6 +40,7 @@ async function fakeFetch(request: Request): Promise<Response> {
   });
   const handler = handlers.find((h) => h.method === request.method && h.path === url.pathname);
   const reply = (await handler?.reply(url, body)) ?? { status: 404, body: { error: "not_found", message: "not found" } };
+  if (reply.body instanceof ReadableStream) return new Response(reply.body, { status: reply.status ?? 200 });
   const plain = typeof reply.body === "string";
   return new Response(plain ? (reply.body as string) : JSON.stringify(reply.body), {
     status: reply.status ?? 200,
@@ -54,6 +55,11 @@ async function fakeFetch(request: Request): Promise<Response> {
 export function mockClient() {
   const apiHeaders = { "X-API-Key": "test-key" };
   return { apiHeaders, api: createClient<paths>({ baseUrl: "http://api.test", headers: apiHeaders, fetch: fakeFetch }) };
+}
+
+/** For `vi.stubGlobal("fetch", apiFetch)`: the plain fetch calls, answered by the same handlers. */
+export function apiFetch(input: string, init?: RequestInit) {
+  return fakeFetch(new Request(new URL(input, "http://api.test"), init));
 }
 
 /** Also gives the query client, to make a test refetch. */

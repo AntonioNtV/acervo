@@ -10,6 +10,7 @@ x-acervo: &acervo
   environment:
     DATABASE_URL: postgresql+asyncpg://acervo:acervo@postgres:5432/acervo
     S3_ENDPOINT: http://minio:9000
+    REDIS_URL: redis://redis:6379/0
 
 services:
   postgres:
@@ -82,6 +83,17 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  worker:
+    <<: *acervo
+    command: ["arq", "acervo.worker.settings.WorkerSettings"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      minio-bucket:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
 
 volumes:
   postgres:

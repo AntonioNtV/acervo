@@ -20,6 +20,7 @@ from sqlalchemy.pool import NullPool
 from acervo.core.settings import Settings
 from acervo.db.models import File, Node, PageVersion
 from acervo.db.session import async_url
+from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.node import NodeRepository
 from acervo.repositories.uow import UnitOfWork
@@ -142,6 +143,18 @@ def uow(session_factory: async_sessionmaker[AsyncSession]) -> UnitOfWork:
 def storage(test_settings: Settings) -> Settings:
     """The S3 endpoint, keys and this session's bucket."""
     return test_settings
+
+
+@pytest.fixture
+def fake_decider() -> FakeDecider:
+    """Answers from `fake_decider.table`, set by the test; Jev and the LLM are never called."""
+    return FakeDecider()
+
+
+@pytest.fixture
+def fake_writer() -> FakeWriter:
+    """Fixed outputs per role, changed by the test; records every input."""
+    return FakeWriter()
 
 
 @dataclass
