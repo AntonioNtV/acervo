@@ -16,17 +16,14 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("opens the chat from the top bar, everything disabled", async () => {
+  it("opens the chat from the top bar, with one box and no modes", async () => {
     renderAt("/lixeira");
 
     await userEvent.click(screen.getByRole("button", { name: "Chat" }));
 
     const chat = screen.getByRole("complementary", { name: "Chat" });
-    expect(chat).toHaveTextContent("Disponível em breve");
-    expect(screen.getByRole("textbox", { name: "Mensagem" })).toBeDisabled();
-    expect(within(chat).getByRole("button", { name: "Capturar" })).toBeDisabled();
-    expect(within(chat).getByRole("button", { name: "Perguntar" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Enviar" })).toBeDisabled();
+    expect(chat).toHaveTextContent("Abra uma base para conversar");
+    expect(within(chat).queryByRole("button", { name: "Capturar" })).not.toBeInTheDocument();
   });
 
   it("switching theme changes the root class", async () => {
