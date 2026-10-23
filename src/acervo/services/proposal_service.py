@@ -74,7 +74,12 @@ class ProposalService:
         """What waits for the person in the live base, newest first; or what was applied in it from `since` on,
         most recent first, so an agent's automatic changes can be undone."""
         await self._uow.kbs.get_in(kb_id)
-        return await self._uow.proposals.listed(kb_id, status, accepted_by, since)
+        listed = await self._uow.proposals.listed(kb_id, status, accepted_by, since)
+        conversations = {proposal.conversation_id for proposal in listed if proposal.conversation_id is not None}
+        deleted = {id for id in conversations if (await self._uow.conversations.get(id)).deleted_at is not None}
+        # A deleted conversation is not opened again: its proposal is shown as one with no conversation.
+        gone = {"conversation_title": None}
+        return [p.model_copy(update=gone) if p.conversation_id in deleted else p for p in listed]
 
     async def get(self, id: UUID) -> ProposalRead:
         return await self._uow.proposals.get(id)
@@ -98,9 +103,11 @@ class ProposalService:
 
     async def auto_accept(self, proposal: ProposalRead, placed: bool = True) -> ProposalRead:
         """Applies a stored proposal when its agent is in auto mode, it is not a conflict and it has a clear place
-        (`placed`); otherwise it stays pending. A failing apply raises, and the caller rolls back."""
+        (`placed`); otherwise it stays pending. It is read again first: one the person accepted or rejected
+        meanwhile is returned as it stands. A failing apply raises, and the caller rolls back."""
+        proposal = await self._uow.proposals.get(proposal.id)
         agent = await self._uow.agents.get(proposal.agent_id)
-        if agent.mode != "auto" or proposal.kind == "conflict" or not placed:
+        if proposal.status not in OPEN or agent.mode != "auto" or proposal.kind == "conflict" or not placed:
             return proposal
         return await self.accept(proposal.id, "auto")
 
