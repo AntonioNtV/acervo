@@ -25,7 +25,8 @@ function Frame() {
   return (
     <div className="flex h-full min-h-0">
       {sidebarOpen && <Sidebar onSearch={() => setSearchOpen(true)} />}
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+      {/* Isolated, so a narrow window's chat, drawn over it, is above its top bar and below the dialogs. */}
+      <main className="isolate flex min-w-0 flex-1 flex-col overflow-y-auto">
         <Outlet />
       </main>
       <ChatPanel />

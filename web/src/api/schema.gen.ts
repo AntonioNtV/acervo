@@ -2609,7 +2609,7 @@ export interface components {
             conversation_id?: string | null;
             /**
              * Conversation Title
-             * @description The conversation it came from; null when none.
+             * @description The conversation it came from; null when none or deleted.
              */
             conversation_title: string | null;
             /**

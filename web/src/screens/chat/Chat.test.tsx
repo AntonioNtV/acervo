@@ -183,6 +183,77 @@ describe("Chat", () => {
     expect(screen.getAllByRole("article", { name: "Resposta do Acervo" })).toHaveLength(1);
   });
 
+  it("a dropped stream is read again from its start and the reply shows once", async () => {
+    thread("c-1", [person("m-1", "Oi"), message("r-1", { status: "working" })]);
+    const start = [{ type: "start", messageId: "r-1" }, { type: "text-start", id: "t-1" }, { type: "text-delta", id: "t-1", delta: "Pronto, " }];
+    let reads = 0;
+    respond("GET", "/v1/messages/r-1/stream", () => {
+      reads += 1;
+      if (reads > 1) return ended(...start, { type: "text-delta", id: "t-1", delta: "guardei." }, { type: "text-end", id: "t-1" })();
+      const body = new ReadableStream({
+        start: (stream) => {
+          stream.enqueue(new TextEncoder().encode(lines(start)));
+          setTimeout(() => stream.error(new TypeError("network error")), 50);
+        },
+      });
+      return { body };
+    });
+    renderChat();
+
+    expect(await screen.findByText("Pronto,")).toBeInTheDocument();
+    expect(await screen.findByText("Pronto, guardei.", {}, { timeout: 4000 })).toBeInTheDocument();
+    const [reply] = screen.getAllByRole("article", { name: "Resposta do Acervo" });
+    expect(reply?.textContent?.match(/Pronto/g)).toHaveLength(1);
+    expect(reads).toBe(2);
+  }, 10_000);
+
+  it("a proposal replayed as it was never takes back a newer state", async () => {
+    thread("c-1", [person("m-1", "Vistoria por vídeo até 300 m²."), message("r-1", { status: "working" })]);
+    const applied = proposal(append, { status: "applied", accepted_by: "person", updated_at: "2026-10-22T10:01:00Z" });
+    respond(
+      "GET",
+      "/v1/messages/r-1/stream",
+      ended(
+        { type: "start", messageId: "r-1" },
+        { type: "data-proposal", id: "p-1", data: applied },
+        { type: "data-proposal", id: "p-1", data: proposal(append) },
+      ),
+    );
+    renderChat();
+
+    const card = await screen.findByRole("region", { name: "Acréscimo" });
+    await waitFor(() => expect(screen.queryByText("Trabalhando nisso…")).not.toBeInTheDocument());
+    expect(within(card).getByText("Aplicada")).toBeInTheDocument();
+    expect(within(card).queryByRole("button", { name: "Aceitar" })).not.toBeInTheDocument();
+  });
+
+  it("a reply that was retried is not shown, so it cannot be retried again", async () => {
+    thread("c-1", [
+      person("m-1", "Guarda isso."),
+      message("r-1", { status: "failed", error: "model down" }),
+      message("r-2", { text: "Agora foi.", replaces_id: "r-1" }),
+    ]);
+    renderChat();
+
+    expect(await screen.findByText("Agora foi.")).toBeInTheDocument();
+    expect(screen.getAllByRole("article", { name: "Resposta do Acervo" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Tentar de novo" })).not.toBeInTheDocument();
+  });
+
+  it("a proposal of a deleted conversation opens its card in the list", async () => {
+    const orphan = proposal(append, { conversation_id: "c-9", message_id: "r-9" });
+    respond("GET", "/v1/kbs/kb-1/proposals", (url) => ({
+      body: url.searchParams.get("status") === "pending" ? [{ ...orphan, agent_name: "Chat do Acervo", conversation_title: null }] : [],
+    }));
+    renderChat();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Ver todas" }));
+    const list = screen.getByRole("list", { name: "Propostas esperando" });
+    await userEvent.click(within(list).getByRole("button", { name: /Acréscimo/ }));
+    expect(within(list).getByRole("region", { name: "Acréscimo" })).toBeInTheDocument();
+    expect(calls.some((call) => call.path.startsWith("/v1/conversations/c-9"))).toBe(false);
+  });
+
   it("a proposal part shows its card, and a later part with its id updates it", async () => {
     thread("c-1", [person("m-1", "Vistoria por vídeo até 300 m²."), message("r-1", { status: "working" })]);
     respond(
