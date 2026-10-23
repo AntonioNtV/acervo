@@ -140,13 +140,9 @@ async def test_another_base_is_unreachable(
     async with _mcp(app, agent["token"]) as mcp:
         root = await mcp.call_tool("list_folder", {})
         assert root.structured_content == {"node_id": None, "path": "", "children": []}
-        for tool, arguments in [
-            ("read_page", {"node_id": str(other[PAGE].id)}),
-            ("list_folder", {"node_id": str(other["Bradesco"].id)}),
-            ("rename", {"node_id": str(other["Bradesco"].id), "title": "Itaú"}),
-        ]:
-            with pytest.raises(ToolError, match="not found"):
-                await mcp.call_tool(tool, arguments)
+        # Each tool's scoping is in tests/services/test_agent_tools.py; here, that it reaches the agent as an error.
+        with pytest.raises(ToolError, match="not found"):
+            await mcp.call_tool("read_page", {"node_id": str(other[PAGE].id)})
 
 
 @pytest.mark.usefixtures("run_jobs")

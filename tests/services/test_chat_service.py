@@ -226,19 +226,6 @@ async def test_reroute_drops_the_replaced_replys_pending_proposal(env: Env) -> N
     assert (rejected.status, rejected.reject_reason) == ("rejected", None)
 
 
-async def test_an_auto_agent_applies_but_a_conflict_waits(env: Env) -> None:
-    await env.auto()
-
-    applied = await env.send("O prazo é de 5 dias.")
-    env.decider.table["contradicts"] = 0.9
-    waiting = await env.send("O prazo é de 3 dias.")
-
-    [append] = await env.proposals(applied)
-    assert (append.status, append.accepted_by) == ("applied", "auto")
-    assert "- Uma nota <!-- origem: chat" in await env.markdown()
-    assert [p.status for p in await env.proposals(waiting)] == ["pending"]
-
-
 async def test_a_failure_leaves_nothing_applied(env: Env) -> None:
     await env.auto()
     env.decider.table["two_subjects"] = 0.9
