@@ -158,6 +158,27 @@ async def test_a_file_already_in_the_destination_refuses_the_move(
     assert (await services.pages.read(bases.b)).markdown == "Ver [[A]].\n"
 
 
+async def test_a_trashed_file_does_not_refuse_the_move(
+    services: Services, bases: Bases, make_tree: MakeTree, session: AsyncSession
+) -> None:
+    held = await make_tree({"Outro.pdf": None}, name="Z")
+    copy = await session.scalar(select(File).where(File.node_id == held["Outro.pdf"].id))
+    pdf = await session.scalar(select(File).where(File.node_id == bases.pdf))
+    assert copy is not None and pdf is not None
+    destination = await session.get_one(Node, held["Outro.pdf"].id)
+    destination.kb_id = bases.y.kb.id
+    copy.sha256 = pdf.sha256
+    await session.flush()
+    await services.tree.trash(bases.pdf)
+
+    await _move_to_y(services, bases)
+
+    rows = await session.scalars(
+        select(Node.kb_id).where(Node.id.in_([bases.a, bases.a1, bases.pdf])).execution_options(populate_existing=True)
+    )
+    assert set(rows) == {bases.y.kb.id}
+
+
 async def test_title_clash_at_destination(services: Services, bases: Bases) -> None:
     await services.tree.create(bases.y.kb.id, NodeAdd(parent_id=bases.destination, kind="page", title="a"))
 

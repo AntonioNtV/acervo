@@ -1,43 +1,21 @@
-import time
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, Header, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import get_file_service, get_settings, require_api_key
-from acervo.core import signing
+from acervo.api.deps import KEY, get_file_service, get_settings, key_or_signature
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.file import FileLink, FileNodeRead, FileVersionResponse
 from acervo.services.file_service import FileService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
-KEY = [Depends(require_api_key)]
 
 router = APIRouter(prefix="/v1", tags=["files"], responses={401: ERROR, 422: ERROR})
 
 Service = Annotated[FileService, Depends(get_file_service)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
-
-
-async def require_key_or_signature(
-    node_id: UUID,
-    settings: AppSettings,
-    version_id: UUID | None = None,
-    expires: int | None = None,
-    signature: str | None = None,
-    x_api_key: Annotated[str | None, Header()] = None,
-) -> None:
-    """The key, or a link signed for exactly this content of the file and not yet expired."""
-    secret = settings.api_key.get_secret_value()
-    if (
-        expires is not None
-        and signature is not None
-        and signing.verify(secret, "file", node_id, version_id, expires, signature, time.time())
-    ):
-        return
-    await require_api_key(settings, x_api_key)
 
 
 @router.post(
@@ -90,7 +68,7 @@ async def file_link(
 @router.get(
     "/files/{node_id}/raw",
     response_class=StreamingResponse,
-    dependencies=[Depends(require_key_or_signature)],
+    dependencies=[Depends(key_or_signature("file"))],
     responses={
         200: {"content": {"application/octet-stream": {}}, "description": "The original bytes."},
         206: {"content": {"application/octet-stream": {}}, "description": "A range of them."},

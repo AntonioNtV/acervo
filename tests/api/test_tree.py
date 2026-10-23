@@ -3,10 +3,14 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from acervo.core.errors import ConflictError
 from acervo.db.models import File, Node
+from acervo.repositories.node import NodeRepository
+from acervo.schemas.node import NodeRead, NodeUpdate
 
 MakeTree = Callable[..., Awaitable[Any]]
 
@@ -358,6 +362,32 @@ async def test_icon_and_gallery_cover_are_set_and_cleared(
     assert (listed[0]["cover"], listed[0]["favorite"]) == ("gallery:moss", False)
     row = await session.get(Node, page, populate_existing=True)
     assert row is not None and (row.icon, row.cover) == (None, "gallery:moss")
+
+
+async def test_title_and_icon_change_together_or_not_at_all(
+    client: httpx.AsyncClient, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    tree = await make_tree({"Emissão.md": None})
+    page = tree["Emissão.md"].id
+    update = NodeRepository.update
+
+    async def icon_fails(self: NodeRepository, id: uuid.UUID, data: NodeUpdate) -> NodeRead:
+        if "icon" in data.model_fields_set:
+            raise ConflictError("icon refused")
+        return await update(self, id, data)
+
+    together = await client.patch(f"/v1/nodes/{page}", json={"title": "Emissão de apólice", "icon": "📄"})
+    monkeypatch.setattr(NodeRepository, "update", icon_fails)
+    neither = await client.patch(f"/v1/nodes/{page}", json={"title": "Renovação", "icon": "🔁"})
+
+    assert (together.status_code, together.json()["title"], together.json()["icon"]) == (
+        200,
+        "Emissão de apólice",
+        "📄",
+    )
+    assert neither.status_code == 409
+    opened = (await client.get(f"/v1/nodes/{page}")).json()
+    assert (opened["title"], opened["icon"]) == ("Emissão de apólice", "📄")
 
 
 async def test_cover_is_refused_on_a_file(

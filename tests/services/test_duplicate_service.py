@@ -48,10 +48,31 @@ async def test_copies_the_working_text_and_sub_pages_not_files(
     page = await services.pages.read(copy.id)
     assert page.markdown == "Ver [[Prazos]]."
     children = await services.tree.children(tree.kb.id, copy.id)
-    assert [(c.kind, c.title) for c in children] == [("page", "Prazos"), ("page", "Documentos")]
+    assert [(c.kind, c.title) for c in children] == [("page", "Prazos (cópia)"), ("page", "Documentos (cópia)")]
     assert [(await services.pages.read(c.id)).markdown for c in children] == ["", "RG e CPF."]
     assert {c.id for c in children}.isdisjoint({first.id, second.id})
     assert set(page.links) == {"prazos"}
+
+
+async def test_sub_page_copies_get_the_suffix_and_links_stay_unique(services: Services, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": ["Emissão.md"]})
+    emissao = tree["Bradesco/Emissão.md"]
+    prazos = await services.tree.create(tree.kb.id, NodeAdd(parent_id=emissao.id, kind="page", title="Prazos"))
+    taken = await services.tree.create(tree.kb.id, NodeAdd(parent_id=emissao.id, kind="page", title="Prazos (cópia)"))
+    documentos = await services.tree.create(tree.kb.id, NodeAdd(parent_id=emissao.id, kind="page", title="Documentos"))
+    await services.pages.put_text(documentos.id, PageTextPut(markdown="Ver [[Prazos]].", revision=0), IDLE)
+
+    copy = await services.duplicate.duplicate(emissao.id)
+
+    children = await services.tree.children(tree.kb.id, copy.id)
+    assert [c.title for c in children] == ["Prazos (cópia)", "Prazos (cópia) (cópia)", "Documentos (cópia)"]
+    assert {c.id for c in children}.isdisjoint({prazos.id, taken.id, documentos.id})
+    assert (await services.pages.read(children[2].id)).links == {"prazos": prazos.id}
+    mentions = await services.pages.mentions(prazos.id)
+    assert sorted(m.node.path for m in mentions) == [
+        "Bradesco/Emissão (cópia)/Documentos (cópia)",
+        "Bradesco/Emissão/Documentos",
+    ]
 
 
 async def test_title_counts_up_when_taken(services: Services, make_tree: MakeTree) -> None:

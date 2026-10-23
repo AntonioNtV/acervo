@@ -83,12 +83,14 @@ class TreeService:
             change.description_locked = bool(description)
         if change.model_fields_set:
             node = await self._uow.nodes.update(node_id, change)
-            await self._uow.commit()
+        await self._uow.commit()
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:
         """A page's rename also fixes the links that resolve to it, in the same transaction."""
-        return await self._rename(await self._uow.nodes.live(node_id), title)
+        renamed = await self._rename(await self._uow.nodes.live(node_id), title)
+        await self._uow.commit()
+        return renamed
 
     async def _rename(self, node: NodeRead, title: str) -> NodeRead:
         node_id = node.id
@@ -98,9 +100,7 @@ class TreeService:
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
         if node.kind == "page" and title != node.title:
             await self._pages.fix_links(node, title)
-        renamed = await self._uow.nodes.update(node_id, NodeUpdate(title=title))
-        await self._uow.commit()
-        return renamed
+        return await self._uow.nodes.update(node_id, NodeUpdate(title=title))
 
     async def move(self, node_id: UUID, data: NodeMove) -> NodeRead:
         """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None. Into another

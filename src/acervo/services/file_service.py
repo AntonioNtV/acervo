@@ -46,18 +46,30 @@ class Download:
     body: AsyncIterator[bytes] | None = None
 
 
-def _hash(source: BinaryIO) -> tuple[str, int, bytes]:
+def read_hash(source: BinaryIO, max_bytes: int | None = None) -> tuple[str, int, bytes]:
+    """The sha256, size and first bytes of `source`, read in chunks. Stops once past `max_bytes`, so an oversized
+    upload is refused without hashing all of it."""
     digest = hashlib.sha256()
     size = 0
     head = b""
     source.seek(0)
-    while chunk := source.read(CHUNK_SIZE):
+    while (chunk := source.read(CHUNK_SIZE)) and (max_bytes is None or size <= max_bytes):
         if size == 0:
-            head = chunk[:4]
+            head = chunk[:12]
         digest.update(chunk)
         size += len(chunk)
     source.seek(0)
     return digest.hexdigest(), size, head
+
+
+def signed_link(
+    secret: str, purpose: signing.Purpose, node_id: UUID, version_id: UUID | None, raw_url: str
+) -> FileLink:
+    """`raw_url` signed for `purpose` of this content of the node, so it opens without the key for a short while."""
+    expires = int(time.time()) + signing.LINK_SECONDS
+    query: dict[str, object] = {"version_id": version_id} if version_id is not None else {}
+    query |= {"expires": expires, "signature": signing.sign(secret, purpose, node_id, version_id, expires)}
+    return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
 
 
 def _pdf_metadata(source: BinaryIO) -> reader.PdfMetadata:
@@ -72,8 +84,8 @@ def _pdf_metadata(source: BinaryIO) -> reader.PdfMetadata:
 
 async def _stage(kb_id: UUID, source: BinaryIO, filename: str) -> FileContent:
     """Reads `source` in chunks where it is, never whole in memory, and leaves it at its start."""
-    sha256, size, head = await asyncio.to_thread(_hash, source)
-    if head == b"%PDF":
+    sha256, size, head = await asyncio.to_thread(read_hash, source)
+    if head.startswith(b"%PDF"):
         meta = await asyncio.to_thread(_pdf_metadata, source)
         mime, pages, protected = PDF, meta.pages, meta.protected
     else:
@@ -166,10 +178,7 @@ class FileService:
         node = await self._file_node(node_id)
         if version_id is not None:
             await self._version(node.id, version_id)
-        expires = int(time.time()) + signing.LINK_SECONDS
-        query: dict[str, object] = {"version_id": version_id} if version_id is not None else {}
-        query |= {"expires": expires, "signature": signing.sign(secret, "file", node.id, version_id, expires)}
-        return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
+        return signed_link(secret, "file", node.id, version_id, raw_url)
 
     async def download(self, node_id: UUID, version_id: UUID | None, range_header: str | None) -> Download:
         """The file byte for byte under its own name, or the one `Range` of bytes asked for."""

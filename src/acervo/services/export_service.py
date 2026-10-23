@@ -1,21 +1,18 @@
 import asyncio
 import re
-import time
 from collections import defaultdict
 from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from urllib.parse import urlencode
 from uuid import UUID
 
 from zipstream import ZipStream
 
-from acervo.core import signing
 from acervo.core.errors import ValidationError
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileLink
 from acervo.schemas.node import NodeRead
+from acervo.services.file_service import signed_link
 from acervo.services.storage import Storage
 
 # Characters no zip reader or file system takes in a name, the path separators among them.
@@ -45,9 +42,7 @@ class ExportService:
     async def link(self, node_id: UUID, secret: str, raw_url: str) -> FileLink:
         """`raw_url` signed for the node's export, so it opens without the key for a short while."""
         await self._root(node_id)
-        expires = int(time.time()) + signing.LINK_SECONDS
-        query = {"expires": expires, "signature": signing.sign(secret, "export", node_id, None, expires)}
-        return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
+        return signed_link(secret, "export", node_id, None, raw_url)
 
     async def open(self, node_id: UUID) -> Export:
         """The zip of the node's live subtree: a page as `<título>.md` with its children in `<título>/`, a folder as a
@@ -95,16 +90,15 @@ class ExportService:
 
 def _free(node: NodeRead, taken: set[str]) -> str:
     """The node's safe name, with " (2)", " (3)", … while a sibling already took it; a page takes both `<name>.md`
-    and the folder `<name>/` of its children. Compared without case, as most file systems do."""
+    and the folder `<name>` of its children, and a file and a folder of one name clash on disk. Compared without
+    case, as most file systems do."""
     safe = _safe(node.title)
     suffix = PurePosixPath(safe).suffix if node.kind == "file" else ""
     stem = safe.removesuffix(suffix)
     count, name = 1, safe
     while True:
         folded = name.casefold()
-        claims = {f"{folded}.md", f"{folded}/"} if node.kind == "page" else {f"{folded}/"}
-        if node.kind == "file":
-            claims = {folded}
+        claims = {f"{folded}.md", folded} if node.kind == "page" else {folded}
         if not claims & taken:
             taken |= claims
             return name

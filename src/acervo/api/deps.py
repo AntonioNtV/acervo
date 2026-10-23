@@ -1,9 +1,12 @@
 import hmac
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import Depends, Header, Request
+from fastapi import Depends, Header, Query, Request
 
+from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
@@ -35,6 +38,33 @@ async def require_api_key(
     expected = settings.api_key.get_secret_value().encode()
     if x_api_key is None or not hmac.compare_digest(x_api_key.encode(), expected):
         raise AuthError("Missing or invalid X-API-Key header.")
+
+
+KEY = [Depends(require_api_key)]
+
+
+def key_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:
+    """The key, or a link signed for `purpose` of exactly this content of the node and not yet expired."""
+
+    async def dependency(
+        node_id: UUID,
+        settings: Annotated[Settings, Depends(get_settings)],
+        # Out of the schema: only the file route takes a version, and it declares the parameter itself.
+        version_id: Annotated[UUID | None, Query(include_in_schema=False)] = None,
+        expires: int | None = None,
+        signature: str | None = None,
+        x_api_key: Annotated[str | None, Header()] = None,
+    ) -> None:
+        secret = settings.api_key.get_secret_value()
+        if (
+            expires is not None
+            and signature is not None
+            and signing.verify(secret, purpose, node_id, version_id, expires, signature, time.time())
+        ):
+            return
+        await require_api_key(settings, x_api_key)
+
+    return dependency
 
 
 async def get_uow(request: Request) -> AsyncIterator[UnitOfWork]:

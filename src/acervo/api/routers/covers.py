@@ -1,12 +1,10 @@
-import time
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, UploadFile
+from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import get_cover_service, get_settings, require_api_key
-from acervo.core import signing
+from acervo.api.deps import KEY, get_cover_service, get_settings, key_or_signature
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.file import FileLink
@@ -14,32 +12,11 @@ from acervo.schemas.node import NodeRead
 from acervo.services.cover_service import CoverService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
-KEY = [Depends(require_api_key)]
 
 router = APIRouter(prefix="/v1", tags=["covers"], responses={401: ERROR, 404: ERROR, 422: ERROR})
 
 AppSettings = Annotated[Settings, Depends(get_settings)]
-
-
 Service = Annotated[CoverService, Depends(get_cover_service)]
-
-
-async def require_key_or_cover_signature(
-    node_id: UUID,
-    settings: AppSettings,
-    expires: int | None = None,
-    signature: str | None = None,
-    x_api_key: Annotated[str | None, Header()] = None,
-) -> None:
-    """The key, or a link signed for this node's cover and not yet expired."""
-    secret = settings.api_key.get_secret_value()
-    if (
-        expires is not None
-        and signature is not None
-        and signing.verify(secret, "cover", node_id, None, expires, signature, time.time())
-    ):
-        return
-    await require_api_key(settings, x_api_key)
 
 
 @router.post("/nodes/{node_id}/cover", response_model=NodeRead, dependencies=KEY)
@@ -58,7 +35,7 @@ async def cover_link(node_id: UUID, request: Request, service: Service, settings
 @router.get(
     "/nodes/{node_id}/cover/raw",
     response_class=StreamingResponse,
-    dependencies=[Depends(require_key_or_cover_signature)],
+    dependencies=[Depends(key_or_signature("cover"))],
     responses={200: {"content": {"image/*": {}}, "description": "The image as uploaded."}},
 )
 async def raw_cover(node_id: UUID, service: Service) -> StreamingResponse:

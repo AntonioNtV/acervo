@@ -92,6 +92,26 @@ async def test_names_are_sanitized_and_deduplicated(client: httpx.AsyncClient) -
     ]
 
 
+async def test_a_file_and_a_folder_of_the_same_name_do_not_clash(client: httpx.AsyncClient) -> None:
+    kb_id = await _kb(client)
+    folder = await _node(client, kb_id, "folder", "Residencial")
+    await _upload(client, kb_id, folder, "Sinistro")
+    await _node(client, kb_id, "folder", "sinistro", folder)
+    page = await _node(client, kb_id, "page", "SINISTRO", folder)
+    await _node(client, kb_id, "page", "Aviso", page)
+
+    response = await _export(client, folder)
+
+    assert response.status_code == 200, response.text
+    assert zipfile.ZipFile(io.BytesIO(response.content)).namelist() == [
+        "Residencial/",
+        "Residencial/Sinistro",
+        "Residencial/sinistro (2)/",
+        "Residencial/SINISTRO (3).md",
+        "Residencial/SINISTRO (3)/Aviso.md",
+    ]
+
+
 async def test_bad_signature_is_401(client: httpx.AsyncClient, test_settings: Settings) -> None:
     kb_id = await _kb(client)
     page = await _node(client, kb_id, "page", "A")
