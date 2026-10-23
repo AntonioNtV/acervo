@@ -1,5 +1,5 @@
 import { isToolUIPart, type ChatStatus } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiMark } from "../../app/AiMark";
 import { useErrorText } from "../../app/errors";
@@ -21,7 +21,8 @@ type AnyProposal = Proposal | ProposalSummary;
 
 const FILE_KINDS = ["save_pdf", "replace_pdf"];
 
-function PersonMessage({ message }: { message: ChatMessage }) {
+// Memoized, as Reply: a streamed chunk changes only the last message, so the others keep their parsed Markdown.
+const PersonMessage = memo(function PersonMessage({ message }: { message: ChatMessage }) {
   const { lang } = useI18n();
   const { selection, attachments } = message.metadata ?? {};
   return (
@@ -46,7 +47,7 @@ function PersonMessage({ message }: { message: ChatMessage }) {
       )}
     </div>
   );
-}
+});
 
 /** Where a citation opens: the page (at its section), or the PDF at its page. */
 function citationHref(kbId: string, citation: Citation): string {
@@ -78,7 +79,7 @@ function Sources({ kbId, citations }: { kbId: string; citations: Citation[] }) {
   );
 }
 
-function Reply({
+const Reply = memo(function Reply({
   message,
   kbId,
   working,
@@ -180,7 +181,7 @@ function Reply({
       )}
     </article>
   );
-}
+});
 
 /** The conversation, oldest first, kept scrolled to its end as replies arrive. */
 export function Thread({
