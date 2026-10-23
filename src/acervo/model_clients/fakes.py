@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
+from acervo.domain.cards import Card, CardInput, PatchRequest, WrittenPatch
 from acervo.domain.decisions import Answers, Choice, Question
 
 # A Noul's P(yes) or a Score's expected level; a Choice's probabilities in its options' order, or by option text
@@ -46,7 +46,6 @@ class FakeWriter:
 
     card_output: Card = field(default_factory=lambda: Card(title="Nota", subject="Uma nota"))
     patch_output: WrittenPatch = field(default_factory=lambda: WrittenPatch(lines=["- Uma nota"]))
-    describe_output: str = "Descrição"
     inputs: dict[str, list[Any]] = field(default_factory=dict)
 
     async def card(self, source: CardInput) -> Card:
@@ -56,10 +55,6 @@ class FakeWriter:
     async def patch(self, request: PatchRequest) -> WrittenPatch:
         self._record("patch", request)
         return self.patch_output
-
-    async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
-        self._record("describe", (title, list(children)))
-        return self.describe_output
 
     def _record(self, role: str, value: Any) -> None:
         self.inputs.setdefault(role, []).append(value)

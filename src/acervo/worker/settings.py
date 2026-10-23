@@ -13,7 +13,7 @@ from acervo.repositories.uow import UnitOfWork
 from acervo.services.chat_service import fail_interrupted
 from acervo.services.events import ArqJobQueue, RedisEventBus
 from acervo.services.storage import Storage
-from acervo.worker.jobs import handle_message, index_node, index_pending, refresh_descriptions
+from acervo.worker.jobs import handle_message, index_node, index_pending
 
 # How often the worker looks for index builds asked for.
 INDEX_SWEEP_SECONDS = 5
@@ -47,7 +47,7 @@ async def shutdown(ctx: dict[str, Any]) -> None:
 
 class WorkerSettings:
     # No result kept for an index build, so a retry of the same version is enqueued again at once.
-    functions: ClassVar[list[Any]] = [handle_message, refresh_descriptions, func(index_node, keep_result=0)]
+    functions: ClassVar[list[Any]] = [handle_message, func(index_node, keep_result=0)]
     cron_jobs: ClassVar[list[Any]] = [
         cron(index_pending, second=set(range(0, 60, INDEX_SWEEP_SECONDS)), run_at_startup=True)
     ]

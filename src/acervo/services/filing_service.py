@@ -3,32 +3,29 @@ logged, its proposal stored pending. The chat's `file_fact` and `file_attachment
 `save_file` and the evals all file through it."""
 
 import asyncio
+from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from acervo.core.errors import NotFoundError
-from acervo.core.settings import Thresholds
-from acervo.domain.cards import CardInput, ChildDescription
+from acervo.core.settings import RetrievalLimits, Thresholds
+from acervo.domain.cards import CardInput
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
 from acervo.pipeline.curator import policy
 from acervo.pipeline.curator.tree import PageText, SnapshotNode, TreeSnapshot
 from acervo.pipeline.pdf import reader
+from acervo.pipeline.search.previews import folder_description
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead
 from acervo.schemas.conversation import Attachment
-from acervo.schemas.node import NodeUpdate
+from acervo.schemas.node import NodeRead
 from acervo.schemas.proposal import Decision, DecisionLogCreate, ProposalCreate, ProposalRead, StagedFile
 from acervo.services.page_service import PageService
 from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
-from acervo.services.tree_service import TreeService
-
-# How many descriptions are written at once when a tree is described before filing.
-DESCRIBING = 4
 
 
 @dataclass(frozen=True)
@@ -50,28 +47,27 @@ class Filing(BaseModel):
     written: policy.AlreadyWritten | None = None
 
 
-def _depth(tree: TreeSnapshot, node: SnapshotNode) -> int:
-    depth = 0
-    while node.parent_id is not None:
-        node, depth = tree.node(node.parent_id), depth + 1
-    return depth
-
-
 class FilingService:
     def __init__(
-        self, uow: UnitOfWork, storage: Storage, decider: Decider, writer: Writer, thresholds: Thresholds
+        self,
+        uow: UnitOfWork,
+        storage: Storage,
+        decider: Decider,
+        writer: Writer,
+        thresholds: Thresholds,
+        limits: RetrievalLimits | None = None,
     ) -> None:
         self._uow = uow
         self._storage = storage
         self._decider = decider
         self._writer = writer
         self._thresholds = thresholds
+        self._chars = (limits or RetrievalLimits()).description_chars
         self._pages = PageService(uow)
-        self._tree = TreeService(uow)
         self._proposals = ProposalService(uow, storage)
 
     async def fact(self, text: str, origin: Origin) -> Filing:
-        tree = await self.described(origin.agent.kb_id)
+        tree = await self._snapshot(origin.agent.kb_id)
 
         async def read_page(node_id: UUID) -> PageText:
             # What the person sees is what the Curator reads.
@@ -89,7 +85,7 @@ class FilingService:
         """A staged PDF, read from its first pages and outline only."""
         async with self._storage.download(attachment.storage_key) as path:
             text, outline = await asyncio.to_thread(reader.first_pages, path)
-        tree = await self.described(origin.agent.kb_id)
+        tree = await self._snapshot(origin.agent.kb_id)
         source = CardInput(text=text, file_name=attachment.name, outline=outline)
         staged = StagedFile(**attachment.model_dump(exclude={"mime"}))
         return await self._file(
@@ -98,44 +94,36 @@ class FilingService:
             staged,
         )
 
-    async def described(self, kb_id: UUID) -> TreeSnapshot:
-        """The base's tree, each folder or page with children described first when it has no description yet."""
-        tree = await self._tree.snapshot(kb_id)
-        missing = [node for node in tree.nodes if node.kind != "file" and not node.description and tree.children(node)]
-        limit = asyncio.Semaphore(DESCRIBING)
+    async def _snapshot(self, kb_id: UUID) -> TreeSnapshot:
+        """The base's live tree as the options show it: the person's descriptions, and what the index gives, the same
+        built descriptions the search shows Jev."""
+        nodes = await self._uow.nodes.live_in(kb_id)
+        under: defaultdict[UUID | None, list[NodeRead]] = defaultdict(list)
+        for node in nodes:
+            under[node.parent_id].append(node)
+        outlines = await self._uow.indexes.outlines([node.id for node in nodes if node.kind != "folder"])
 
-        async def describe(node: SnapshotNode) -> str:
-            children = [
-                ChildDescription(title=child.title, kind=child.kind, description=child.description)
-                for child in tree.children(node)
+        def built(node: NodeRead) -> str:
+            if node.kind != "folder":
+                return outlines.get(node.id, "")
+            listed = [(child.title, outlines.get(child.id, "")) for child in under[node.id]]
+            return folder_description(listed, self._chars)
+
+        return TreeSnapshot(
+            nodes=[
+                SnapshotNode(
+                    id=node.id,
+                    parent_id=node.parent_id,
+                    kind=node.kind,
+                    title=node.title,
+                    # A description an agent wrote is not kept.
+                    description=node.description if node.description_locked else "",
+                    built=built(node),
+                    active_at=node.updated_at,
+                )
+                for node in nodes
             ]
-            async with limit:
-                return await self._writer.describe(node.title, children)
-
-        # Deepest first: a node's description is written from its children's, so each depth waits for the one below.
-        for depth in sorted({_depth(tree, node) for node in missing}, reverse=True):
-            level = [node for node in missing if _depth(tree, node) == depth]
-            for node, description in zip(level, await asyncio.gather(*map(describe, level)), strict=True):
-                await self._uow.nodes.update(node.id, NodeUpdate(description=description))
-                tree.nodes[tree.nodes.index(node)] = node.model_copy(update={"description": description})
-        await self._uow.commit()
-        return tree
-
-    async def refresh_descriptions(self, node_ids: list[UUID]) -> None:
-        """Each node and the ones above it describe their children again, unless the person wrote theirs."""
-        seen: set[UUID] = set()
-        for node_id in node_ids:
-            current: UUID | None = node_id
-            while current is not None and current not in seen:
-                seen.add(current)
-                try:
-                    node = await self._uow.nodes.live(current)
-                except NotFoundError:
-                    break
-                if node.kind != "file" and not node.description_locked:
-                    await self._describe(node.kb_id, node.id, node.title)
-                current = node.parent_id
-        await self._uow.commit()
+        )
 
     async def _file(
         self,
@@ -182,14 +170,3 @@ class FilingService:
                 for decision in log
             ]
         )
-
-    async def _describe(self, kb_id: UUID, node_id: UUID, title: str) -> str:
-        children = [
-            ChildDescription(title=child.title, kind=child.kind, description=child.description)
-            for child in await self._uow.nodes.children(kb_id, node_id)
-        ]
-        if not children:
-            return ""
-        description = await self._writer.describe(title, children)
-        await self._uow.nodes.update(node_id, NodeUpdate(description=description))
-        return description

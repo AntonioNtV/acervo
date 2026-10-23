@@ -17,7 +17,8 @@ class SnapshotNode(BaseModel):
     parent_id: UUID | None = Field(description="Null for a node at the base's root.")
     kind: NodeKind
     title: str = Field(description="A file's keeps its extension.")
-    description: str = ""
+    description: str = Field(default="", description="The person's own; one an agent wrote is not kept.")
+    built: str = Field(default="", description="From the index: a document's outline, a folder's children's.")
     active_at: datetime = Field(description="Its most recent activity: ranks children past Jev's 255 options.")
 
 

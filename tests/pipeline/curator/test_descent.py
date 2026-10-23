@@ -4,7 +4,7 @@ from typing import Any
 from acervo.domain.decisions import Choice
 from acervo.model_clients.fakes import FakeDecider
 from acervo.pipeline.curator.descent import MAX_DEPTH, descend, placement
-from acervo.pipeline.curator.options import RECENT, pdf_options, text_options
+from acervo.pipeline.curator.options import RECENT, label, pdf_options, text_options
 
 Make = Callable[[Any], Any]
 TREE = {
@@ -129,3 +129,13 @@ async def test_a_pdf_is_saved_under_a_page(make_snapshot: Make, fake_decider: Fa
     # A page with no children stops the descent; the PDF goes under it, as a file.
     assert (descent.ranked[0].node, descent.ranked[0].landing) == (snap["Bradesco/Auto.md/Franquias.md"], "here")
     assert placement(snap.tree, descent.ranked[0]).landing == "here"
+
+
+def test_an_option_shows_the_persons_description_first_then_the_built_one(make_snapshot: Make) -> None:
+    snap = make_snapshot({"Bradesco": ["Auto.md", "Vida.md"]})
+    folder = snap["Bradesco"].model_copy(update={"description": "Seguradora", "built": "Contém:\nAuto\nVida"})
+    page = snap["Bradesco/Auto.md"].model_copy(update={"built": "Franquias; Vidros"})
+
+    assert label(folder) == "Bradesco (pasta) — Seguradora — Contém:\nAuto\nVida"
+    assert label(page) == "Auto (página) — Franquias; Vidros"
+    assert label(snap["Bradesco/Vida.md"]) == "Vida (página)"

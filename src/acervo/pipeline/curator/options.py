@@ -37,9 +37,8 @@ Options = Callable[[TreeSnapshot, SnapshotNode | None], list[Option]]
 
 
 def label(node: SnapshotNode) -> str:
-    """A node as a decision option: its name and its description."""
-    name = f"{node.title} ({_KIND[node.kind]})"
-    return f"{name} — {node.description}" if node.description else name
+    """A node as a decision option: its name, the person's description, then the one built from the index."""
+    return " — ".join(filter(None, [f"{node.title} ({_KIND[node.kind]})", node.description, node.built]))
 
 
 def level(

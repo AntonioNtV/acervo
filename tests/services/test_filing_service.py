@@ -28,10 +28,12 @@ PAGE = "Bradesco/Residencial/Emissão de apólice.md"
 TEXT = "# Emissão de apólice\n\n## Documentos\n- RG\n\n## Prazos\nCinco dias.\n"
 TREE = {"Bradesco": {"Residencial": ["Emissão de apólice.md"]}, "Arquivo": None}
 FACT = "O prazo de emissão da apólice residencial é de 5 dias úteis."
-# Bradesco and Residencial have children, so they are described before the descent; the rest stays bare.
+# A folder's option lists its children; a page not indexed yet is its name alone.
+BRADESCO = "Bradesco (pasta) — Contém:\nResidencial"
+RESIDENCIAL = "Residencial (pasta) — Contém:\nEmissão de apólice"
 TO_THE_PAGE: dict[str, FakeProbs] = {
-    "descent:": {"Bradesco (pasta) — Descrição": 1.0},
-    "descent:Bradesco": {"Residencial (pasta) — Descrição": 1.0},
+    "descent:": {BRADESCO: 1.0},
+    "descent:Bradesco": {RESIDENCIAL: 1.0},
     "descent:Bradesco/Residencial": {"Emissão de apólice (página)": 1.0},
     "covered": 0.1,
     "contradicts": 0.1,
@@ -104,10 +106,23 @@ async def test_a_fact_becomes_a_pending_append_with_its_decisions_logged(env: En
     assert await env.markdown() == TEXT
     logged = await env.uow.decisions.of_run(env.origin.run_id)
     assert [d.step for d in logged] == ["descent", "descent", "descent", *["page_check"] * 4]
-    described = await env.session.scalar(
-        select(Node.description).where(Node.id == env.tree["Bradesco"].id).execution_options(populate_existing=True)
-    )
-    assert described == "Descrição"
+    # Descriptions are built, never written by the LLM.
+    assert set(env.writer.inputs) == {"card", "patch"}
+
+
+async def test_the_persons_description_comes_first_and_an_agents_is_ignored(env: Env) -> None:
+    for path, description, locked in [("Bradesco", "Seguradora", True), ("Bradesco/Residencial", "Resumo", False)]:
+        node = await env.session.get(Node, env.tree[path].id)
+        assert node is not None
+        node.description, node.description_locked = description, locked
+    await env.session.flush()
+    persons = "Bradesco (pasta) — Seguradora — Contém:\nResidencial"
+    env.decider.table["descent:"] = {persons: 1.0}
+
+    filed = await env.filing.fact(FACT, env.origin)
+
+    assert filed.proposal is not None and filed.placed
+    assert [choice.options[0] for _, [choice] in env.decider.calls[:2]] == [persons, RESIDENCIAL]
 
 
 async def test_a_contradicting_fact_becomes_a_conflict(env: Env) -> None:

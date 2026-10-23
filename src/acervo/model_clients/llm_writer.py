@@ -1,17 +1,16 @@
 """The `Writer` over PydanticAI: any provider, one model per role from `LlmRoles` (skill `llm-calls`)."""
 
 import asyncio
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
 from pydantic_ai import Agent, capture_run_messages
 from pydantic_ai.exceptions import ModelOverloadedError, ModelRateLimitError, UnexpectedModelBehavior
 from pydantic_ai.messages import ModelMessage, ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models import Model
 
-from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
+from acervo.domain.cards import Card, CardInput, PatchRequest, WrittenPatch
 
 PROMPTS = Path(__file__).parent / "prompts"
 RATE_LIMIT_ATTEMPTS = 4
@@ -64,10 +63,6 @@ def _last_raw(messages: list[ModelMessage]) -> str:
     )
 
 
-class _Description(BaseModel):
-    description: str = Field(max_length=200)
-
-
 class LlmWriter:
     """Each role's prompt file filled with its input, sent to the role's model, its output validated."""
 
@@ -75,7 +70,6 @@ class LlmWriter:
         self._agents = {
             "card": make_agent(models["card"], Card),
             "patch": make_agent(models["patch"], WrittenPatch),
-            "describe": make_agent(models["describe"], _Description),
         }
         self._prompts = {role: prompt(role) for role in self._agents}
 
@@ -94,11 +88,6 @@ class LlmWriter:
             card=request.card.model_dump_json(),
         )
         return patch
-
-    async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
-        listed = "\n".join(f"- {child.title} ({child.kind}): {child.description}" for child in children)
-        output: _Description = await self._write("describe", title=title, children=listed)
-        return output.description
 
     async def _write(self, role: str, **values: str) -> Any:
         return await run(role, self._agents[role], self._prompts[role].format_map(values))

@@ -1,7 +1,6 @@
-from collections.abc import Sequence
 from typing import Protocol
 
-from acervo.domain.cards import Card, CardInput, ChildDescription, PatchRequest, WrittenPatch
+from acervo.domain.cards import Card, CardInput, PatchRequest, WrittenPatch
 
 
 class Writer(Protocol):
@@ -10,7 +9,3 @@ class Writer(Protocol):
     async def card(self, source: CardInput) -> Card: ...
 
     async def patch(self, request: PatchRequest) -> WrittenPatch: ...
-
-    async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
-        """A description of a folder or page of at most 200 characters, from its children."""
-        ...

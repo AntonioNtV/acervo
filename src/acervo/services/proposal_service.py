@@ -28,14 +28,12 @@ from acervo.schemas.proposal import (
     StagedFile,
     UndoPayload,
 )
-from acervo.services.events import JobQueue
 from acervo.services.file_service import FileService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
 OPEN = ("pending", "stale")
-REFRESH_DESCRIPTIONS = "refresh_descriptions"
 
 logger = logging.getLogger(__name__)
 
@@ -176,29 +174,6 @@ class ProposalService:
         if original.status != "applied" or original.kind == "undo":
             raise ConflictError("só uma mudança aplicada pode ser desfeita", {"id": str(original.id)})
         return UndoPayload(proposal_id=original.id, path=await self._uow.nodes.path(await self._target(original)))
-
-    async def enqueue_refresh(self, jobs: JobQueue, proposal: ProposalRead) -> None:
-        """The parents an applied proposal changed describe their children again, in the worker."""
-        if proposal.status != "applied":
-            return
-        parents = [str(parent) for parent in dict.fromkeys(await self._changed_parents(proposal)) if parent]
-        if parents:
-            await jobs.enqueue(REFRESH_DESCRIPTIONS, node_ids=parents)
-
-    async def _changed_parents(self, proposal: ProposalRead) -> list[UUID | None]:
-        """The folders or pages that got, lost or renamed a child, whose descriptions follow their children."""
-        payload = proposal.edited_payload or proposal.payload
-        match payload:
-            case CreatePagePayload() | SavePdfPayload():
-                return [payload.parent_id]
-            case MovePayload():
-                return [payload.parent_id, payload.from_parent_id]
-            case RenamePayload():
-                return [(await self._uow.nodes.get(payload.node_id)).parent_id]
-            case UndoPayload():
-                return await self._changed_parents(await self._uow.proposals.get(payload.proposal_id))
-            case _:
-                return []
 
     async def _discard(self, staged: StagedFile | None) -> None:
         """A staged file no open proposal waits on any more is deleted: a saved one has its own copy in the base.
