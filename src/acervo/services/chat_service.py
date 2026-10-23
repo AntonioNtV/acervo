@@ -176,19 +176,6 @@ def _where(payload: ProposalPayload) -> str:
             return payload.path
 
 
-def _undone_path(payload: ProposalPayload) -> str:
-    """Where what an applied proposal changed is now."""
-    match payload:
-        case MovePayload():
-            return _join(payload.to_path, payload.from_path.rsplit("/", 1)[-1])
-        case RenamePayload():
-            return _join(payload.path.rpartition("/")[0], payload.title)
-        case PatchPayload() | ConflictPayload() | ReplacePdfPayload() | UndoPayload():
-            return payload.path
-        case CreatePagePayload() | SavePdfPayload():
-            return _where(payload)
-
-
 def _proposal_chunk(proposal: ProposalRead) -> Chunk:
     return UiProposalPart(id=proposal.id, data=proposal).model_dump_json()
 
@@ -422,8 +409,7 @@ class ChatService:
             last = await self._uow.proposals.last_applied(run.conversation.kb_id)
             if last is None:
                 return with_data(Proposed(outcome="nothing_to_undo"))
-            payload = UndoPayload(proposal_id=last.id, path=_undone_path(last.edited_payload or last.payload))
-            return await self._propose(run, payload)
+            return await self._propose(run, await self._proposals.undo_payload(last))
 
         return [list_folder, read_page, read_pdf_pages, file_fact, file_attachment, move, rename, undo_last]
 

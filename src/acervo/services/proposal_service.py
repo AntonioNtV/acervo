@@ -160,19 +160,22 @@ class ProposalService:
         """A new `undo` proposal of an applied one, by `agent_id` or else by the agent that made it, in that agent's
         mode: a page back to its version before, a file back to its place or content before."""
         original = await self._uow.proposals.get(id)
-        if original.status != "applied" or original.kind == "undo":
-            raise ConflictError("só uma mudança aplicada pode ser desfeita", {"id": str(id)})
-        path = await self._uow.nodes.path(await self._target(original))
         return await self.create(
             ProposalCreate(
                 kb_id=original.kb_id,
                 agent_id=agent_id or original.agent_id,
                 conversation_id=conversation_id,
                 message_id=message_id,
-                payload=UndoPayload(proposal_id=original.id, path=path),
+                payload=await self.undo_payload(original),
                 undo_of=original.id,
             )
         )
+
+    async def undo_payload(self, original: ProposalRead) -> UndoPayload:
+        """What undoing an applied proposal changes back, at the path it has now."""
+        if original.status != "applied" or original.kind == "undo":
+            raise ConflictError("só uma mudança aplicada pode ser desfeita", {"id": str(original.id)})
+        return UndoPayload(proposal_id=original.id, path=await self._uow.nodes.path(await self._target(original)))
 
     async def enqueue_refresh(self, jobs: JobQueue, proposal: ProposalRead) -> None:
         """The parents an applied proposal changed describe their children again, in the worker."""

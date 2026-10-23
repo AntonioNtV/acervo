@@ -295,7 +295,10 @@ async def test_a_tool_error_fails_the_reply_with_nothing_applied(env: Env) -> No
     await env.auto()
 
     reply = await env.send(
-        FACT, [("file_fact", {"text": FACT})], [("move", {"node_id": str(uuid4()), "parent_id": None})], "Não chega aqui."
+        FACT,
+        [("file_fact", {"text": FACT})],
+        [("move", {"node_id": str(uuid4()), "parent_id": None})],
+        "Não chega aqui.",
     )
 
     assert reply.status == "failed" and "not found" in (reply.error or "")
