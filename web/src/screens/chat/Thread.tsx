@@ -14,7 +14,7 @@ import { formatSize } from "../file/format";
 import { useFollow } from "./follow";
 import { FileGroup, ProposalCard } from "./ProposalCard";
 import { ReplyText } from "./ReplyText";
-import { Steps } from "./Steps";
+import { ActivityLine, Steps } from "./Steps";
 import { isUnplaced, lastPart } from "./where";
 
 type AnyProposal = Proposal | ProposalSummary;
@@ -49,9 +49,10 @@ const PersonMessage = memo(function PersonMessage({ message }: { message: ChatMe
   );
 });
 
-/** Where a citation opens: the page (at its section), or the PDF at its page. */
+/** Where a citation opens: the page (at its section), or the PDF at its page with the cited block highlighted. */
 function citationHref(kbId: string, citation: Citation): string {
-  const at = citation.kind === "file" ? (citation.page ? `?p=${citation.page}` : "") : citation.anchor ? `#${citation.anchor}` : "";
+  const hl = citation.highlight?.length === 4 ? `&hl=${citation.highlight.join(",")}` : "";
+  const at = citation.kind === "file" ? (citation.page ? `?p=${citation.page}${hl}` : "") : citation.anchor ? `#${citation.anchor}` : "";
   return `/kbs/${kbId}/n/${citation.node_id}${at}`;
 }
 
@@ -113,6 +114,7 @@ const Reply = memo(function Reply({
   };
   const texts = message.parts.flatMap((part) => (part.type === "text" && part.text ? [part.text] : []));
   const steps = message.parts.filter(isToolUIPart);
+  const activity = message.parts.find((part) => part.type === "data-activity");
 
   const grouped = review
     ? []
@@ -127,7 +129,11 @@ const Reply = memo(function Reply({
         {t("chat.acervo")}
       </span>
       {working ? (
-        <Steps parts={steps} />
+        activity?.type === "data-activity" ? (
+          <ActivityLine label={activity.data.label} />
+        ) : (
+          <Steps parts={steps} />
+        )
       ) : (
         steps.length > 0 && (
           <span>

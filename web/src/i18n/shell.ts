@@ -15,6 +15,9 @@ export const ptBR = {
   path: "Caminho",
   "chat.label": "Chat",
   "chat.close": "Fechar o chat",
+  "index.building": "Preparando a busca",
+  "index.failed": "A busca não conseguiu ler este item",
+  "index.retry": "Tentar de novo",
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
@@ -34,4 +37,7 @@ export const en: Record<keyof typeof ptBR, string> = {
   path: "Path",
   "chat.label": "Chat",
   "chat.close": "Close the chat",
+  "index.building": "Preparing search",
+  "index.failed": "Search could not read this item",
+  "index.retry": "Try again",
 };

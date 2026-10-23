@@ -174,6 +174,26 @@ describe("Chat", () => {
     expect(screen.getByText("Trabalhando nisso…")).toBeInTheDocument();
   });
 
+  it("while a reply searches, one activity line shows its latest place in place of the steps", async () => {
+    thread("c-1", [person("m-1", "Qual o prazo?"), message("r-1", { status: "working" })]);
+    respond(
+      "GET",
+      "/v1/messages/r-1/stream",
+      working(
+        { type: "start", messageId: "r-1" },
+        { type: "tool-input-available", toolCallId: "call-1", toolName: "search", input: {} },
+        { type: "data-activity", data: { label: "Procurando em Bradesco › Auto", stage: "folder" }, transient: true },
+        { type: "data-activity", data: { label: "Lendo Tabela auto 2026, p. 4", stage: "passage" }, transient: true },
+      ),
+    );
+    renderChat();
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Lendo Tabela auto 2026, p. 4");
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.queryByText("Procurando em Bradesco › Auto")).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Passos" })).not.toBeInTheDocument();
+  });
+
   it("reopening replays a reply that was working and ends it", async () => {
     thread("c-1", [person("m-1", "Oi"), message("r-1", { status: "working" })], [{ id: "m-1", role: "user", parts: [] }]);
     respond("GET", "/v1/messages/r-1/stream", ended({ type: "start", messageId: "r-1" }, ...text("t-1", "Pronto, guardei.")));
@@ -309,7 +329,15 @@ describe("Chat", () => {
             { type: "text", text: "Até 60 dias após o vencimento [1]. Depois vira apólice nova [2]." },
             ...[
               { marker: 1, kind: "page", node_id: "page-1", path: "Bradesco/Residencial/Renovação e prazos", anchor: "prazos", page: null },
-              { marker: 2, kind: "file", node_id: "file-1", path: "Bradesco/Residencial/Condições Gerais 2026.pdf", anchor: null, page: 88 },
+              {
+                marker: 2,
+                kind: "file",
+                node_id: "file-1",
+                path: "Bradesco/Residencial/Condições Gerais 2026.pdf",
+                anchor: null,
+                page: 88,
+                highlight: [72, 100, 300, 140],
+              },
             ].map((citation) => ({
               type: "source-document",
               sourceId: `[${citation.marker}]`,
@@ -328,7 +356,7 @@ describe("Chat", () => {
     const sources = within(reply).getByRole("list", { name: "Fontes" });
     expect(within(sources).getByRole("link", { name: /Renovação e prazos/ })).toHaveAttribute("href", "/kbs/kb-1/n/page-1#prazos");
     const pdf = within(sources).getByRole("link", { name: /Condições Gerais 2026/ });
-    expect(pdf).toHaveAttribute("href", "/kbs/kb-1/n/file-1?p=88");
+    expect(pdf).toHaveAttribute("href", "/kbs/kb-1/n/file-1?p=88&hl=72,100,300,140");
     expect(pdf).toHaveTextContent("p. 88");
     expect(screen.queryByText("Isso não veio da base.")).not.toBeInTheDocument();
   });

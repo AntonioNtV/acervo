@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
@@ -23,6 +23,7 @@ import { PageMenu } from "./PageMenu";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
+const HIGHLIGHT_MS = 1500;
 
 type Page = NonNullable<NodeDetail["page"]>;
 
@@ -85,6 +86,17 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const errorText = useTreeErrorText();
   const [pageQuery, setPageQuery] = useState<string | null>(null);
   const { searched, found } = useDebouncedSearch(kbId, pageQuery ?? "");
+  const { hash } = useLocation();
+
+  // A citation's `#anchor`: its heading scrolls into view and is marked for a moment.
+  useEffect(() => {
+    const heading = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+    if (!heading) return;
+    heading.scrollIntoView?.({ block: "start" });
+    heading.classList.add("bg-accent-soft");
+    const timer = setTimeout(() => heading.classList.remove("bg-accent-soft"), HIGHLIGHT_MS);
+    return () => clearTimeout(timer);
+  }, [hash, autosave.opened.key]);
 
   const childPages = children.filter((child) => child.kind === "page");
   const href = (id: string) => `/kbs/${kbId}/n/${id}`;

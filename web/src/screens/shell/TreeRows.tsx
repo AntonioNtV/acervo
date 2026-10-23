@@ -2,9 +2,10 @@ import { createContext, useContext, useEffect, useRef, useState, type DragEvent,
 import { Link, useNavigate } from "react-router-dom";
 import type { TreeNode } from "../../api/client";
 import { useFavorite } from "../../data/favorites";
-import { useChildren, useCreateNode, useMoveNode, useNode, useRenameNode, useTrashNode } from "../../data/tree";
+import { useChildren, useCreateNode, useMoveNode, useNode, useReindexNode, useRenameNode, useTrashNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { cx } from "../../ui/cx";
+import { Dot } from "../../ui/Dot";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Input } from "../../ui/Input";
@@ -32,6 +33,7 @@ type TreeState = {
   rename: ReturnType<typeof useRenameNode>;
   trash: ReturnType<typeof useTrashNode>;
   move: ReturnType<typeof useMoveNode>;
+  reindex: ReturnType<typeof useReindexNode>;
   favorite: ReturnType<typeof useFavorite>;
   startUpload: ReturnType<typeof useStartUpload>;
 };
@@ -90,6 +92,7 @@ export function TreeRows({
   const rename = useRenameNode();
   const trash = useTrashNode();
   const move = useMoveNode();
+  const reindex = useReindexNode();
   const favorite = useFavorite();
   const startUpload = useStartUpload(kbId);
   const errorText = useTreeErrorText();
@@ -122,6 +125,7 @@ export function TreeRows({
     rename,
     trash,
     move,
+    reindex,
     favorite,
     startUpload,
   };
@@ -262,7 +266,7 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useI18n();
   const tree = useTree();
   const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, draft, setDraft, setNotice } = tree;
-  const { errorText, rename, trash, move, favorite, startUpload } = tree;
+  const { errorText, rename, trash, move, reindex, favorite, startUpload } = tree;
   const [renameError, setRenameError] = useState<string | null>(null);
   const [drop, setDrop] = useState<Zone | null>(null);
   const folder = node.kind === "folder";
@@ -362,6 +366,13 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
           <span className="size-4 shrink-0" />
         )}
         {label}
+        {(node.index_state === "building" || node.index_state === "failed") && (
+          <span title={t(`shell.index.${node.index_state}`)} className="flex shrink-0 px-1">
+            <Dot tone={node.index_state === "failed" ? "err" : "run"}>
+              <span className="sr-only">{t(`shell.index.${node.index_state}`)}</span>
+            </Dot>
+          </span>
+        )}
         <Menu
           trigger={
             <IconButton
@@ -384,6 +395,11 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
               }
             >
               {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
+            </MenuItem>
+          )}
+          {node.index_state === "failed" && (
+            <MenuItem onSelect={() => reindex.mutate(node.id, { onError: (e) => setNotice(errorText(e)) })}>
+              {t("shell.index.retry")}
             </MenuItem>
           )}
           <MenuSeparator />

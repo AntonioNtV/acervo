@@ -13,6 +13,7 @@ export type Conversation = Schemas["ConversationRead"];
 export type Message = Schemas["MessageRead"];
 export type Citation = Schemas["Citation"];
 export type Attachment = Schemas["Attachment"];
+export type Activity = Schemas["UiActivity"];
 
 /** What the thread knows of a message besides its parts: a person's context, a reply's state. */
 export type MessageMetadata = {
@@ -21,7 +22,7 @@ export type MessageMetadata = {
   selection?: string | null;
   attachments?: Pick<Attachment, "name" | "size">[];
 };
-export type ChatMessage = UIMessage<MessageMetadata, { proposal: Proposal | ProposalSummary }>;
+export type ChatMessage = UIMessage<MessageMetadata, { proposal: Proposal | ProposalSummary; activity: Activity }>;
 export type ChatPart = ChatMessage["parts"][number];
 
 // After a stream drops, so a restarting API is not asked in a loop.
@@ -157,6 +158,7 @@ export function useAcervoChat({
   posted.current = onPosted;
   const [sendError, setSendError] = useState<unknown>(null);
   const [dropped, setDropped] = useState(false);
+  const [activity, setActivity] = useState<Activity | null>(null);
 
   const transport = useMemo<ChatTransport<ChatMessage>>(
     () => ({
@@ -200,9 +202,11 @@ export function useAcervoChat({
     resume: working !== null,
     onData: (part) => {
       if (part.type === "data-proposal" && "payload" in part.data) void settleProposal(queryClient, part.data);
+      if (part.type === "data-activity") setActivity(part.data);
     },
     // A dropped connection is not a failed reply: its job runs on, so its stream is read again from the start.
     onFinish: ({ message, isDisconnect }) => {
+      setActivity(null);
       if (!isDisconnect) return;
       setDropped(true);
       reconnect.current(message.id);
@@ -262,7 +266,16 @@ export function useAcervoChat({
 
   // A reply failed when its stream said so, not when the message never got posted or the connection dropped.
   const failed = chat.status === "error" && sendError === null && !dropped;
-  return { messages: chat.messages, status: chat.status, failed, sendError, send, follow };
+  // The SDK keeps a transient part out of the message; the reply working shows the latest one as its last part.
+  const last = chat.messages.at(-1);
+  const messages = useMemo(
+    () =>
+      activity && last?.role === "assistant" && chat.status === "streaming"
+        ? [...chat.messages.slice(0, -1), { ...last, parts: [...last.parts, { type: "data-activity" as const, data: activity }] }]
+        : chat.messages,
+    [activity, last, chat.messages, chat.status],
+  );
+  return { messages, status: chat.status, failed, sendError, send, follow };
 }
 
 /** "Tentar de novo": a new reply running the message again. */

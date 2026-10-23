@@ -15,6 +15,13 @@ const CSS_UNITS = 96 / 72;
 const MAX_CANVAS_PIXELS = 2 ** 24;
 
 type Ask = { submit: (password: string) => void; incorrect: boolean };
+type Box = { left: number; top: number; width: number; height: number };
+
+/** `?hl=x0,y0,x1,y1`: a cited block's box in PDF points, from the page's top left (as the index reads it). */
+function boxOf(hl: string | null): number[] | null {
+  const box = hl?.split(",").map(Number);
+  return box?.length === 4 && box.every(Number.isFinite) ? box : null;
+}
 
 function Chevron({ d }: { d: string }) {
   return (
@@ -32,12 +39,14 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
   const [ask, setAsk] = useState<Ask | null>(null);
   const [asking, setAsking] = useState(false);
   const [zoom, setZoom] = useState(2);
+  const [mark, setMark] = useState<Box | null>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
 
   const sha = node.file?.sha256;
   const total = doc?.numPages ?? node.file?.pages ?? 1;
   const page = Math.min(Math.max(Math.trunc(Number(params.get("p"))) || 1, 1), total);
   const scale = ZOOMS[zoom] ?? 1;
+  const hl = params.get("hl");
 
   useEffect(() => {
     let live = true;
@@ -64,6 +73,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
     if (!doc) return;
     let live = true;
     let cancel = () => {};
+    setMark(null);
     void doc.getPage(page).then((pdfPage) => {
       const target = canvas.current;
       if (!live || !target) return;
@@ -73,6 +83,15 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
       target.width = Math.floor(viewport.width);
       target.height = Math.floor(viewport.height);
       target.style.width = `${Math.floor(viewport.width / ratio)}px`;
+      const box = boxOf(hl);
+      if (box) {
+        const [x0 = 0, y0 = 0, x1 = 0, y1 = 0] = box;
+        // pdf.js wants user space (origin at the bottom left of the crop box); it then applies zoom and rotation.
+        const [left = 0, , , top = 0] = pdfPage.view;
+        const [a = 0, b = 0] = css.convertToViewportPoint(left + x0, top - y0) as number[];
+        const [c = 0, d = 0] = css.convertToViewportPoint(left + x1, top - y1) as number[];
+        setMark({ left: Math.min(a, c), top: Math.min(b, d), width: Math.abs(c - a), height: Math.abs(d - b) });
+      }
       const task = pdfPage.render({ canvas: target, viewport });
       cancel = () => task.cancel();
       // A newer page or zoom cancels this render; that rejection is expected.
@@ -82,12 +101,13 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
       live = false;
       cancel();
     };
-  }, [doc, page, scale]);
+  }, [doc, page, scale, hl]);
 
   function goTo(next: number) {
     setParams(
       (current) => {
         current.set("p", String(Math.min(Math.max(next, 1), total)));
+        current.delete("hl");
         return current;
       },
       { replace: true },
@@ -149,12 +169,21 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
       </FileHeader>
       <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto px-6 py-8">
         {doc ? (
-          <canvas
-            ref={canvas}
-            role="img"
-            aria-label={t("file.page.label", { page })}
-            className="block max-w-none bg-bg shadow-[0_0_0_1px_var(--line-2)]"
-          />
+          <div className="relative">
+            <canvas
+              ref={canvas}
+              role="img"
+              aria-label={t("file.page.label", { page })}
+              className="block max-w-none bg-bg shadow-[0_0_0_1px_var(--line-2)]"
+            />
+            {mark && (
+              <mark
+                aria-hidden="true"
+                style={mark}
+                className="pointer-events-none absolute rounded-[2px] bg-warn/25 mix-blend-multiply"
+              />
+            )}
+          </div>
         ) : failed ? (
           <p className="m-0 text-err">{t("file.error.pdf")}</p>
         ) : ask && !asking ? (

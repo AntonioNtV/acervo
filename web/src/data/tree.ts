@@ -133,6 +133,15 @@ export function useExportNode() {
   });
 }
 
+/** "Tentar de novo" on a failed index: it builds again in the background. */
+export function useReindexNode() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (nodeId: string) => call(api.POST("/v1/nodes/{node_id}/index", { params: { path: { node_id: nodeId } } })),
+    onSuccess: () => refreshTree(queryClient),
+  });
+}
+
 export function useRestoreNode() {
   const queryClient = useQueryClient();
   return useMutation({

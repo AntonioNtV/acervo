@@ -2,7 +2,8 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { Editor } from "@tiptap/core";
-import { calls, resetApi, respond } from "../../api/testing";
+import { calls, renderInBase, resetApi, respond } from "../../api/testing";
+import { NodeView } from "../../app/NodeView";
 import { pageNode, renderPage, typeInPage } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
@@ -462,5 +463,17 @@ describe("PageScreen", () => {
     await user.click(within(screen.getByRole("dialog", { name: "Escolher ícone" })).getByRole("button", { name: "Remover" }));
 
     await waitFor(() => expect(nodePatches().map((call) => call.body)).toEqual([{ cover: null }, { icon: null }]));
+  });
+
+  it("a citation's anchor scrolls to its heading, named as the server names the section", async () => {
+    respond("GET", "/v1/nodes/page-1", { body: pageNode({ markdown: "## Documentos\n\n## Emissão de apólice\n" }) });
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    renderInBase(<NodeView />, "/kbs/kb-1/n/page-1#emissao-de-apolice");
+
+    await waitFor(() => expect(scrolled).toHaveBeenCalledOnce());
+    const heading = scrolled.mock.contexts[0] as HTMLElement;
+    expect(heading).toHaveTextContent("Emissão de apólice");
+    expect(heading).toHaveAttribute("id", "emissao-de-apolice");
   });
 });

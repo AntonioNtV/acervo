@@ -42,3 +42,14 @@ export function Steps({ parts }: { parts: ChatPart[] }) {
     </ol>
   );
 }
+
+/** Where a reply's search is now: one line in place of the steps while it works. */
+export function ActivityLine({ label }: { label: string }) {
+  return (
+    <span role="status" className="truncate text-12 leading-[22px]">
+      <Dot tone="ai">
+        <span className="text-text-2">{label}</span>
+      </Dot>
+    </span>
+  );
+}

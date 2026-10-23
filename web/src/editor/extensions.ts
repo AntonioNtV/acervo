@@ -1,4 +1,6 @@
-import { InputRule, Node, type AnyExtension, type JSONContent, type MarkdownToken } from "@tiptap/core";
+import { Extension, InputRule, Node, type AnyExtension, type JSONContent, type MarkdownToken } from "@tiptap/core";
+import { Plugin } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
 import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
@@ -287,8 +289,42 @@ const BoundedTable = Table.extend({
   },
 });
 
+/** `Emissão de apólice` → `emissao-de-apolice`, as the server's `slug` (domain/sections.py). */
+const slug = (heading: string) =>
+  heading
+    .normalize("NFKD")
+    .replace(/[\u0080-￿]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+/** Each `##` of the page gets the anchor the server gives its section, as its id, so `#anchor` reaches it. */
+export const HeadingAnchors = Extension.create({
+  name: "headingAnchors",
+  addProseMirrorPlugins: () => [
+    new Plugin({
+      props: {
+        decorations: ({ doc }) => {
+          const taken = new Set<string>();
+          const found: Decoration[] = [];
+          doc.forEach((node, pos) => {
+            if (node.type.name !== "heading" || node.attrs.level !== 2) return;
+            const base = slug(node.textContent) || "secao";
+            let anchor = base;
+            for (let count = 2; taken.has(anchor); count++) anchor = `${base}-${count}`;
+            taken.add(anchor);
+            found.push(Decoration.node(pos, pos + node.nodeSize, { id: anchor }));
+          });
+          return DecorationSet.create(doc, found);
+        },
+      },
+    }),
+  ],
+});
+
 /** The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. */
 export const blockExtensions: AnyExtension[] = [
+  HeadingAnchors,
   TextParagraph,
   StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
   BoundedTaskList,
