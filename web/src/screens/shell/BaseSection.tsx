@@ -84,6 +84,7 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
             <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
             <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
             <MenuItem onSelect={() => startDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+            <MenuItem onSelect={() => navigate(`/kbs/${kb.id}/agents`)}>{t("agents.title")}</MenuItem>
             <MenuSeparator />
             <MenuItem
               onSelect={() =>
