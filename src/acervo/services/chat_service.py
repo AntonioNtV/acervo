@@ -1,14 +1,16 @@
 import asyncio
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from pydantic_ai import ToolReturn
+from pydantic_ai import ModelRetry, ToolReturn
 
-from acervo.core.errors import NotFoundError, ValidationError
+from acervo.core.errors import AcervoError, NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
 from acervo.model_clients.chat_agent import (
@@ -142,6 +144,16 @@ async def fail_interrupted(uow: UnitOfWork, timeout_seconds: int) -> None:
     job again (`max_tries` 1): it is failed, so it never stays working."""
     await uow.messages.fail_working(datetime.now(UTC) - timedelta(seconds=timeout_seconds), INTERRUPTED)
     await uow.commit()
+
+
+@contextmanager
+def _retried() -> Iterator[None]:
+    """A read that fails on what the model asked (a page out of range, a node gone) is told to the model to try
+    again, instead of failing the run."""
+    try:
+        yield
+    except AcervoError as exc:
+        raise ModelRetry(exc.message) from exc
 
 
 def _join(parent: str, name: str) -> str:
@@ -333,8 +345,8 @@ class ChatService:
             Args:
                 node_id: A folder or page; omitted for the base's root.
             """
-            folder = await base.list_folder(node_id)
-            return folder
+            with _retried():
+                return await base.list_folder(node_id)
 
         async def read_page(node_id: UUID, section: str | None = None) -> CitedPage:
             """A page's Markdown as the person last typed it, whole or one `##` section.
@@ -343,7 +355,8 @@ class ChatService:
                 node_id: The page.
                 section: A section's anchor or heading; omitted for the whole page.
             """
-            page = await base.read_page(node_id, section)
+            with _retried():
+                page = await base.read_page(node_id, section)
             cite = run.cite(page.node_id, "page", page.path, page.section, None)
             return CitedPage(**page.model_dump(), cite=cite)
 
@@ -355,7 +368,8 @@ class ChatService:
                 first: The first page, counted from 1.
                 last: The last page; a few pages after `first` at most.
             """
-            read = await base.read_pdf_pages(node_id, first, last)
+            with _retried():
+                read = await base.read_pdf_pages(node_id, first, last)
             pages = [
                 CitedPdfPage(cite=run.cite(read.node_id, "file", read.path, None, number), page=number, text=text)
                 for number, text in enumerate(read.pages, read.first)
