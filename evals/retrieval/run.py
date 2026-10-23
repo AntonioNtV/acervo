@@ -44,6 +44,7 @@ from acervo.services.chat_service import ChatService
 from acervo.services.conversation_service import ConversationService
 from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
 from acervo.services.file_service import FileService
+from acervo.services.index_service import IndexService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -189,6 +190,10 @@ async def run(
     results: list[Result] = []
     async with UnitOfWork(session_factory) as uow:
         kb_id = await _seed(uow, storage, base)
+        # The worker builds each index after an upload or a page version; here every one is built before the first
+        # question.
+        for node_id, key in await uow.indexes.pending():
+            await IndexService(uow, storage, storage.settings.retrieval_limits).build(node_id, key)
         conversations = ConversationService(uow, storage, jobs, bus)
         service = ChatService(uow, storage, decider, writer, thresholds, bus, jobs, chat)
         threads: dict[str, uuid.UUID] = {}

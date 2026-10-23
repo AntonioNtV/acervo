@@ -13,18 +13,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core.errors import ConflictError
-from acervo.core.settings import Settings, Thresholds
+from acervo.core.settings import RetrievalLimits, Settings, Thresholds
 from acervo.db.models import Node, PageVersion
+from acervo.domain.decisions import Choice, Question
 from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.fakes import FakeDecider, FakeProbs, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate, AgentUpdate
-from acervo.schemas.conversation import Citation, ConversationStart, MessageRead
+from acervo.schemas.conversation import ConversationStart, MessageRead
+from acervo.schemas.node import NodeRead
 from acervo.schemas.proposal import ProposalRead
 from acervo.services.chat_service import INTERRUPTED, ChatService
 from acervo.services.conversation_service import ConversationService, Upload
 from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
 from acervo.services.file_service import FileService
+from acervo.services.index_service import IndexService
 from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 
@@ -171,25 +174,60 @@ async def test_a_greeting_gets_text_and_no_tool_call(env: Env) -> None:
     assert await env.proposals(reply) == []
 
 
-async def test_a_question_reads_the_base_and_cites_it(env: Env) -> None:
-    page_id = env.tree[PAGE].id
+def _jev(state: str, question: Question) -> FakeProbs:
+    """Every route kept alike; only the passage of page 2 answers."""
+    if isinstance(question, Choice):
+        return [*[1.0 / (len(question.options) - 1)] * (len(question.options) - 1), 0.0]
+    return 3.0 if "página 2" in question.question else 0.0
+
+
+async def _indexed_pdf(env: Env, storage: Settings) -> NodeRead:
+    """`simple.pdf` saved at the root, its index built as the worker does."""
+    bucket = Storage(storage)
+    with SIMPLE.open("rb") as source:
+        pdf = await FileService(env.uow, bucket).save(env.tree.kb.id, None, "CG 2026.pdf", source)
+    for node_id, key in await env.uow.indexes.pending():
+        await IndexService(env.uow, bucket, RetrievalLimits()).build(node_id, key)
+    env.decider.answer = _jev
+    return pdf
+
+
+async def test_a_question_searches_the_base_and_cites_the_pdf_page_and_block(env: Env, storage: Settings) -> None:
+    pdf = await _indexed_pdf(env, storage)
 
     reply = await env.send(
-        "qual o prazo de emissão do residencial?",
-        [("list_folder", {})],
-        [("read_page", {"node_id": str(page_id), "section": "prazos"})],
-        "A apólice sai em cinco dias [1].",
+        "o que diz a página 2 das condições gerais?",
+        [("buscar", {"pergunta": "O que diz a página 2 das Condições Gerais 2026?"})],
+        "Diz que é a página 2 [1].",
     )
 
-    assert env.script.returned("read_page").cite == "[1]"
-    assert env.steps() == ["list_folder", "read_page"]
-    assert reply.citations == [
-        Citation(
-            marker=1, node_id=page_id, kind="page", path="Bradesco/Residencial/Emissão de apólice", anchor="prazos"
-        )
-    ]
-    assert reply.grounded and reply.text == "A apólice sai em cinco dias [1]."
-    assert await env.proposals(reply) == []
+    [found] = env.script.returned("buscar").evidence
+    assert (found.cite, found.node_id, found.page) == ("[1]", pdf.id, 2)
+    assert env.steps() == ["buscar"]
+    [citation] = reply.citations
+    assert (citation.node_id, citation.kind, citation.path, citation.page) == (pdf.id, "file", "CG 2026.pdf", 2)
+    assert citation.block_id is not None and citation.highlight is not None
+    assert reply.grounded and reply.status == "done"
+    assert reply.run_id is not None
+    logged = {d.step for d in await env.uow.decisions.of_run(reply.run_id)}
+    assert "evidence" in logged
+
+
+async def test_the_activity_line_follows_the_search_before_its_result(env: Env, storage: Settings) -> None:
+    await _indexed_pdf(env, storage)
+
+    reply = await env.send(
+        "o que diz a página 2?", [("buscar", {"pergunta": "O que diz a página 2 das Condições Gerais 2026?"})], "Ok."
+    )
+
+    chunks = env.chunks(reply)
+    types = [chunk["type"] for chunk in chunks]
+    activity = [chunk for chunk in chunks if chunk["type"] == "data-activity"]
+    assert activity and all(chunk["transient"] for chunk in activity)
+    assert types.index("tool-input-available") < types.index("data-activity")
+    assert max(i for i, type in enumerate(types) if type == "data-activity") < types.index("tool-output-available")
+    labels = [chunk["data"]["label"] for chunk in activity]
+    assert "Procurando em Bradesco" in labels and "Lendo Página 2, p. 2" in labels
 
 
 async def test_a_read_out_of_range_is_told_to_the_model_which_tries_again(env: Env, storage: Settings) -> None:
@@ -198,8 +236,8 @@ async def test_a_read_out_of_range_is_told_to_the_model_which_tries_again(env: E
 
     reply = await env.send(
         "o que diz a página 10?",
-        [("read_pdf_pages", {"node_id": str(pdf.id), "first": 10, "last": 10})],
-        [("read_pdf_pages", {"node_id": str(pdf.id), "first": 3, "last": 3})],
+        [("abrir", {"ref": str(pdf.id), "first": 10})],
+        [("abrir", {"ref": str(pdf.id), "first": 3})],
         "O PDF tem 3 páginas; a última diz isto [1].",
     )
 
@@ -386,7 +424,7 @@ async def test_a_run_streams_text_tools_proposals_sources_and_finish(env: Env) -
 
     reply = await env.send(
         FACT,
-        [("read_page", {"node_id": str(page_id), "section": "prazos"})],
+        [("abrir", {"ref": str(page_id), "section": "prazos"})],
         [("file_fact", {"text": FACT})],
         "Hoje são cinco dias [1]; propus o acréscimo.",
     )
@@ -396,7 +434,7 @@ async def test_a_run_streams_text_tools_proposals_sources_and_finish(env: Env) -
     assert chunks[0] == {"type": "start", "messageId": str(reply.id)}
     assert types[-3:] == ["finish-step", "finish", DONE]
     called = [chunk["toolName"] for chunk in chunks if chunk["type"] == "tool-input-available"]
-    assert called == ["read_page", "file_fact"]
+    assert called == ["abrir", "file_fact"]
     [read, filed] = [chunk["output"] for chunk in chunks if chunk["type"] == "tool-output-available"]
     assert (read["cite"], filed["outcome"]) == ("[1]", "proposed")
     [proposal] = await env.proposals(reply)

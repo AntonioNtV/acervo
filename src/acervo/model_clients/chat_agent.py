@@ -9,6 +9,7 @@ from pydantic_ai import Agent, ToolReturn
 from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
 from pydantic_ai.models import Model
 from pydantic_ai.run import AgentRunResult
+from pydantic_ai.tools import RunContext, ToolDefinition
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.ui import NativeEvent
 from pydantic_ai.ui.vercel_ai import VercelAIEventStream
@@ -24,8 +25,10 @@ from pydantic_ai.ui.vercel_ai.response_types import (
     TextEndChunk,
     TextStartChunk,
 )
+from pydantic_ai.usage import UsageLimits
 
 from acervo.core.ids import uuid7
+from acervo.core.settings import RetrievalLimits
 from acervo.model_clients.llm_writer import prompt
 
 # An earlier message of the conversation: who said it, and what.
@@ -85,20 +88,39 @@ class ChatAgent:
         )
 
     async def stream(
-        self, message: str, history: Sequence[Turn], tools: Sequence[Tool], *, message_id: str, finish: Finish
+        self,
+        message: str,
+        history: Sequence[Turn],
+        reads: Sequence[Tool],
+        writes: Sequence[Tool],
+        *,
+        limits: RetrievalLimits,
+        message_id: str,
+        finish: Finish,
     ) -> AsyncIterator[Chunk]:
         """The reply to `message` as UI message stream chunks, from `start` to `[DONE]`. `finish` gets all the text
         the model wrote in the run, also before and between tool calls, so what streamed is what is kept. A run that
-        fails raises what failed it, after the chunks that close what was open; the caller ends the stream."""
+        fails raises what failed it, after the chunks that close what was open; the caller ends the stream.
+        `reads` run in parallel when the model calls several at once; each of `writes` runs alone. The run takes at
+        most `limits.llm_steps` requests, the last ones without tools, so it ends with an answer."""
         failure: list[Exception] = []
+
+        def until_tool_steps(ctx: RunContext[Any], tools: list[ToolDefinition]) -> list[ToolDefinition]:
+            return tools if ctx.run_step <= limits.llm_tool_steps else []
+
+        toolsets = [
+            FunctionToolset(list(reads)).prepared(until_tool_steps),
+            # Alone: the writes share the caller's database session.
+            FunctionToolset(list(writes), sequential=True).prepared(until_tool_steps),
+        ]
 
         async def events() -> AsyncIterator[NativeEvent]:
             try:
                 async with self._agent.run_stream_events(
                     message,
                     message_history=_history(history),
-                    # One at a time: the tools share the caller's database session.
-                    toolsets=[FunctionToolset(list(tools), sequential=True)],
+                    toolsets=toolsets,
+                    usage_limits=UsageLimits(request_limit=limits.llm_steps),
                 ) as run:
                     async for event in run:
                         yield event

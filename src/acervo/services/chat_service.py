@@ -8,11 +8,12 @@ from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from pydantic_ai import ModelRetry, ToolReturn
+from pydantic_ai import BinaryContent, ModelRetry, ToolReturn
 
 from acervo.core.errors import AcervoError, NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
+from acervo.domain.index import SearchStep
 from acervo.model_clients.chat_agent import (
     ChatAgent,
     Chunk,
@@ -33,6 +34,8 @@ from acervo.schemas.conversation import (
     ConversationRead,
     MessageRead,
     MessageUpdate,
+    UiActivity,
+    UiActivityPart,
     UiMetadata,
     UiProposalPart,
     UiSourcePart,
@@ -51,7 +54,7 @@ from acervo.schemas.proposal import (
     SavePdfPayload,
     UndoPayload,
 )
-from acervo.services.agent_tools import AgentTools, Folder, PageContent
+from acervo.services.agent_tools import AgentTools, Fetched, Folder
 from acervo.services.events import EventBus, JobQueue
 from acervo.services.filing_service import Filing, FilingService, Origin
 from acervo.services.proposal_service import OPEN, ProposalService
@@ -75,21 +78,43 @@ KIND: dict[str, str] = {
 logger = logging.getLogger(__name__)
 
 
-class CitedPage(PageContent):
-    cite: str = Field(description="The marker to write after each claim taken from this page.")
+class Found(BaseModel):
+    """A passage the search kept, best first."""
 
-
-class CitedPdfPage(BaseModel):
-    cite: str = Field(description="The marker to write after each claim taken from this page of the PDF.")
-    page: int = Field(description="The page, counted from 1.")
+    cite: str = Field(description="The marker to write after each claim taken from this passage.")
+    ref: str = Field(description="Opens the passage's section with `abrir`.")
+    node_id: UUID = Field(description="The page or the PDF.")
+    path: str = Field(description="Its path, joined by /.")
+    section: str = Field(description="The section's title.")
+    page: int | None = Field(description="The PDF's first page of the passage; null for a page.")
+    end_page: int | None = Field(description="The PDF's last page of the passage; null for a page.")
     text: str
 
 
-class CitedPdf(BaseModel):
+class Results(BaseModel):
+    evidence: list[Found] = Field(description="Empty when nothing in the base answers the question.")
+    looked_in: list[str] = Field(description="The folders and documents the search reached, to say where it looked.")
+
+
+class Opened(Fetched):
+    cite: str | None = Field(
+        default=None, description="The marker for claims taken from a section's `text`; null for the outline."
+    )
+    page_cites: dict[int, str] = Field(
+        default={}, description="For pages of a PDF: each page's marker, for claims taken from that page."
+    )
+
+
+class CitedImage(BaseModel):
+    cite: str = Field(description="The marker to write after each claim taken from this page's image.")
+    page: int = Field(description="The page, counted from 1; its image follows the result.")
+
+
+class CitedImages(BaseModel):
     node_id: UUID
     path: str
     page_count: int = Field(description="How many pages the PDF has.")
-    pages: list[CitedPdfPage]
+    pages: list[CitedImage]
 
 
 class Proposed(BaseModel):
@@ -124,16 +149,28 @@ class _Run:
         return Origin(self.agent, self.run_id, self.conversation.id, self.reply.id)
 
     def cite(
-        self, node_id: UUID, kind: Literal["page", "file"], path: str, anchor: str | None, page: int | None
+        self,
+        node_id: UUID,
+        kind: Literal["page", "file"],
+        path: str,
+        anchor: str | None,
+        page: int | None,
+        block_id: str | None = None,
+        highlight: tuple[float, float, float, float] | None = None,
     ) -> str:
-        """The marker of a source, the same one each time it is read again."""
-        same = next(
-            (s for s in self.sources if (s.node_id, s.anchor, s.page) == (node_id, anchor, page)),
-            None,
-        )
+        """The marker of a source, the same one each time it is read or found again."""
+        key = (node_id, anchor, page, block_id)
+        same = next((s for s in self.sources if (s.node_id, s.anchor, s.page, s.block_id) == key), None)
         if same is None:
             same = Citation(
-                marker=len(self.sources) + 1, node_id=node_id, kind=kind, path=path, anchor=anchor, page=page
+                marker=len(self.sources) + 1,
+                node_id=node_id,
+                kind=kind,
+                path=path,
+                anchor=anchor,
+                page=page,
+                block_id=block_id,
+                highlight=list(highlight) if highlight else None,
             )
             self.sources.append(same)
         return f"[{same.marker}]"
@@ -154,6 +191,15 @@ def _retried() -> Iterator[None]:
         yield
     except AcervoError as exc:
         raise ModelRetry(exc.message) from exc
+
+
+def _activity(step: SearchStep) -> Chunk:
+    """The reply's activity line while the search is at `step`."""
+    if step.stage == "folder":
+        label = f"Procurando em {step.label}"
+    else:
+        label = f"Lendo {step.label}" + (f", p. {step.page}" if step.page else "")
+    return UiActivityPart(data=UiActivity(label=label, stage=step.stage)).model_dump_json()
 
 
 def _join(parent: str, name: str) -> str:
@@ -209,6 +255,7 @@ class ChatService:
         self._jobs = jobs
         self._chat = chat
         self._history = history
+        self._decider = decider
         self._proposals = ProposalService(uow, storage)
         self._filing = FilingService(uow, storage, decider, writer, thresholds)
 
@@ -264,7 +311,11 @@ class ChatService:
             return chunks
 
         prompt, turns = await self._prompt(run), await self._turns(run)
-        stream = self._chat.stream(prompt, turns, self._tools(run), message_id=str(run.reply.id), finish=finish)
+        reads, writes = self._tools(run)
+        limits = self._storage.settings.retrieval_limits
+        stream = self._chat.stream(
+            prompt, turns, reads, writes, limits=limits, message_id=str(run.reply.id), finish=finish
+        )
         run.streamed = True  # its first chunk is `start`
         async for chunk in stream:
             await self._publish(run, chunk)
@@ -322,46 +373,103 @@ class ChatService:
         before = thread[: next(i for i, sent in enumerate(thread) if sent.id == run.message.id)]
         return [(sent.role, sent.text) for sent in before if sent.status == "done" and sent.text][-self._history :]
 
-    def _tools(self, run: _Run) -> list[Tool]:
-        """The base's tools, bound to the run: the reads MCP agents use, and writes that make proposals."""
+    def _tools(self, run: _Run) -> tuple[list[Tool], list[Tool]]:
+        """The base's tools, bound to the run: reads, each on a unit of work of its own so they run in parallel, and
+        writes that make proposals, one at a time on the run's."""
         base = AgentTools(self._uow, self._storage, self._jobs, self._events, run.agent)
 
-        async def list_folder(node_id: UUID | None = None) -> Folder:
-            """What is right under a folder or page: each child's id, kind, title and description.
+        def reader(uow: UnitOfWork) -> AgentTools:
+            return AgentTools(uow, self._storage, self._jobs, self._events, run.agent)
+
+        async def buscar(pergunta: str) -> Results:
+            """Searches the base for the passages that answer a question, each with its marker.
 
             Args:
-                node_id: A folder or page; omitted for the base's root.
+                pergunta: The question, standing on its own: with the subject the conversation gives it.
             """
-            with _retried():
-                return await base.list_folder(node_id)
 
-        async def read_page(node_id: UUID, section: str | None = None) -> CitedPage:
-            """A page's Markdown as the person last typed it, whole or one `##` section.
+            async def step(at: SearchStep) -> None:
+                await self._publish(run, _activity(at))
+
+            # Not retried: a decider that fails fails the reply visibly; there is no other way of searching.
+            async with self._uow.another() as uow:
+                searched = await reader(uow).search(
+                    pergunta, self._decider, run_id=run.run_id, message_id=run.reply.id, on_step=step
+                )
+            evidence = [
+                Found(
+                    cite=run.cite(c.node_id, c.kind, "/".join(c.path), c.anchor, c.page, c.block_id, c.highlight),
+                    ref=c.ref,
+                    node_id=c.node_id,
+                    path="/".join(c.path),
+                    section=c.section_title,
+                    page=c.page,
+                    end_page=c.end_page,
+                    text=c.text,
+                )
+                for c in searched.evidence
+            ]
+            return Results(evidence=evidence, looked_in=searched.looked_in)
+
+        async def abrir(
+            ref: str, section: str | None = None, first: int | None = None, last: int | None = None, offset: int = 0
+        ) -> Opened:
+            """Opens a page or a PDF where the search pointed: its outline, one section's text, or up to 5 pages of
+            a PDF's text.
 
             Args:
-                node_id: The page.
-                section: A section's anchor or heading; omitted for the whole page.
+                ref: A page's or a PDF's node_id, or an evidence's ref, which opens its section.
+                section: A section's id from the outline; omitted for the outline.
+                first: The first page of a PDF to read, counted from 1.
+                last: The last page to read; at most 4 after `first`.
+                offset: Where the outline goes on from, when it said `remaining`.
             """
-            with _retried():
-                page = await base.read_page(node_id, section)
-            cite = run.cite(page.node_id, "page", page.path, page.section, None)
-            return CitedPage(**page.model_dump(), cite=cite)
+            async with self._uow.another() as uow:
+                with _retried():
+                    fetched = await reader(uow).fetch(ref, section, first, last, offset)
+            opened = Opened(**fetched.model_dump())
+            if fetched.kind == "page" and fetched.text:
+                opened.cite = run.cite(fetched.node_id, "page", fetched.path, fetched.section, None)
+            elif fetched.section is not None:
+                opened.cite = run.cite(fetched.node_id, "file", fetched.path, None, fetched.first)
+            elif fetched.first is not None and fetched.last is not None:
+                opened.page_cites = {
+                    page: run.cite(fetched.node_id, "file", fetched.path, None, page)
+                    for page in range(fetched.first, fetched.last + 1)
+                }
+            return opened
 
-        async def read_pdf_pages(node_id: UUID, first: int, last: int) -> CitedPdf:
-            """The text of a few pages of a PDF of the base, never all of it.
+        async def ver_paginas(node_id: UUID, first: int, last: int | None = None) -> ToolReturn:
+            """Up to 2 pages of a PDF as images, for what their text does not show: charts, tables, scans.
 
             Args:
                 node_id: The PDF.
                 first: The first page, counted from 1.
-                last: The last page; a few pages after `first` at most.
+                last: The last page; at most 1 after `first`.
             """
-            with _retried():
-                read = await base.read_pdf_pages(node_id, first, last)
+            async with self._uow.another() as uow:
+                with _retried():
+                    viewed = await reader(uow).view_pages(node_id, first, last)
             pages = [
-                CitedPdfPage(cite=run.cite(read.node_id, "file", read.path, None, number), page=number, text=text)
-                for number, text in enumerate(read.pages, read.first)
+                CitedImage(cite=run.cite(viewed.node_id, "file", viewed.path, None, number), page=number)
+                for number in range(viewed.first, viewed.last + 1)
             ]
-            return CitedPdf(node_id=read.node_id, path=read.path, page_count=read.page_count, pages=pages)
+            return ToolReturn(
+                return_value=CitedImages(
+                    node_id=viewed.node_id, path=viewed.path, page_count=viewed.page_count, pages=pages
+                ),
+                content=[BinaryContent(data=image, media_type="image/png") for image in viewed.images],
+            )
+
+        async def list_folder(node_id: UUID | None = None) -> Folder:
+            """What is right under a folder or page, to find what to move or rename; never to answer a question.
+
+            Args:
+                node_id: A folder or page; omitted for the base's root.
+            """
+            async with self._uow.another() as uow:
+                with _retried():
+                    return await reader(uow).list_folder(node_id)
 
         async def file_fact(text: str) -> ToolReturn:
             """Files a fact the person brought: where it goes, whether it is already written or contradicts a page
@@ -411,7 +519,7 @@ class ChatService:
                 return with_data(Proposed(outcome="nothing_to_undo"))
             return await self._propose(run, await self._proposals.undo_payload(last))
 
-        return [list_folder, read_page, read_pdf_pages, file_fact, file_attachment, move, rename, undo_last]
+        return [buscar, abrir, ver_paginas, list_folder], [file_fact, file_attachment, move, rename, undo_last]
 
     async def _propose(self, run: _Run, payload: ProposalPayload) -> ToolReturn:
         proposal = await self._proposals.add(

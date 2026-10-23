@@ -40,6 +40,10 @@ class UnitOfWork:
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
+    def another(self) -> "UnitOfWork":
+        """A unit of work of its own on the same database, for work that runs alongside this one."""
+        return UnitOfWork(self._session_factory)
+
     async def __aenter__(self) -> Self:
         self._session = self._session_factory()
         self.kbs = KbRepository(self._session)
