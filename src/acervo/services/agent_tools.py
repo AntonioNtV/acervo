@@ -196,11 +196,14 @@ class AgentTools:
 
     async def save_file(self, name: str, content_base64: str) -> Filed:
         """A PDF, filed as one dropped in the chat is."""
+        mime = mimetypes.guess_type(name)[0]
+        if mime != "application/pdf":
+            raise ValidationError("só um PDF pode ser enviado", {"name": name})
         try:
             data = base64.b64decode(content_base64, validate=True)
         except binascii.Error as exc:
             raise ValidationError("o conteúdo não está em base64", {"name": name}) from exc
-        upload = Upload(name=name, mime=mimetypes.guess_type(name)[0], source=io.BytesIO(data))
+        upload = Upload(name=name, mime=mime, source=io.BytesIO(data))
         return await self._file("", [upload])
 
     async def edit_section(self, node_id: UUID, section: str, new_text: str) -> ProposalRead:

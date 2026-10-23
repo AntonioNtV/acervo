@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from acervo.core.errors import NotFoundError
+from acervo.core.errors import NotFoundError, ValidationError
 from acervo.core.settings import Settings
 from acervo.db.models import PageVersion
 from acervo.repositories.uow import UnitOfWork
@@ -181,6 +181,13 @@ async def test_remember_and_save_file_post_to_the_agents_conversation_and_answer
         ("handle_message", str(saved.reply_id)),
     ]
     assert (await env.tools.get_reply(filed.reply_id)).status == "working"
+
+
+async def test_save_file_refuses_anything_but_a_pdf(env: Env) -> None:
+    with pytest.raises(ValidationError):
+        await env.tools.save_file("Notas.txt", base64.b64encode(b"texto").decode())
+
+    assert await env.uow.conversations.of_agent(env.agent.id) == []
 
 
 async def test_an_auto_write_refreshes_descriptions(env: Env) -> None:
