@@ -12,10 +12,6 @@ class Writer(Protocol):
 
     async def patch(self, request: PatchRequest) -> WrittenPatch: ...
 
-    async def split_message(self, text: str) -> list[str]:
-        """The parts of a message about more than one thing, each standing on its own."""
-        ...
-
     async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
         """A description of a folder or page of at most 200 characters, from its children."""
         ...

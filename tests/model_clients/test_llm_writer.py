@@ -35,7 +35,6 @@ async def test_each_role_returns_its_validated_output() -> None:
         await writer.patch(PatchRequest(section_markdown="- Vistoria", heading="Prazos", action="append", card=CARD)),
         WrittenPatch,
     )
-    assert all(isinstance(part, str) for part in await writer.split_message("Emissão leva 3 dias; vistoria em 2"))
     assert len(await writer.describe("Bradesco", children)) <= 200
     assert isinstance(await writer.explain(answers), str)
 
@@ -50,11 +49,11 @@ async def test_an_invalid_output_is_retried_once() -> None:
 
 async def test_a_second_invalid_output_raises_with_the_raw_text() -> None:
     calls: list[int] = []
-    writer = writer_with(replies({"parts": "uma"}, {"parts": "só uma"}, calls=calls))
+    writer = writer_with(replies({"description": "x" * 201}, {"description": "y" * 201}, calls=calls))
 
     with pytest.raises(InvalidOutput) as raised:
-        await writer.split_message("Emissão leva 3 dias; vistoria em 2")
+        await writer.describe("Residencial", [])
 
     assert len(calls) == 2
-    assert raised.value.role == "split_message"
-    assert "só uma" in raised.value.raw
+    assert raised.value.role == "describe"
+    assert "y" * 201 in raised.value.raw

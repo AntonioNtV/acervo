@@ -41,7 +41,6 @@ class LlmRoles(BaseModel):
 
     card: str = "anthropic:claude-haiku-5-5"
     patch: str = "anthropic:claude-opus-5-5"
-    split_message: str = "anthropic:claude-haiku-5-5"
     describe: str = "anthropic:claude-haiku-5-5"
     explain: str = "anthropic:claude-haiku-5-5"
     # The LLM decider, until Jev's client exists: probabilities per option through structured output.

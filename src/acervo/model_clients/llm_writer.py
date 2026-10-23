@@ -65,10 +65,6 @@ def _last_raw(messages: list[ModelMessage]) -> str:
     )
 
 
-class _Parts(BaseModel):
-    parts: list[str] = Field(description="Each part of the message, standing on its own.")
-
-
 class _Description(BaseModel):
     description: str = Field(max_length=200)
 
@@ -84,7 +80,6 @@ class LlmWriter:
         self._agents = {
             "card": make_agent(models["card"], Card),
             "patch": make_agent(models["patch"], WrittenPatch),
-            "split_message": make_agent(models["split_message"], _Parts),
             "describe": make_agent(models["describe"], _Description),
             "explain": make_agent(models["explain"], _Sentence),
         }
@@ -105,10 +100,6 @@ class LlmWriter:
             card=request.card.model_dump_json(),
         )
         return patch
-
-    async def split_message(self, text: str) -> list[str]:
-        output: _Parts = await self._write("split_message", text=text)
-        return output.parts
 
     async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
         listed = "\n".join(f"- {child.title} ({child.kind}): {child.description}" for child in children)

@@ -40,7 +40,6 @@ class FakeWriter:
 
     card_output: Card = field(default_factory=lambda: Card(title="Nota", subject="Uma nota"))
     patch_output: WrittenPatch = field(default_factory=lambda: WrittenPatch(lines=["- Uma nota"]))
-    split_output: list[str] = field(default_factory=list)
     describe_output: str = "Descrição"
     explain_output: str = "Explicação"
     inputs: dict[str, list[Any]] = field(default_factory=dict)
@@ -52,10 +51,6 @@ class FakeWriter:
     async def patch(self, request: PatchRequest) -> WrittenPatch:
         self._record("patch", request)
         return self.patch_output
-
-    async def split_message(self, text: str) -> list[str]:
-        self._record("split_message", text)
-        return self.split_output
 
     async def describe(self, title: str, children: Sequence[ChildDescription]) -> str:
         self._record("describe", (title, list(children)))
