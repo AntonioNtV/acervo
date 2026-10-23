@@ -2,37 +2,32 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Literal
 from uuid import UUID
+
+from pydantic import BaseModel, Field
 
 from acervo.core.errors import AcervoError, NotFoundError, ValidationError
 from acervo.core.ids import uuid7
 from acervo.core.settings import Thresholds
-from acervo.domain.cards import (
-    ORGANIZE_KINDS,
-    ROUTES,
-    CardInput,
-    ChildDescription,
-    OrganizeKind,
-    Placement,
-    Reading,
-    Route,
-)
+from acervo.model_clients.chat_agent import ChatAgent, Tool, Turn
 from acervo.model_clients.decider import Decider
 from acervo.model_clients.writer import Writer
-from acervo.pipeline import router
-from acervo.pipeline.curator import organize, policy
-from acervo.pipeline.curator.tree import PageText, SnapshotNode, TreeSnapshot
-from acervo.pipeline.pdf import reader
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentRead, AgentUpdate
-from acervo.schemas.conversation import Attachment, ConversationRead, MessageRead, MessageUpdate
-from acervo.schemas.events import DoneEvent, ErrorEvent, MessageEvent, ProposalEvent, StepEvent, StepName
-from acervo.schemas.node import NodeUpdate
+from acervo.schemas.conversation import Citation, ConversationRead, MessageRead, MessageUpdate
+from acervo.schemas.events import (
+    DeltaEvent,
+    DoneEvent,
+    ErrorEvent,
+    MessageEvent,
+    ProposalEvent,
+    StepEvent,
+    StepName,
+)
 from acervo.schemas.proposal import (
     ConflictPayload,
     CreatePagePayload,
-    Decision,
-    DecisionLogCreate,
     MovePayload,
     PatchPayload,
     ProposalCreate,
@@ -42,35 +37,17 @@ from acervo.schemas.proposal import (
     RenamePayload,
     ReplacePdfPayload,
     SavePdfPayload,
-    StagedFile,
     UndoPayload,
 )
+from acervo.services.agent_tools import AgentTools, Folder, PageContent
 from acervo.services.events import EventBus, JobQueue
-from acervo.services.page_service import PageService
+from acervo.services.filing_service import Filing, FilingService, Origin
 from acervo.services.proposal_service import OPEN, ProposalService, enqueue_refresh
 from acervo.services.storage import Storage
-from acervo.services.tree_service import TreeService
 
-# The messages before the one handled that the understanding reads.
-HISTORY = 6
-# How many descriptions are written at once when a tree is described before filing.
-DESCRIBING = 4
-PDF = "application/pdf"
-
-ASK_FIRST: dict[Route, str] = {
-    "perguntar": "procurar a resposta",
-    "guardar": "guardar isso na base",
-    "organizar": "organizar a base",
-    "conversar": "só conversar",
-}
-ASK_KIND: dict[OrganizeKind, str] = {
-    "move": "mover um item",
-    "rename": "renomear um item",
-    "undo": "desfazer a última mudança",
-}
+# The earlier messages the chat reads, when the caller does not say (the worker passes `Settings.chat_history`).
+HISTORY = 20
 INTERRUPTED = "a mensagem foi interrompida antes de terminar"
-NOT_YET = "Responder perguntas chega na próxima fase do Acervo. Se era para guardar, é só mudar abaixo."
-CHAT = "Mande um fato, um PDF ou um pedido para mover, renomear ou desfazer, e eu proponho a mudança."
 KIND: dict[str, str] = {
     "append": "Acréscimo",
     "edit": "Edição",
@@ -86,32 +63,66 @@ KIND: dict[str, str] = {
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class _Outcome:
-    """What one part of a message produced: a line of the reply, or a proposal to store once every part ran."""
+class CitedPage(PageContent):
+    cite: str = Field(description="The marker to write after each claim taken from this page.")
 
-    line: str = ""
-    proposal: ProposalCreate | None = None
-    placed: bool = True
-    ask: tuple[Reading, ...] | None = None
+
+class CitedPdfPage(BaseModel):
+    cite: str = Field(description="The marker to write after each claim taken from this page of the PDF.")
+    page: int = Field(description="The page, counted from 1.")
+    text: str
+
+
+class CitedPdf(BaseModel):
+    node_id: UUID
+    path: str
+    page_count: int = Field(description="How many pages the PDF has.")
+    pages: list[CitedPdfPage]
+
+
+class Proposed(BaseModel):
+    """What a write tool did: a proposal the person sees in the thread, or why there is none."""
+
+    outcome: Literal["proposed", "not_sure", "already_written", "nothing_to_undo"] = Field(
+        description="proposed: waiting for the person; not_sure: no clear place, the person picks one of `options`; "
+        "already_written: nothing to add, it is at `where`."
+    )
+    kind: str | None = Field(default=None, description="The proposal's kind.")
+    where: str | None = Field(default=None, description="Where it goes or what it changes.")
+    options: list[str] = Field(default_factory=list, description="The places the person picks from.")
 
 
 @dataclass
 class _Run:
+    message: MessageRead
     reply: MessageRead
     conversation: ConversationRead
     agent: AgentRead
     run_id: UUID = field(default_factory=uuid7)
-    log: list[Decision] = field(default_factory=list)
-    # Set once the decisions are committed, so a failure after that does not log them again.
-    logged: bool = False
-    files_filed: bool = False
+    # Each proposal made, pending until the run ends, and whether it has a clear place.
+    proposed: list[tuple[ProposalRead, bool]] = field(default_factory=list)
+    sources: list[Citation] = field(default_factory=list)
+    # A write tool ran: the reply is about the base even when nothing was proposed ("já está escrito").
+    filed: bool = False
 
+    @property
+    def origin(self) -> Origin:
+        return Origin(self.agent, self.run_id, self.conversation.id, self.reply.id)
 
-def _either(options: list[str]) -> str:
-    """The options as one question: "Mover um item, renomear um item ou desfazer a última mudança?"."""
-    text = f"{', '.join(options[:-1])} ou {options[-1]}?"
-    return f"{text[0].upper()}{text[1:]}"
+    def cite(
+        self, node_id: UUID, kind: Literal["page", "file"], path: str, anchor: str | None, page: int | None
+    ) -> str:
+        """The marker of a source, the same one each time it is read again."""
+        same = next(
+            (s for s in self.sources if (s.node_id, s.anchor, s.page) == (node_id, anchor, page)),
+            None,
+        )
+        if same is None:
+            same = Citation(
+                marker=len(self.sources) + 1, node_id=node_id, kind=kind, path=path, anchor=anchor, page=page
+            )
+            self.sources.append(same)
+        return f"[{same.marker}]"
 
 
 def _join(parent: str, name: str) -> str:
@@ -147,16 +158,16 @@ def _undone_path(payload: ProposalPayload) -> str:
             return _where(payload)
 
 
-def _depth(tree: TreeSnapshot, node: SnapshotNode) -> int:
-    depth = 0
-    while node.parent_id is not None:
-        node, depth = tree.node(node.parent_id), depth + 1
-    return depth
+def _written(filing: Filing) -> str:
+    assert filing.written is not None
+    written = filing.written
+    return f"{written.path} › {written.heading}" if written.heading else written.path
 
 
 class ChatService:
-    """Runs one message end to end: understood, filed or organized, every decision logged, proposed through
-    `ProposalService` (applied there for an agent in auto mode); the reply and its steps stream to the chat."""
+    """Runs one message: the built-in chat answers it as an agent with the base's tools; a message of an external
+    agent is filed straight through the Curator. Every change is a proposal, stored pending and applied, for an agent
+    in auto mode, only once the run ended well; the reply and its steps stream to the chat."""
 
     def __init__(
         self,
@@ -167,32 +178,30 @@ class ChatService:
         thresholds: Thresholds,
         events: EventBus,
         jobs: JobQueue,
+        chat: ChatAgent,
+        history: int = HISTORY,
     ) -> None:
         self._uow = uow
         self._storage = storage
-        self._decider = decider
-        self._writer = writer
-        self._thresholds = thresholds
         self._events = events
         self._jobs = jobs
-        self._pages = PageService(uow)
-        self._tree = TreeService(uow)
+        self._chat = chat
+        self._history = history
         self._proposals = ProposalService(uow, storage)
+        self._filing = FilingService(uow, storage, decider, writer, thresholds)
 
-    async def handle(self, message_id: UUID, reply_id: UUID, route: Reading | None = None) -> MessageRead:
-        """`route` redoes the message as the person said it should be read, without asking: a route, or which
-        change an organizar is."""
+    async def handle(self, message_id: UUID, reply_id: UUID) -> MessageRead:
         message = await self._uow.messages.get(message_id)
         reply = await self._uow.messages.get(reply_id)
         conversation = await self._uow.conversations.get(reply.conversation_id)
-        run = _Run(reply, conversation, await self._uow.agents.get(conversation.agent_id))
+        run = _Run(message, reply, conversation, await self._uow.agents.get(conversation.agent_id))
         run.reply = await self._uow.messages.update(reply.id, MessageUpdate(run_id=run.run_id))
         if run.agent.built_in:
             # An external agent is used when its token is accepted; the chat, when it handles a message.
             await self._uow.agents.update(run.agent.id, AgentUpdate(last_used_at=datetime.now(UTC)))
         await self._uow.commit()
         try:
-            done = await self._run(run, message, route)
+            done = await self._run(run)
         except asyncio.CancelledError as exc:
             # A job past its timeout is cancelled: its reply must not stay working.
             logger.warning("message %s cancelled", message_id)
@@ -205,245 +214,213 @@ class ChatService:
         await self._events.publish(conversation.id, DoneEvent(message_id=done.id))
         return done
 
-    async def refresh_descriptions(self, node_ids: list[UUID]) -> None:
-        """Each node and the ones above it describe their children again, unless the person wrote theirs."""
-        seen: set[UUID] = set()
-        for node_id in node_ids:
-            current: UUID | None = node_id
-            while current is not None and current not in seen:
-                seen.add(current)
-                try:
-                    node = await self._uow.nodes.live(current)
-                except NotFoundError:
-                    break
-                if node.kind != "file" and not node.description_locked:
-                    await self._describe(node.kb_id, node.id, node.title)
-                current = node.parent_id
-        await self._uow.commit()
-
-    async def _run(self, run: _Run, message: MessageRead, reading: Reading | None) -> MessageRead:
+    async def _run(self, run: _Run) -> MessageRead:
         if run.reply.replaces_id is not None:
             await self._drop(run, run.reply.replaces_id)
-        understood, outcomes = await self._work(run, message, reading)
-        await self._step(run, "writing")
-        stored = await self._store(run, outcomes)
-        lines = [await self._settle(run, outcome, proposal) for outcome, proposal in zip(outcomes, stored, strict=True)]
-        ask = next((list(outcome.ask) for outcome in outcomes if outcome.ask), None)
-        done = await self._uow.messages.update(
-            run.reply.id, MessageUpdate(text="\n".join(lines), understood_as=understood, ask=ask, status="done")
-        )
+        reply = await (self._converse(run) if run.agent.built_in else self._file(run))
+        done = await self._uow.messages.update(run.reply.id, reply)
         await self._uow.commit()
         return done
 
-    async def _work(
-        self, run: _Run, message: MessageRead, reading: Reading | None
-    ) -> tuple[Route | None, list[_Outcome]]:
-        """Every decision and every text the reply needs, before anything is stored: a failure here leaves the base
-        as it was."""
-        kind = next((option for option in ORGANIZE_KINDS if option == reading), None)
-        route = "organizar" if kind else next((option for option in ROUTES if option == reading), None)
-        if route is not None:
-            understood: router.Understood = router.Routed(text=message.text, route=route, probability=1.0)
-        else:
-            await self._step(run, "understanding")
-            context = await self._context(run, message)
-            understood = await router.route(
-                message.text, context, self._decider, self._writer, self._thresholds, run.log
-            )
-        parts = understood.parts if isinstance(understood, router.Split) else [understood]
-        if isinstance(understood, router.Split):
-            await self._step(run, "splitting")
-        outcomes: list[_Outcome] = []
-        tree: TreeSnapshot | None = None
-        for part in parts:
-            if isinstance(part, router.AskFirst):
-                outcomes.append(
-                    _Outcome(line=_either([ASK_FIRST[option] for option in part.options]), ask=part.options)
-                )
-            elif part.route in ("guardar", "organizar"):
-                tree = tree or await self._described(run.conversation.kb_id)
-                if part.route == "guardar":
-                    outcomes += await self._file(run, message, part.text, tree)
-                else:
-                    outcomes.append(await self._organize(run, part.text, tree, kind))
-            else:
-                outcomes.append(_Outcome(line=NOT_YET if part.route == "perguntar" else CHAT))
-        routed = [part.route for part in parts if isinstance(part, router.Routed)]
-        return (routed[0] if routed else None), outcomes
+    async def _converse(self, run: _Run) -> MessageUpdate:
+        async def on_text(text: str) -> None:
+            await self._events.publish(run.conversation.id, DeltaEvent(message_id=run.reply.id, text=text))
 
-    async def _context(self, run: _Run, message: MessageRead) -> router.RouteContext:
-        thread = await self._uow.messages.of_conversation(run.conversation.id)
-        index = next(i for i, sent in enumerate(thread) if sent.id == message.id)
-        before = [sent.text for sent in thread[:index] if sent.text][-HISTORY:]
-        page_path = None
+        text = await self._chat.reply(await self._prompt(run), await self._turns(run), self._tools(run), on_text)
+        # Applied only now: a run that fails on the way leaves each of its proposals unapplied, and drops them.
+        for proposal, placed in run.proposed:
+            settled, failed = await self._settle(run, proposal, placed)
+            if failed is not None:
+                text += f"\n\n{KIND[settled.kind]}: {_where(settled.payload)} · não foi aplicada ({failed})."
+        cited = [source for source in run.sources if f"[{source.marker}]" in text]
+        return MessageUpdate(text=text, citations=cited, grounded=bool(cited) or run.filed, status="done")
+
+    async def _file(self, run: _Run) -> MessageUpdate:
+        """The message's files, or else its text as a fact, each filed before any is applied."""
+        message = run.message
+        if message.attachments:
+            filings = [await self._filing.attachment(attachment, run.origin) for attachment in message.attachments]
+        else:
+            filings = [await self._filing.fact(message.text, run.origin)]
+        lines = []
+        for filing in filings:
+            if filing.proposal is None:
+                lines.append(f"Já está escrito em {_written(filing)}.")
+                continue
+            proposal, failed = await self._settle(run, filing.proposal, filing.placed)
+            what = f"{KIND[proposal.kind]}: {_where(proposal.edited_payload or proposal.payload)}"
+            if proposal.status == "applied":
+                lines.append(f"{what} · aplicada.")
+            elif failed is not None:
+                lines.append(f"{what} · não foi aplicada ({failed}); esperando aprovação.")
+            elif not filing.placed:
+                lines.append("Não sei onde guardar; escolha um dos lugares sugeridos.")
+            else:
+                lines.append(f"{what} · esperando aprovação.")
+        return MessageUpdate(text="\n".join(lines), grounded=True, status="done")
+
+    async def _prompt(self, run: _Run) -> str:
+        message = run.message
+        context = []
         if message.context is not None and message.context.page_id is not None:
             try:
-                # What the person sees is what the pipeline reads.
-                await self._pages.cut(message.context.page_id)
-                page_path = await self._uow.nodes.path(message.context.page_id)
+                path = await self._uow.nodes.path(message.context.page_id)
+                context.append(f"Página aberta: {path} (node_id {message.context.page_id})")
             except (NotFoundError, ValidationError):
-                page_path = None
-        return router.RouteContext(
-            files=[attachment.name for attachment in message.attachments],
-            page_path=page_path,
-            selection=message.context.selection if message.context else None,
-            history=before,
+                pass
+        if message.context is not None and message.context.selection:
+            context.append(f"Trecho selecionado na página: {message.context.selection}")
+        if message.attachments:
+            context.append(f"Arquivos anexados: {', '.join(attachment.name for attachment in message.attachments)}")
+        if not context:
+            return message.text
+        return "\n".join([message.text, "", "Contexto:", *(f"- {line}" for line in context)])
+
+    async def _turns(self, run: _Run) -> list[Turn]:
+        """The conversation before the message, without failed or unfinished replies."""
+        thread = await self._uow.messages.of_conversation(run.conversation.id)
+        before = thread[: next(i for i, sent in enumerate(thread) if sent.id == run.message.id)]
+        return [(sent.role, sent.text) for sent in before if sent.status == "done" and sent.text][-self._history :]
+
+    def _tools(self, run: _Run) -> list[Tool]:
+        """The base's tools, bound to the run: the reads MCP agents use, and writes that make proposals."""
+        base = AgentTools(self._uow, self._storage, self._jobs, self._events, run.agent)
+
+        async def list_folder(node_id: UUID | None = None) -> Folder:
+            """What is right under a folder or page: each child's id, kind, title and description.
+
+            Args:
+                node_id: A folder or page; omitted for the base's root.
+            """
+            folder = await base.list_folder(node_id)
+            await self._step(run, "list_folder", folder.path or None)
+            return folder
+
+        async def read_page(node_id: UUID, section: str | None = None) -> CitedPage:
+            """A page's Markdown as the person last typed it, whole or one `##` section.
+
+            Args:
+                node_id: The page.
+                section: A section's anchor or heading; omitted for the whole page.
+            """
+            page = await base.read_page(node_id, section)
+            await self._step(run, "read_page", page.path)
+            cite = run.cite(page.node_id, "page", page.path, page.section, None)
+            return CitedPage(**page.model_dump(), cite=cite)
+
+        async def read_pdf_pages(node_id: UUID, first: int, last: int) -> CitedPdf:
+            """The text of a few pages of a PDF of the base, never all of it.
+
+            Args:
+                node_id: The PDF.
+                first: The first page, counted from 1.
+                last: The last page; a few pages after `first` at most.
+            """
+            read = await base.read_pdf_pages(node_id, first, last)
+            await self._step(run, "read_pdf_pages", f"{read.path} · {read.first}–{read.last}")
+            pages = [
+                CitedPdfPage(cite=run.cite(read.node_id, "file", read.path, None, number), page=number, text=text)
+                for number, text in enumerate(read.pages, read.first)
+            ]
+            return CitedPdf(node_id=read.node_id, path=read.path, page_count=read.page_count, pages=pages)
+
+        async def file_fact(text: str) -> Proposed:
+            """Files a fact the person brought: where it goes, whether it is already written or contradicts a page
+            is decided here, and the result is a proposal the person approves.
+
+            Args:
+                text: The fact, in plain words, standing on its own.
+            """
+            await self._step(run, "file_fact", text)
+            return await self._proposed(run, await self._filing.fact(text, run.origin))
+
+        async def file_attachment(name: str) -> Proposed:
+            """Files a PDF attached to the message: saved in the right folder or as a new version of one there,
+            as a proposal the person approves.
+
+            Args:
+                name: The attached file's name.
+            """
+            attachment = next((attachment for attachment in run.message.attachments if attachment.name == name), None)
+            if attachment is None:
+                raise ValidationError(f"nenhum anexo se chama {name}", {"name": name})
+            await self._step(run, "file_attachment", name)
+            return await self._proposed(run, await self._filing.attachment(attachment, run.origin))
+
+        async def move(node_id: UUID, parent_id: UUID | None) -> Proposed:
+            """Proposes moving a folder, page or file under another folder or page.
+
+            Args:
+                node_id: What to move.
+                parent_id: The folder or page it goes under; null for the base's root.
+            """
+            payload = await base.move_payload(node_id, parent_id)
+            await self._step(run, "move", payload.from_path)
+            return await self._propose(run, payload)
+
+        async def rename(node_id: UUID, title: str) -> Proposed:
+            """Proposes a new title for a folder, page or file.
+
+            Args:
+                node_id: What to rename.
+                title: The new title.
+            """
+            payload = await base.rename_payload(node_id, title)
+            await self._step(run, "rename", payload.path)
+            return await self._propose(run, payload)
+
+        async def undo_last() -> Proposed:
+            """Proposes undoing the change applied last in the base."""
+            await self._step(run, "undo_last")
+            last = await self._uow.proposals.last_applied(run.conversation.kb_id)
+            if last is None:
+                return Proposed(outcome="nothing_to_undo")
+            payload = UndoPayload(proposal_id=last.id, path=_undone_path(last.edited_payload or last.payload))
+            return await self._propose(run, payload)
+
+        return [list_folder, read_page, read_pdf_pages, file_fact, file_attachment, move, rename, undo_last]
+
+    async def _propose(self, run: _Run, payload: ProposalPayload) -> Proposed:
+        proposal = await self._proposals.add(
+            ProposalCreate(
+                kb_id=run.conversation.kb_id,
+                agent_id=run.agent.id,
+                conversation_id=run.conversation.id,
+                message_id=run.reply.id,
+                run_id=run.run_id,
+                payload=payload,
+                undo_of=payload.proposal_id if isinstance(payload, UndoPayload) else None,
+            )
         )
-
-    async def _file(self, run: _Run, message: MessageRead, text: str, tree: TreeSnapshot) -> list[_Outcome]:
-        """The message's files, the first time a part is to be saved; else the part's text as a fact."""
-        if message.attachments and not run.files_filed:
-            run.files_filed = True
-            return [await self._file_pdf(run, attachment, tree) for attachment in message.attachments]
-        await self._step(run, "choosing_place")
-        source = CardInput(text=text)
-
-        async def read_page(node_id: UUID) -> PageText:
-            await self._step(run, "checking_page", tree.path(tree.node(node_id)))
-            await self._pages.cut(node_id)
-            version = await self._uow.page_versions.current(node_id)
-            return PageText(page_id=node_id, version_id=version.id, markdown=version.markdown)
-
-        filed = await policy.file_text(source, tree, read_page, self._decider, self._writer, self._thresholds, run.log)
-        if isinstance(filed, policy.AlreadyWritten):
-            where = f"{filed.path} › {filed.heading}" if filed.heading else filed.path
-            return [_Outcome(line=f"Já está escrito em {where}.")]
-        if isinstance(filed, policy.NotSure):
-            # A filing's NotSure always carries what waits in "Sem lugar definido".
-            assert filed.payload is not None
-            return [self._outcome(run, filed.payload, filed.options, placed=False)]
-        return [self._outcome(run, filed.payload, filed.alternatives)]
-
-    async def _file_pdf(self, run: _Run, attachment: Attachment, tree: TreeSnapshot) -> _Outcome:
-        await self._step(run, "reading_file", attachment.name)
-        async with self._storage.download(attachment.storage_key) as path:
-            text, outline = await asyncio.to_thread(reader.first_pages, path)
-        await self._step(run, "choosing_place", attachment.name)
-        source = CardInput(text=text, file_name=attachment.name, outline=outline)
-        filed = await policy.file_pdf(source, tree, self._decider, self._writer, self._thresholds, run.log)
-        staged = StagedFile(**attachment.model_dump(exclude={"mime"}))
-        if isinstance(filed, policy.Propose):
-            return self._outcome(run, filed.payload, filed.alternatives, staged=staged)
-        assert filed.payload is not None
-        return self._outcome(run, filed.payload, filed.options, staged=staged, placed=False)
-
-    async def _organize(self, run: _Run, text: str, tree: TreeSnapshot, kind: OrganizeKind | None) -> _Outcome:
-        await self._step(run, "organizing")
-        last = await self._uow.proposals.last_applied(run.conversation.kb_id)
-        last_applied = None
-        if last is not None:
-            path = _undone_path(last.edited_payload or last.payload)
-            last_applied = organize.LastApplied(proposal_id=last.id, path=path)
-        result = await organize.organize(text, tree, last_applied, self._decider, self._thresholds, run.log, kind)
-        match result:
-            case organize.AskKind():
-                return _Outcome(line=_either([ASK_KIND[option] for option in result.options]), ask=result.options)
-            case policy.Propose():
-                return self._outcome(run, result.payload, result.alternatives)
-            case organize.NeedsTitle():
-                return _Outcome(line=f"Qual é o novo nome de {result.path}?")
-            case organize.NothingToUndo():
-                return _Outcome(line="Não há mudança aplicada para desfazer.")
-            case policy.NotSure():
-                paths = [option.path or "raiz" for option in result.options]
-                if not paths:
-                    return _Outcome(line="Não encontrei o que mudar; diga o caminho.")
-                return _Outcome(line=f"Não tenho certeza: {', '.join(paths)}? Diga qual.")
-
-    def _outcome(
-        self,
-        run: _Run,
-        payload: ProposalPayload,
-        alternatives: list[Placement] | None,
-        staged: StagedFile | None = None,
-        placed: bool = True,
-    ) -> _Outcome:
-        proposal = ProposalCreate(
-            kb_id=run.conversation.kb_id,
-            agent_id=run.agent.id,
-            conversation_id=run.conversation.id,
-            message_id=run.reply.id,
-            run_id=run.run_id,
-            payload=payload,
-            alternatives=alternatives or None,
-            staged=staged,
-            undo_of=payload.proposal_id if isinstance(payload, UndoPayload) else None,
-        )
-        return _Outcome(proposal=proposal, placed=placed)
-
-    async def _store(self, run: _Run, outcomes: list[_Outcome]) -> list[ProposalRead | None]:
-        """The run's decisions and every part's proposal, pending, in one transaction: a failure before it leaves
-        nothing behind; after it, each proposal stands on its own."""
-        await self._log(run)
-        stored = [await self._proposals.add(outcome.proposal) if outcome.proposal else None for outcome in outcomes]
         await self._uow.commit()
-        run.logged = True
-        return stored
+        return await self._proposed(run, Filing(proposal=proposal))
 
-    async def _settle(self, run: _Run, outcome: _Outcome, proposal: ProposalRead | None) -> str:
-        """A part's line of the reply: its proposal applied at once for an agent in auto mode, or left pending,
-        also when that apply fails."""
-        if proposal is None:
-            return outcome.line
+    async def _proposed(self, run: _Run, filing: Filing) -> Proposed:
+        run.filed = True
+        if filing.proposal is None:
+            return Proposed(outcome="already_written", where=_written(filing))
+        proposal = filing.proposal
+        run.proposed.append((proposal, filing.placed))
+        await self._events.publish(run.conversation.id, ProposalEvent(proposal=proposal))
+        return Proposed(
+            outcome="proposed" if filing.placed else "not_sure",
+            kind=proposal.kind,
+            where=_where(proposal.payload),
+            options=[] if filing.placed else [option.path or "raiz" for option in proposal.alternatives or []],
+        )
+
+    async def _settle(self, run: _Run, proposal: ProposalRead, placed: bool) -> tuple[ProposalRead, str | None]:
+        """Applied at once for an agent in auto mode, or left pending, also when that apply fails (with why)."""
         failed = None
         try:
-            proposal = await self._proposals.auto_accept(proposal, outcome.placed)
+            proposal = await self._proposals.auto_accept(proposal, placed)
         except Exception as exc:
             logger.exception("proposal %s was not applied", proposal.id)
             await self._uow.rollback()
             proposal, failed = await self._uow.proposals.get(proposal.id), str(exc)
         await self._events.publish(run.conversation.id, ProposalEvent(proposal=proposal))
         await enqueue_refresh(self._jobs, proposal)
-        what = f"{KIND[proposal.kind]}: {_where(proposal.edited_payload or proposal.payload)}"
-        if proposal.status == "applied":
-            return f"{what} · aplicada."
-        if failed is not None:
-            return f"{what} · não foi aplicada ({failed}); esperando aprovação."
-        if not outcome.placed:
-            return "Não sei onde guardar; escolha um dos lugares sugeridos."
-        return f"{what} · esperando aprovação."
-
-    async def _described(self, kb_id: UUID) -> TreeSnapshot:
-        """The base's tree, each folder or page with children described first when it has no description yet."""
-        tree = await self._tree.snapshot(kb_id)
-        missing = [node for node in tree.nodes if node.kind != "file" and not node.description and tree.children(node)]
-        limit = asyncio.Semaphore(DESCRIBING)
-
-        async def describe(node: SnapshotNode) -> str:
-            children = [
-                ChildDescription(title=child.title, kind=child.kind, description=child.description)
-                for child in tree.children(node)
-            ]
-            async with limit:
-                return await self._writer.describe(node.title, children)
-
-        # Deepest first: a node's description is written from its children's, so each depth waits for the one below.
-        for depth in sorted({_depth(tree, node) for node in missing}, reverse=True):
-            level = [node for node in missing if _depth(tree, node) == depth]
-            for node, description in zip(level, await asyncio.gather(*map(describe, level)), strict=True):
-                await self._uow.nodes.update(node.id, NodeUpdate(description=description))
-                tree.nodes[tree.nodes.index(node)] = node.model_copy(update={"description": description})
-        await self._uow.commit()
-        return tree
-
-    async def _describe(self, kb_id: UUID, node_id: UUID, title: str) -> str:
-        children = [
-            ChildDescription(title=child.title, kind=child.kind, description=child.description)
-            for child in await self._uow.nodes.children(kb_id, node_id)
-        ]
-        if not children:
-            return ""
-        description = await self._writer.describe(title, children)
-        await self._uow.nodes.update(node_id, NodeUpdate(description=description))
-        return description
-
-    async def _log(self, run: _Run) -> None:
-        await self._uow.decisions.create_many(
-            [
-                DecisionLogCreate(run_id=run.run_id, message_id=run.reply.id, **decision.model_dump())
-                for decision in run.log
-            ]
-        )
+        return proposal, failed
 
     async def _drop(self, run: _Run, reply_id: UUID) -> None:
         """What a reply's pending or stale proposals proposed is no longer asked: the system's rejection, not the
@@ -455,11 +432,10 @@ class ChatService:
         await self._uow.commit()
 
     async def _fail(self, run: _Run, exc: BaseException) -> MessageRead:
-        """Nothing of the run is left waiting; the decisions it asked stay logged, once."""
+        """Nothing of the run is left waiting or applied; the decisions it asked stay logged, once (the filing logs
+        them)."""
         await self._uow.rollback()
         await self._drop(run, run.reply.id)
-        if not run.logged:
-            await self._log(run)
         code = exc.code if isinstance(exc, AcervoError) else "internal"
         error = INTERRUPTED if isinstance(exc, asyncio.CancelledError) else str(exc)
         failed = await self._uow.messages.update(run.reply.id, MessageUpdate(status="failed", error=error))

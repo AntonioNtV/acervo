@@ -6,6 +6,7 @@ from arq.connections import RedisSettings
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from acervo.core.settings import get_settings
+from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.factory import build_decider, build_writer
 from acervo.services.events import ArqJobQueue, RedisEventBus
 from acervo.services.storage import Storage
@@ -25,6 +26,7 @@ async def startup(ctx: dict[str, Any]) -> None:
         jobs=ArqJobQueue(settings.redis_url),
         decider=build_decider(settings),
         writer=build_writer(settings),
+        chat=ChatAgent(settings.llm_roles.chat),
     )
 
 

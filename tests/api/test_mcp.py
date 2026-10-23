@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core.settings import Thresholds
 from acervo.db.models import PageVersion
+from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.fakes import FakeDecider, FakeProbs, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.services.chat_service import ChatService
@@ -23,8 +24,6 @@ PAGE = "Bradesco/Residencial/Emissão de apólice.md"
 TEXT = "# Emissão de apólice\n\n## Documentos\n- RG\n\n## Prazos\nCinco dias.\n"
 TREE = {"Bradesco": {"Residencial": ["Emissão de apólice.md"]}, "Arquivo": None}
 TO_THE_PAGE: dict[str, FakeProbs] = {
-    "intent": [0.05, 0.9, 0.03, 0.02],
-    "two_subjects": 0.1,
     "descent:": {"Bradesco (pasta) — Descrição": 1.0},
     "descent:Bradesco": {"Residencial (pasta) — Descrição": 1.0},
     "descent:Bradesco/Residencial": {"Emissão de apólice (página)": 1.0},
@@ -42,7 +41,8 @@ INITIALIZE = {
 
 
 class RunningJobQueue(RecordingJobQueue):
-    """Runs a message's job at once, as the worker would, with the fakes in place of Jev and the LLM."""
+    """Runs a message's job at once, as the worker would, with the fakes in place of Jev and the LLM; an agent's
+    message is filed without the chat's model, so it is never called."""
 
     def __init__(self, app: FastAPI, decider: FakeDecider, writer: FakeWriter) -> None:
         super().__init__()
@@ -54,10 +54,11 @@ class RunningJobQueue(RecordingJobQueue):
             return
         state = self._app.state
         async with UnitOfWork(state.session_factory) as uow:
+            never = ChatAgent("test")
             chat = ChatService(
-                uow, state.storage, self._decider, self._writer, Thresholds(), state.event_bus, state.job_queue
+                uow, state.storage, self._decider, self._writer, Thresholds(), state.event_bus, state.job_queue, never
             )
-            await chat.handle(UUID(kwargs["message_id"]), UUID(kwargs["reply_id"]), kwargs["route"])
+            await chat.handle(UUID(kwargs["message_id"]), UUID(kwargs["reply_id"]))
 
 
 @pytest.fixture

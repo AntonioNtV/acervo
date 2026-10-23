@@ -1,16 +1,18 @@
 from collections.abc import AsyncIterator
 from uuid import UUID
 
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.models.function import AgentInfo, FunctionModel
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.settings import Settings
+from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate
 from acervo.schemas.conversation import ConversationStart
 from acervo.schemas.events import ChatEvent, DoneEvent
 from acervo.schemas.kb import KbCreate
-from acervo.services.chat_service import NOT_YET
 from acervo.services.conversation_service import ConversationService
 from acervo.services.events import InMemoryEventBus, RecordingJobQueue
 from acervo.services.storage import Storage
@@ -43,7 +45,10 @@ async def test_handle_message_runs_the_chat_and_publishes_done(
         conversations = ConversationService(uow, storage, jobs, InMemoryEventBus())
         conversation = await conversations.create(kb.id, ConversationStart())
         posted = await conversations.post(conversation.id, "Qual o prazo de emissão?", [], None)
-    fake_decider.table.update({"intent": [0.9, 0.05, 0.03, 0.02], "two_subjects": 0.1})
+
+    async def answer(messages: list[ModelMessage], info: AgentInfo) -> AsyncIterator[str]:
+        yield "Cinco dias."
+
     bus = RecordingBus()
     ctx = {
         "session_factory": session_factory,
@@ -53,6 +58,7 @@ async def test_handle_message_runs_the_chat_and_publishes_done(
         "settings": test_settings,
         "events": bus,
         "jobs": jobs,
+        "chat": ChatAgent(FunctionModel(stream_function=answer)),
     }
 
     [(job, kwargs)] = jobs.jobs
@@ -62,4 +68,4 @@ async def test_handle_message_runs_the_chat_and_publishes_done(
     assert bus.events[-1] == DoneEvent(message_id=posted.reply.id)
     async with UnitOfWork(session_factory) as check:
         reply = await check.messages.get(posted.reply.id)
-    assert (reply.status, reply.text) == ("done", NOT_YET)
+    assert (reply.status, reply.text) == ("done", "Cinco dias.")

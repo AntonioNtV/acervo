@@ -8,10 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Thresholds(BaseModel):
     """Every cut-off a probability from Jev is compared to (skill `jev-decisions`)."""
 
-    # Below, for the most likely understanding of a message: ask the person first, nothing runs before the choice.
-    route_min: float = 0.60
-    # Above, for "the message is about two things": split it and handle each part in the same reply.
-    route_split: float = 0.70
     # Below: do not choose a place; ask the person with the top 3 options.
     place_min: float = 0.60
     # Below: the proposal shows the 2nd option next to the 1st.
@@ -22,8 +18,6 @@ class Thresholds(BaseModel):
     contradicts: float = 0.60
     # Above, for the page line about the same thing as the input: edit that line instead of appending a new one.
     same_line: float = 0.70
-    # Below, for the most likely kind of an organizar (move, rename, undo): ask the person which, propose nothing.
-    organize_min: float = 0.60
     # Above: propose replacing the existing PDF with the new one.
     pdf_new_version: float = 0.70
     # Above: the read page is kept as evidence.
@@ -52,6 +46,8 @@ class LlmRoles(BaseModel):
     explain: str = "anthropic:claude-haiku-5-5"
     # The LLM decider, until Jev's client exists: probabilities per option through structured output.
     decide: str = "anthropic:claude-opus-5-5"
+    # The chat: it converses and chooses when to use the base's tools; it never decides where anything goes.
+    chat: str = "anthropic:claude-opus-5-5"
 
 
 class Settings(BaseSettings):
@@ -77,6 +73,8 @@ class Settings(BaseSettings):
     cover_max_bytes: int = 10 * 1024 * 1024
     # A message's job is cancelled past this, and its reply marked failed.
     job_timeout_seconds: int = 600
+    # How many earlier messages of a conversation the chat reads as its history.
+    chat_history: int = 20
     # The list of applied proposals, where an agent's automatic changes are undone, goes back this many days.
     applied_list_days: int = 7
 

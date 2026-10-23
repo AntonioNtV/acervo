@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -5,11 +6,14 @@ from uuid import UUID
 import httpx
 import pytest
 from fastapi import FastAPI
+from pydantic_ai.messages import ModelMessage
+from pydantic_ai.models.function import AgentInfo, DeltaToolCall, DeltaToolCalls, FunctionModel
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.settings import Settings, Thresholds
 from acervo.db.models import Agent, Message, Proposal
+from acervo.model_clients.chat_agent import ChatAgent
 from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.proposal import ProposalRepository
 from acervo.repositories.uow import UnitOfWork
@@ -153,12 +157,20 @@ async def test_redo_a_stale_proposal(
     assert refused.status_code == 409, refused.text
     assert redone.status_code == 201, redone.text
     assert (redone.json()["replaces_id"], redone.json()["status"]) == (reply["id"], "working")
-    job = ("handle_message", {"message_id": message["id"], "reply_id": redone.json()["id"], "route": "guardar"})
+    job = ("handle_message", {"message_id": message["id"], "reply_id": redone.json()["id"]})
     assert jobs.jobs[-1] == job
     fake_decider.table = {"descent:": {"nova página aqui": 1.0}}
+    turns = iter([{0: DeltaToolCall("file_fact", '{"text": "Prazo: 5 dias."}')}, "Propus uma página nova."])
+
+    async def files_it_again(messages: list[ModelMessage], info: AgentInfo) -> AsyncIterator[str | DeltaToolCalls]:
+        yield next(turns)
+
+    chat_model = ChatAgent(FunctionModel(stream_function=files_it_again))
     async with UnitOfWork(app.state.session_factory) as uow:
-        chat = ChatService(uow, app.state.storage, fake_decider, FakeWriter(), Thresholds(), app.state.event_bus, jobs)
-        filed = await chat.handle(UUID(message["id"]), UUID(redone.json()["id"]), "guardar")
+        chat = ChatService(
+            uow, app.state.storage, fake_decider, FakeWriter(), Thresholds(), app.state.event_bus, jobs, chat_model
+        )
+        filed = await chat.handle(UUID(message["id"]), UUID(redone.json()["id"]))
     assert [p.kind for p in await ProposalRepository(session).of_message(filed.id)] == ["create_page"]
     dropped = (await client.get(f"/v1/proposals/{stale.id}")).json()
     assert (dropped["status"], dropped["reject_reason"]) == ("rejected", None)
