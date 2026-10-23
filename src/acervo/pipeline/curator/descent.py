@@ -12,7 +12,7 @@ from acervo.pipeline.curator.options import Landing, Options
 from acervo.pipeline.curator.tree import SnapshotNode, TreeSnapshot
 from acervo.schemas.proposal import Decision
 
-PlacementLanding = Literal["page", "here", "new_page", "new_folder"]
+PlacementLanding = Literal["page", "here", "new_page"]
 
 BEAM = 2
 MAX_DEPTH = 6

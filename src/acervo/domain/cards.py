@@ -31,8 +31,8 @@ class Placement(BaseModel):
 
     node_id: UUID | None = Field(description="The folder or page it stopped at; null for the base's root.")
     path: str = Field(description="Titles from the root down to that node, joined by /; empty for the root.")
-    landing: Literal["page", "here", "new_page", "new_folder"] = Field(
-        description="Into that page's text, under that node (save or stay here), or a new page or folder under it."
+    landing: Literal["page", "here", "new_page"] = Field(
+        description="Into that page's text, under that node (save or stay here), or a new page under it."
     )
     probability: float = Field(description="The product of the chosen options' probabilities along the path.")
 
