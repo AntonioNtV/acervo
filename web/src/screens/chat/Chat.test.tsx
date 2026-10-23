@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { apiFetch, calls, node, renderWithApi, resetApi, respond } from "../../api/testing";
@@ -405,6 +405,23 @@ describe("Chat", () => {
     await userEvent.click(screen.getByRole("button", { name: "Voltar à conversa" }));
     expect(screen.queryByText("Antes de apagar.")).not.toBeInTheDocument();
     expect(screen.getByText("Conte o que aprendeu")).toBeInTheDocument();
+  });
+
+  it("a refetch that reorders the list keeps the open conversation and what is typed", async () => {
+    thread("c-1", [person("m-1", "Primeira.")]);
+    thread("c-2", [person("m-9", "Outra.", "c-2")]);
+    const { queryClient } = renderChat();
+    expect(await screen.findByText("Primeira.")).toBeInTheDocument();
+    await userEvent.type(box(), "rascunho");
+
+    conversations = [conversation("c-2", "Vistorias"), conversation("c-1", "Prazos")];
+    await act(() => queryClient.refetchQueries({ queryKey: ["conversations"] }));
+    // Long enough for a switched conversation to load its thread.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+
+    expect(screen.getByText("Primeira.")).toBeInTheDocument();
+    expect(screen.queryByText("Outra.")).not.toBeInTheDocument();
+    expect(box()).toHaveValue("rascunho");
   });
 
   it("past conversations reopen", async () => {
