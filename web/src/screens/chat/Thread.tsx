@@ -1,10 +1,10 @@
 import { isToolUIPart, type ChatStatus } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AiMark } from "../../app/AiMark";
 import { useErrorText } from "../../app/errors";
 import { useRetry, type ChatMessage, type Citation } from "../../data/chat";
-import type { Proposal, ProposalSummary } from "../../data/proposals";
+import { newest, useProposalStates, type Proposal, type ProposalSummary } from "../../data/proposals";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
@@ -21,7 +21,8 @@ type AnyProposal = Proposal | ProposalSummary;
 
 const FILE_KINDS = ["save_pdf", "replace_pdf"];
 
-function PersonMessage({ message }: { message: ChatMessage }) {
+// Memoized, as Reply: a streamed chunk changes only the last message, so the others keep their parsed Markdown.
+const PersonMessage = memo(function PersonMessage({ message }: { message: ChatMessage }) {
   const { lang } = useI18n();
   const { selection, attachments } = message.metadata ?? {};
   return (
@@ -46,7 +47,7 @@ function PersonMessage({ message }: { message: ChatMessage }) {
       )}
     </div>
   );
-}
+});
 
 /** Where a citation opens: the page (at its section), or the PDF at its page. */
 function citationHref(kbId: string, citation: Citation): string {
@@ -78,7 +79,7 @@ function Sources({ kbId, citations }: { kbId: string; citations: Citation[] }) {
   );
 }
 
-function Reply({
+const Reply = memo(function Reply({
   message,
   kbId,
   working,
@@ -98,7 +99,10 @@ function Reply({
   const [review, setReview] = useState(false);
   const [showSteps, setShowSteps] = useState(false);
 
-  const proposals: AnyProposal[] = message.parts.flatMap((part) => (part.type === "data-proposal" ? [part.data] : []));
+  const states = useProposalStates().data;
+  const proposals: AnyProposal[] = message.parts.flatMap((part) =>
+    part.type === "data-proposal" ? [newest(states?.[part.data.id], part.data)] : [],
+  );
   const citations = message.parts.flatMap((part) => {
     const citation = part.type === "source-document" ? (part.providerMetadata?.acervo as Citation | undefined) : undefined;
     return citation?.node_id ? [citation] : [];
@@ -177,7 +181,7 @@ function Reply({
       )}
     </article>
   );
-}
+});
 
 /** The conversation, oldest first, kept scrolled to its end as replies arrive. */
 export function Thread({

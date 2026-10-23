@@ -84,12 +84,14 @@ export function Chat({ kbId, nodeId, onClose }: { kbId: string; nodeId?: string;
   const kb = useKbs().data?.find((candidate) => candidate.id === kbId);
   const listed = useConversations(kbId);
   const conversations = listed.data ?? [];
-  // undefined: the most recent conversation; null: a new one, started by the first message.
+  // undefined: not loaded yet; null: a new one, started by the first message.
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
+  // Pinned once: a refetch that reorders the list must not switch the open conversation.
+  if (chosen === undefined && !listed.isPending) setChosen(conversations[0]?.id ?? null);
   // Each open is a new session; a conversation the first message started keeps the session it started in.
   const [session, setSession] = useState(0);
   const [started, setStarted] = useState<string | null>(null);
-  const conversationId = chosen === undefined ? (conversations[0]?.id ?? null) : chosen;
+  const conversationId = chosen ?? null;
   const current = conversations.find((conversation) => conversation.id === conversationId);
   const pending = usePendingProposals(kbId).data ?? [];
   const applied = useAutoApplied(kbId).data ?? [];
@@ -118,7 +120,7 @@ export function Chat({ kbId, nodeId, onClose }: { kbId: string; nodeId?: string;
     setChosen(id);
   };
 
-  const ready = chosen !== undefined || !listed.isPending;
+  const ready = chosen !== undefined;
   const threadKey = `${session}:${conversationId === null || conversationId === started ? "new" : conversationId}`;
 
   return (
