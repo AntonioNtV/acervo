@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { Outgoing } from "../../data/chat";
-import { useSearch } from "../../data/tree";
+import { useDebouncedSearch } from "../../data/tree";
 import { useEditorSelection } from "../../editor/BlockEditor";
 import { useI18n } from "../../i18n";
 import { FileName } from "../../ui/FileName";
@@ -8,8 +8,6 @@ import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Input } from "../../ui/Input";
 import { folderPath, splitExt } from "../../ui/names";
-
-const SEARCH_DELAY_MS = 200;
 
 export type PageRef = { id: string; title: string };
 
@@ -28,13 +26,7 @@ function Chip({ children, remove, label }: { children: ReactNode; remove: () => 
 function PagePicker({ kbId, onPick, onClose }: { kbId: string; onPick: (page: PageRef) => void; onClose: () => void }) {
   const { t } = useI18n();
   const [query, setQuery] = useState("");
-  const [searched, setSearched] = useState("");
-  const pages = (useSearch(kbId, searched).data ?? []).filter((hit) => hit.kind === "page");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setSearched(query.trim()), SEARCH_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const pages = (useDebouncedSearch(kbId, query).found ?? []).filter((hit) => hit.kind === "page");
 
   return (
     <div

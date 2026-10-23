@@ -111,6 +111,32 @@ export function useRetry() {
   });
 }
 
+/** "Refazer" on a stale proposal: its message runs again into a new reply, on the page's newest text. */
+export function useRedo() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (proposalId: string) =>
+      call(api.POST("/v1/proposals/{proposal_id}/redo", { params: { path: { proposal_id: proposalId } } })),
+    onSuccess: (reply) => upsertMessage(queryClient, reply),
+  });
+}
+
+/** "Apagar conversa": it leaves the list; what it proposed stays. */
+export function useDeleteConversation(kbId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) =>
+      call(api.DELETE("/v1/conversations/{conversation_id}", { params: { path: { conversation_id: conversationId } } })),
+    onSuccess: (_, conversationId) => {
+      queryClient.setQueryData<Conversation[]>(["conversations", kbId], (list = []) =>
+        list.filter((conversation) => conversation.id !== conversationId),
+      );
+      queryClient.removeQueries({ queryKey: ["messages", conversationId] });
+      return queryClient.invalidateQueries({ queryKey: ["conversations", kbId] });
+    },
+  });
+}
+
 /** Each `data:` line of an SSE body, as its JSON. */
 async function* readEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<ChatEvent> {
   const reader = body.getReader();

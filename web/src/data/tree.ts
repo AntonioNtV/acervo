@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { components } from "../api/schema.gen";
 import { call, invalidate, refreshTree, samePath } from "./request";
@@ -22,12 +23,23 @@ export function useChildren(kbId: string, parentId: string | null = null, enable
   });
 }
 
-export function useSearch(kbId: string, q: string) {
-  return useQuery({
-    queryKey: ["search", kbId, q],
-    queryFn: () => call(api.GET("/v1/kbs/{kb_id}/search", { params: { path: { kb_id: kbId }, query: { q } } })),
-    enabled: q.trim() !== "",
-  });
+const SEARCH_DELAY_MS = 200;
+
+/** The base's nodes whose title holds `query`, asked once typing pauses; `searched` is what `found` answers. */
+export function useDebouncedSearch(kbId: string, query: string) {
+  const typed = query.trim();
+  const [searched, setSearched] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearched(typed), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [typed]);
+  const found = useQuery({
+    queryKey: ["search", kbId, searched],
+    queryFn: () =>
+      call(api.GET("/v1/kbs/{kb_id}/search", { params: { path: { kb_id: kbId }, query: { q: searched } } })),
+    enabled: searched !== "",
+  }).data;
+  return { searched, found };
 }
 
 export function useKbTrash(kbId: string) {

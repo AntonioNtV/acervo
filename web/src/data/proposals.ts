@@ -22,10 +22,24 @@ export function usePendingProposals(kbId: string | undefined) {
   });
 }
 
+/** What agents in auto mode applied in the base lately, the most recent first, to undo. */
+export function useAutoApplied(kbId: string | undefined) {
+  return useQuery({
+    queryKey: ["applied", kbId ?? ""],
+    enabled: Boolean(kbId),
+    queryFn: () =>
+      call(
+        api.GET("/v1/kbs/{kb_id}/proposals", {
+          params: { path: { kb_id: kbId ?? "" }, query: { status: "applied", accepted_by: "auto" } },
+        }),
+      ),
+  });
+}
+
 /** What the person (or the stream) learned about a proposal: kept for the thread, and the base follows it. */
 export function settleProposal(queryClient: QueryClient, proposal: Proposal) {
   queryClient.setQueryData<Record<string, Proposal>>(["proposal-states"], (known) => ({ ...known, [proposal.id]: proposal }));
-  const refreshes = [invalidate(queryClient, ["proposals", proposal.kb_id])];
+  const refreshes = [invalidate(queryClient, ["proposals", proposal.kb_id], ["applied", proposal.kb_id])];
   if (proposal.status === "applied") refreshes.push(refreshTree(queryClient), invalidate(queryClient, ["versions"], ["diff"]));
   return Promise.all(refreshes);
 }
@@ -77,15 +91,3 @@ export const useOtherPlace = () =>
 /** Resolves to the new `undo` proposal, applied at once when its agent is in auto mode. */
 export const useUndoProposal = () =>
   useProposalAction<void>((id) => call(api.POST("/v1/proposals/{proposal_id}/undo", path(id))));
-
-/** Both the edit and the accept, as "Guardar as duas com nota" and choosing a place do. */
-export function useEditAndAccept() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: Payload }) => {
-      await call(api.PATCH("/v1/proposals/{proposal_id}", { ...path(id), body: input }));
-      return call(api.POST("/v1/proposals/{proposal_id}/accept", path(id)));
-    },
-    onSuccess: (proposal) => settleProposal(queryClient, proposal),
-  });
-}
