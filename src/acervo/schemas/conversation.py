@@ -4,7 +4,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from acervo.domain.cards import Reading, Route
 from acervo.schemas.proposal import StagedFile
 
 MessageRole = Literal["person", "acervo"]
@@ -24,6 +23,7 @@ class ConversationUpdate(BaseModel):
 
     title: str | None = Field(default=None, description="New title.")
     updated_at: datetime | None = Field(default=None, description="When it was last used, for the list's order.")
+    deleted_at: datetime | None = Field(default=None, description="When the person deleted it.")
 
 
 class ConversationRead(ConversationCreate):
@@ -34,6 +34,9 @@ class ConversationRead(ConversationCreate):
     id: UUID = Field(description="Conversation ID.")
     created_at: datetime = Field(description="When it started.")
     updated_at: datetime = Field(description="When it last changed.")
+    deleted_at: datetime | None = Field(
+        default=None, description="When the person deleted it: out of the list, its messages no longer served."
+    )
 
 
 class Attachment(StagedFile):
@@ -59,7 +62,18 @@ class MessageCreate(BaseModel):
     context: MessageContext | None = Field(default=None, description="The open page and selection, if kept.")
     status: MessageStatus = Field(default="done", description="A reply is working until its job ends.")
     run_id: UUID | None = Field(default=None, description="The run that handles it, linking the decision log.")
-    replaces_id: UUID | None = Field(default=None, description="The reply this one redoes another way.")
+    replaces_id: UUID | None = Field(default=None, description="The reply this one runs again.")
+
+
+class Citation(BaseModel):
+    """Where a claim of a reply came from: a page, one of its sections, or a page of a PDF."""
+
+    marker: int = Field(description="The number the reply's text writes as [n] after the claim.")
+    node_id: UUID = Field(description="The page or the PDF.")
+    kind: Literal["page", "file"] = Field(description="A page, or a PDF.")
+    path: str = Field(description="Its path, joined by /.")
+    anchor: str | None = Field(default=None, description="The section of the page; null for the whole page.")
+    page: int | None = Field(default=None, description="The PDF's page, counted from 1; null for a page.")
 
 
 class MessageUpdate(BaseModel):
@@ -67,8 +81,8 @@ class MessageUpdate(BaseModel):
 
     text: str | None = Field(default=None, description="The reply's text.")
     status: MessageStatus | None = Field(default=None, description="New status.")
-    understood_as: Route | None = Field(default=None, description="How the message was understood.")
-    ask: list[Reading] | None = Field(default=None, description="The readings the person picks between.")
+    citations: list[Citation] | None = Field(default=None, description="The sources the text cites.")
+    grounded: bool | None = Field(default=None, description="Whether the reply used the base.")
     run_id: UUID | None = Field(default=None, description="The run that handles it.")
     error: str | None = Field(default=None, description="Why it failed.")
 
@@ -79,13 +93,11 @@ class MessageRead(MessageCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(description="Message ID.")
-    understood_as: Route | None = Field(
-        description="How the message was understood, shown with a one-click change; null until it is."
+    citations: list[Citation] = Field(
+        default_factory=list, description="A reply's sources, one per marker [n] its text writes, in order."
     )
-    ask: list[Reading] | None = Field(
-        default=None,
-        description="A reply that asks first: the two likeliest routes, or which change (move, rename, undo) an "
-        "organizar is, likeliest first; null otherwise.",
+    grounded: bool = Field(
+        default=False, description="A reply that used the base: it cites it or filed or organized; else general."
     )
     error: str | None = Field(description="Why it failed; null unless status is failed.")
     created_at: datetime = Field(description="When it was sent.")
@@ -103,9 +115,3 @@ class MessagePosted(BaseModel):
 
     message: MessageRead
     reply: MessageRead
-
-
-class Reroute(BaseModel):
-    """How a message is to be understood instead ("era uma pergunta")."""
-
-    route: Reading = Field(description="The understanding to redo the message with, or which change it asks.")

@@ -89,6 +89,6 @@ async def undo_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
 async def redo_proposal(
     proposal_id: UUID, conversations: Annotated[ConversationService, Depends(get_conversation_service)]
 ) -> MessageRead:
-    """A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;
+    """A stale proposal's message run again into a new reply, whose events arrive on the conversation's stream;
     the stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise."""
     return await conversations.redo(proposal_id)
