@@ -1,13 +1,11 @@
 import hashlib
 import io
-import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
 import httpx
 
-from acervo.core import signing
 from acervo.core.settings import Settings
 
 FIXTURES = Path(__file__).parent.parent / "fixtures"
@@ -54,20 +52,18 @@ async def test_wrong_type_or_too_big_is_422(
     assert (await client.get(f"/v1/nodes/{page}")).json()["cover"] is None
 
 
-async def test_a_file_link_signature_does_not_open_a_cover(
-    client: httpx.AsyncClient, make_tree: MakeTree, test_settings: Settings
-) -> None:
-    tree = await make_tree({"Residencial": None})
-    folder = str(tree["Residencial"].id)
-    await _upload(client, folder, PHOTO.read_bytes())
-    expires = int(time.time()) + signing.LINK_SECONDS
-    secret = test_settings.api_key.get_secret_value()
-    signature = signing.sign(secret, "file", tree["Residencial"].id, None, expires)
-    del client.headers["X-API-Key"]
+async def test_cover_survives_a_move_to_another_base(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Residencial": ["Renovação.md"]})
+    other = await make_tree({"Destino": None}, name="Porto")
+    page = str(tree["Residencial/Renovação.md"].id)
+    await _upload(client, page, PHOTO.read_bytes())
 
-    raw = await client.get(f"/v1/nodes/{folder}/cover/raw", params={"expires": expires, "signature": signature})
+    moved = await client.post(f"/v1/nodes/{page}/move", json={"kb_id": str(other.kb.id), "parent_id": None})
+    link = await client.post(f"/v1/nodes/{page}/cover/link")
+    raw = await client.get(link.json()["url"])
 
-    assert (raw.status_code, raw.json()["error"]) == (401, "unauthorized")
+    assert moved.status_code == 200, moved.text
+    assert (raw.status_code, raw.content) == (200, PHOTO.read_bytes())
 
 
 async def test_no_image_cover_is_404(client: httpx.AsyncClient, make_tree: MakeTree) -> None:

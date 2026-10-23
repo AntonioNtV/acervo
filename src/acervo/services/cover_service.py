@@ -1,27 +1,23 @@
 import asyncio
-import hashlib
-import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import BinaryIO
-from urllib.parse import urlencode
 from uuid import UUID
 
-from acervo.core import signing
 from acervo.core.errors import NotFoundError, ValidationError
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileLink
 from acervo.schemas.node import NodeRead, NodeUpdate
+from acervo.services.file_service import read_hash, signed_link
 from acervo.services.storage import Storage
 
-CHUNK_SIZE = 1024 * 1024
 IMAGE = "image:"
 
 
-def cover_key(kb_id: UUID, sha256: str) -> str:
-    """Outside `kb/`, where the tree's files live: a cover is not a file of the tree."""
-    return f"covers/{kb_id}/{sha256}"
+def cover_key(sha256: str) -> str:
+    """Outside `kb/`, where the tree's files live: a cover is not a file of the tree. Not under the base either, so
+    the cover stays reachable when its node moves to another base."""
+    return f"covers/{sha256}"
 
 
 def _mime(head: bytes) -> str | None:
@@ -32,21 +28,6 @@ def _mime(head: bytes) -> str | None:
     if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return "image/webp"
     return None
-
-
-def _hash(source: BinaryIO, max_bytes: int) -> tuple[str, int, bytes]:
-    """Stops reading once past `max_bytes`, so an oversized upload is refused without hashing all of it."""
-    digest = hashlib.sha256()
-    size = 0
-    head = b""
-    source.seek(0)
-    while (chunk := source.read(CHUNK_SIZE)) and size <= max_bytes:
-        if size == 0:
-            head = chunk[:12]
-        digest.update(chunk)
-        size += len(chunk)
-    source.seek(0)
-    return digest.hexdigest(), size, head
 
 
 @dataclass(frozen=True)
@@ -70,13 +51,13 @@ class CoverService:
         node = await self._uow.nodes.live(node_id)
         if node.kind == "file":
             raise ValidationError("um arquivo não tem capa", {"node_id": str(node_id)})
-        sha256, size, head = await asyncio.to_thread(_hash, source, self._max_bytes)
+        sha256, size, head = await asyncio.to_thread(read_hash, source, self._max_bytes)
         if _mime(head) is None:
             raise ValidationError("a capa deve ser uma imagem PNG, JPEG ou WebP", {"node_id": str(node_id)})
         if size > self._max_bytes:
             limit = self._max_bytes // (1024 * 1024)
             raise ValidationError(f"a capa passa de {limit} MB", {"max_bytes": self._max_bytes})
-        await self._storage.put(cover_key(node.kb_id, sha256), source, size)
+        await self._storage.put(cover_key(sha256), source, size)
         node = await self._uow.nodes.update(node_id, NodeUpdate(cover=f"{IMAGE}{sha256}"))
         await self._uow.commit()
         return node
@@ -84,9 +65,7 @@ class CoverService:
     async def link(self, node_id: UUID, secret: str, raw_url: str) -> FileLink:
         """`raw_url` signed for the node's cover, so it opens without the key for a short while."""
         await self._image_key(node_id)
-        expires = int(time.time()) + signing.LINK_SECONDS
-        query = {"expires": expires, "signature": signing.sign(secret, "cover", node_id, None, expires)}
-        return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
+        return signed_link(secret, "cover", node_id, None, raw_url)
 
     async def open(self, node_id: UUID) -> CoverImage:
         """The node's cover image with the media type read from its first bytes."""
@@ -101,7 +80,7 @@ class CoverService:
         node = await self._uow.nodes.live(node_id)
         if not node.cover or not node.cover.startswith(IMAGE):
             raise NotFoundError(f"cover of {node_id} not found", {"id": str(node_id)})
-        return cover_key(node.kb_id, node.cover.removeprefix(IMAGE))
+        return cover_key(node.cover.removeprefix(IMAGE))
 
 
 async def _prepend(first: bytes, rest: AsyncIterator[bytes]) -> AsyncIterator[bytes]:

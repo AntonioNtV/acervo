@@ -21,26 +21,25 @@ class DuplicateService:
         if page.kind != "page":
             raise ValidationError(f"node {node_id} is not a page", {"id": str(node_id)})
         await self._uow.kbs.lock(page.kb_id)
-        title = await self._free_title(page)
         sort = key_between(page.sort, await nodes.next_sort(page.kb_id, page.parent_id, page.sort))
-        copy = await self._copy(page, page.parent_id, title, sort)
+        copy = await self._copy(page, page.parent_id, sort)
         await self._uow.commit()
         return copy
 
-    async def _free_title(self, page: NodeRead) -> str:
+    async def _free_title(self, page: NodeRead, parent_id: UUID | None) -> str:
         title, count = f"{page.title} (cópia)", 1
-        while await self._uow.nodes.title_taken(page.kb_id, page.parent_id, "page", title):
+        while await self._uow.nodes.title_taken(page.kb_id, parent_id, "page", title):
             count += 1
             title = f"{page.title} (cópia {count})"
         return title
 
-    async def _copy(self, page: NodeRead, parent_id: UUID | None, title: str, sort: str) -> NodeRead:
+    async def _copy(self, page: NodeRead, parent_id: UUID | None, sort: str) -> NodeRead:
         copy = await self._uow.nodes.create(
             NodeCreate(
                 kb_id=page.kb_id,
                 parent_id=parent_id,
                 kind="page",
-                title=title,
+                title=await self._free_title(page, parent_id),
                 sort=sort,
                 description=page.description,
             ),
@@ -52,8 +51,8 @@ class DuplicateService:
         markdown = (await self._uow.page_versions.current(page.id)).markdown if text is None else text.markdown
         await self._uow.page_versions.add(PageVersionCreate(node_id=copy.id, markdown=markdown, author="user"))
         await self._uow.page_links.replace(copy.kb_id, copy.id, links.targets(markdown))
-        # Sub-pages keep their titles and order: under a new parent nothing clashes.
+        # Sub-pages are renamed too, so a `[[link]]` to an original still resolves to that one page.
         for child in await self._uow.nodes.children(page.kb_id, page.id):
             if child.kind == "page":
-                await self._copy(child, copy.id, child.title, child.sort)
+                await self._copy(child, copy.id, child.sort)
         return copy
