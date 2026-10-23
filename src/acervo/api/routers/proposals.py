@@ -4,10 +4,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends
 
-from acervo.api.deps import get_job_queue, get_proposal_service, get_settings, require_api_key
+from acervo.api.deps import get_conversation_service, get_job_queue, get_proposal_service, get_settings, require_api_key
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
+from acervo.schemas.conversation import MessageRead
 from acervo.schemas.proposal import AcceptedBy, ProposalPayload, ProposalRead, ProposalReject, ProposalSummary
+from acervo.services.conversation_service import ConversationService
 from acervo.services.events import JobQueue
 from acervo.services.proposal_service import ProposalService, enqueue_refresh
 
@@ -79,3 +81,14 @@ async def other_place(proposal_id: UUID, service: Service) -> ProposalRead:
 async def undo_proposal(proposal_id: UUID, service: Service) -> ProposalRead:
     """A new proposal undoing an applied one, by the same agent and in its mode: applied at once in auto mode."""
     return await service.undo(proposal_id)
+
+
+@router.post(
+    "/proposals/{proposal_id}/redo", status_code=201, response_model=MessageRead, responses={404: ERROR, 409: ERROR}
+)
+async def redo_proposal(
+    proposal_id: UUID, conversations: Annotated[ConversationService, Depends(get_conversation_service)]
+) -> MessageRead:
+    """A stale proposal's message filed again into a new reply, whose events arrive on the conversation's stream;
+    the stale one becomes rejected with no reason. Only a stale proposal of a chat message: 409 otherwise."""
+    return await conversations.redo(proposal_id)

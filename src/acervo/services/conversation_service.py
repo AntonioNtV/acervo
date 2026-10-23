@@ -137,6 +137,13 @@ class ConversationService:
         await self._run(replaced.conversation_id, message, reply, route, (reply,))
         return reply
 
+    async def redo(self, proposal_id: UUID) -> MessageRead:
+        """A stale proposal's message filed again into a new reply; the job drops the stale one, as a reroute does."""
+        proposal = await self._uow.proposals.get(proposal_id)
+        if proposal.status != "stale" or proposal.message_id is None:
+            raise ConflictError("só uma proposta desatualizada do chat pode ser refeita", {"id": str(proposal_id)})
+        return await self.reroute(proposal.message_id, "guardar")
+
     async def events(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
         await self._uow.conversations.get(conversation_id)
         # A stream may stay open for hours: it must not hold a database connection meanwhile.
