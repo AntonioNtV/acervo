@@ -1,9 +1,7 @@
 import asyncio
 import hashlib
-import json
 import uuid
 from pathlib import Path
-from typing import Any
 
 import httpx
 import pytest
@@ -14,9 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from acervo.core.settings import Settings
 from acervo.db.models import Message
 from acervo.repositories.proposal import ProposalRepository
-from acervo.schemas.events import DoneEvent, StepEvent
 from acervo.schemas.proposal import CreatePagePayload, ProposalCreate
-from acervo.services.events import InMemoryEventBus, RecordingJobQueue
+from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
 from acervo.services.storage import Storage
 
 SIMPLE = Path(__file__).parent.parent / "fixtures" / "pdfs" / "simple.pdf"
@@ -89,34 +86,99 @@ async def test_attached_pdf_is_staged_and_not_in_the_tree(
     assert (await client.get(f"/v1/kbs/{kb_id}/search", params={"q": "Condições"})).json() == []
 
 
-async def test_events_stream_in_order(
-    client: httpx.AsyncClient, jobs: RecordingJobQueue, bus: InMemoryEventBus
-) -> None:
-    _, conversation_id = await _conversation(client)
-    stream = asyncio.create_task(client.get(f"/v1/conversations/{conversation_id}/events"))
-    for _ in range(1000):
-        if bus.subscribers(uuid.UUID(conversation_id)):
-            break
-        await asyncio.sleep(0.01)
+START, TEXT, FINISH = '{"type":"start"}', '{"type":"text-delta","id":"t","delta":"Anotado."}', '{"type":"finish"}'
 
+
+def _chunks(response: httpx.Response) -> list[str]:
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("text/event-stream")
+    assert response.headers["x-vercel-ai-ui-message-stream"] == "v1"
+    blocks = response.text.split("\n\n")
+    assert blocks[-1] == "" and all(block.startswith("data: ") for block in blocks[:-1])
+    return [block.removeprefix("data: ") for block in blocks[:-1]]
+
+
+async def _reply(client: httpx.AsyncClient, session: AsyncSession, status: str) -> tuple[str, str, uuid.UUID]:
+    kb_id, conversation_id = await _conversation(client)
     posted = await client.post(f"/v1/conversations/{conversation_id}/messages", data={"text": "Anota isso"})
     reply_id = uuid.UUID(posted.json()["reply"]["id"])
-    await bus.publish(uuid.UUID(conversation_id), StepEvent(message_id=reply_id, step="file_fact"))
-    await bus.publish(uuid.UUID(conversation_id), DoneEvent(message_id=reply_id))
-    await bus.close(uuid.UUID(conversation_id))
-    response = await stream
+    await session.execute(update(Message).where(Message.id == reply_id).values(status=status, text="Anotado."))
+    return kb_id, conversation_id, reply_id
 
-    assert response.status_code == 200 and response.headers["content-type"].startswith("text/event-stream")
-    events: list[dict[str, Any]] = [
-        json.loads(line.removeprefix("data: ")) for line in response.text.splitlines() if line.startswith("data: ")
-    ]
-    assert [(event["type"], event.get("message", {}).get("role")) for event in events] == [
-        ("message", "person"),
-        ("message", "acervo"),
-        ("step", None),
-        ("done", None),
-    ]
-    assert (await client.get(f"/v1/conversations/{uuid.uuid4()}/events")).status_code == 404
+
+async def test_the_stream_replays_a_finished_reply_then_done(
+    client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue, bus: InMemoryEventBus
+) -> None:
+    _, _, reply_id = await _reply(client, session, "done")
+    for chunk in (START, TEXT, FINISH, DONE):
+        await bus.publish(reply_id, chunk)
+
+    assert _chunks(await client.get(f"/v1/messages/{reply_id}/stream")) == [START, TEXT, FINISH, DONE]
+    assert (await client.get(f"/v1/messages/{uuid.uuid4()}/stream")).status_code == 404
+
+
+async def test_the_stream_replays_then_follows_a_working_reply(
+    client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue, bus: InMemoryEventBus
+) -> None:
+    _, _, reply_id = await _reply(client, session, "working")
+    await bus.publish(reply_id, START)
+
+    stream = asyncio.create_task(client.get(f"/v1/messages/{reply_id}/stream"))
+    for _ in range(1000):
+        if bus.followers(reply_id):
+            break
+        await asyncio.sleep(0.01)
+    for chunk in (TEXT, FINISH, DONE):
+        await bus.publish(reply_id, chunk)
+
+    assert _chunks(await stream) == [START, TEXT, FINISH, DONE]
+
+
+async def test_ui_messages_return_the_thread_with_proposals_and_citations(
+    client: httpx.AsyncClient, session: AsyncSession, jobs: RecordingJobQueue, bus: InMemoryEventBus
+) -> None:
+    kb_id, conversation_id, reply_id = await _reply(client, session, "done")
+    [conversation] = (await client.get(f"/v1/kbs/{kb_id}/conversations")).json()
+    citation = {"marker": 1, "node_id": str(uuid.uuid4()), "kind": "file", "path": "Arquivo/CG.pdf"}
+    citation |= {"anchor": None, "page": 3}
+    await session.execute(
+        update(Message).where(Message.id == reply_id).values(text="Anotado [1].", citations=[citation], grounded=True)
+    )
+    proposal = await ProposalRepository(session).create(
+        ProposalCreate(
+            kb_id=uuid.UUID(kb_id),
+            agent_id=uuid.UUID(conversation["agent_id"]),
+            conversation_id=uuid.UUID(conversation_id),
+            message_id=reply_id,
+            payload=CreatePagePayload(parent_id=None, parent_path="", title="Prazos", markdown="# Prazos\n"),
+        )
+    )
+    await session.flush()
+
+    response = await client.get(f"/v1/conversations/{conversation_id}/ui-messages")
+
+    assert response.status_code == 200, response.text
+    person, reply = response.json()
+    assert (person["role"], person["parts"], person["metadata"]["status"]) == (
+        "user",
+        [{"type": "text", "text": "Anota isso"}],
+        "done",
+    )
+    assert (reply["id"], reply["role"], reply["metadata"]["grounded"]) == (str(reply_id), "assistant", True)
+    text, proposed, source = reply["parts"]
+    assert text == {"type": "text", "text": "Anotado [1]."}
+    assert (proposed["type"], proposed["id"], proposed["data"]["status"]) == (
+        "data-proposal",
+        str(proposal.id),
+        "pending",
+    )
+    assert source == {
+        "type": "source-document",
+        "sourceId": "[1]",
+        "mediaType": "application/pdf",
+        "title": "Arquivo/CG.pdf",
+        "providerMetadata": {"acervo": citation},
+    }
 
 
 async def test_a_deleted_conversation_leaves_the_list_and_keeps_its_proposals(

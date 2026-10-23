@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
-from acervo.schemas.proposal import StagedFile
+from acervo.schemas.proposal import ProposalRead, StagedFile
 
 MessageRole = Literal["person", "acervo"]
 MessageStatus = Literal["done", "working", "failed"]
@@ -115,3 +116,71 @@ class MessagePosted(BaseModel):
 
     message: MessageRead
     reply: MessageRead
+
+
+class _Camel(BaseModel):
+    # The AI SDK's names on the wire, Python's in the code.
+    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True, serialize_by_alias=True)
+
+
+class UiTextPart(_Camel):
+    """Text of a message, as the AI SDK's `text` part."""
+
+    type: Literal["text"] = "text"
+    text: str = Field(description="Markdown; a reply writes [n] after a claim taken from its source n.")
+
+
+class UiProposalPart(_Camel):
+    """A proposal of a reply, in its current state; a later part with the same id replaces it."""
+
+    type: Literal["data-proposal"] = "data-proposal"
+    id: UUID = Field(description="The proposal's ID.")
+    data: ProposalRead
+
+
+class UiSourceMetadata(BaseModel):
+    """Acervo's own fields of a source."""
+
+    acervo: Citation
+
+
+class UiSourcePart(_Camel):
+    """A source a reply cites, as the AI SDK's `source-document` part."""
+
+    type: Literal["source-document"] = "source-document"
+    source_id: str = Field(description="The marker the text writes: [n].")
+    media_type: str = Field(description="text/markdown for a page, application/pdf for a PDF.")
+    title: str = Field(description="Its path.")
+    provider_metadata: UiSourceMetadata = Field(description="The citation: node, section or PDF page.")
+
+    @classmethod
+    def of(cls, citation: Citation) -> "UiSourcePart":
+        return cls(
+            source_id=f"[{citation.marker}]",
+            media_type="application/pdf" if citation.kind == "file" else "text/markdown",
+            title=citation.path,
+            provider_metadata=UiSourceMetadata(acervo=citation),
+        )
+
+
+UiPart = Annotated[UiTextPart | UiProposalPart | UiSourcePart, Field(discriminator="type")]
+
+
+class UiMetadata(BaseModel):
+    """What the app needs of a stored message besides its parts; a reply's stream sends it before `finish`."""
+
+    status: MessageStatus = Field(description="A reply is working until its job ends.")
+    grounded: bool = Field(default=False, description="A reply that used the base; else a general answer.")
+    error: str | None = Field(default=None, description="Why it failed; null unless status is failed.")
+    replaces_id: UUID | None = Field(default=None, description="The reply this one runs again.")
+    attachments: list[Attachment] = Field(default_factory=list, description="Files sent with the message.")
+    created_at: datetime | None = Field(default=None, description="When it was sent; only in the stored thread.")
+
+
+class UiMessage(BaseModel):
+    """A stored message as the AI SDK's UIMessage (v6). A working reply has no parts: its stream replays them."""
+
+    id: UUID = Field(description="Message ID; a reply's is also its stream's messageId.")
+    role: Literal["user", "assistant"] = Field(description="user: the person; assistant: Acervo.")
+    metadata: UiMetadata
+    parts: list[UiPart]

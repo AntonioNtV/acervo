@@ -1,9 +1,9 @@
-from collections.abc import AsyncIterable, AsyncIterator
+from collections.abc import AsyncIterator
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
-from fastapi.sse import EventSourceResponse
+from fastapi.responses import StreamingResponse
 
 from acervo.api.deps import get_conversation_service, require_api_key
 from acervo.schemas.common import ErrorResponse
@@ -13,11 +13,13 @@ from acervo.schemas.conversation import (
     MessageContext,
     MessagePosted,
     MessageRead,
+    UiMessage,
 )
-from acervo.schemas.events import ChatEvent
 from acervo.services.conversation_service import ConversationService, Upload
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
+# How the AI SDK knows a response is its UI message stream.
+UI_STREAM_HEADERS = {"x-vercel-ai-ui-message-stream": "v1", "cache-control": "no-cache"}
 
 router = APIRouter(
     prefix="/v1",
@@ -62,7 +64,7 @@ async def post_message(
     page_id: Annotated[UUID | None, Form(description="The page open in the app, kept as context.")] = None,
     selection: Annotated[str | None, Form(description="The text selected on that page.")] = None,
 ) -> MessagePosted:
-    """Stores the message and a working reply; the reply's steps and result arrive on the events stream."""
+    """Stores the message and a working reply; the reply streams from `/v1/messages/{reply_id}/stream`."""
     uploads = [Upload(name=file.filename, mime=file.content_type, source=file.file) for file in files or []]
     context = MessageContext(page_id=page_id, selection=selection) if page_id or selection else None
     return await service.post(conversation_id, text, uploads, context)
@@ -75,15 +77,24 @@ async def retry_message(message_id: UUID, service: Service) -> MessageRead:
     return await service.retry(message_id)
 
 
-async def _events(conversation_id: UUID, service: Service) -> AsyncIterator[ChatEvent]:
-    # A dependency, so an unknown conversation is a 404 before the stream starts.
-    return await service.events(conversation_id)
+@router.get("/conversations/{conversation_id}/ui-messages", response_model=list[UiMessage])
+async def list_ui_messages(conversation_id: UUID, service: Service) -> list[UiMessage]:
+    """The conversation as the AI SDK's UI messages (v6): text, proposals as they stand now, citations as sources."""
+    return await service.ui_messages(conversation_id)
 
 
-@router.get("/conversations/{conversation_id}/events", response_class=EventSourceResponse)
-async def conversation_events(
-    events: Annotated[AsyncIterator[ChatEvent], Depends(_events)],
-) -> AsyncIterable[ChatEvent]:
-    """The conversation's live events, each a JSON `data:` line, for as long as the connection stays open."""
-    async for event in events:
-        yield event
+@router.get(
+    "/messages/{reply_id}/stream",
+    response_class=StreamingResponse,
+    responses={200: {"content": {"text/event-stream": {}}}},
+)
+async def stream_reply(reply_id: UUID, service: Service) -> StreamingResponse:
+    """A reply as the AI SDK's UI message stream (v6), a `data:` line per chunk and `data: [DONE]` last: what it
+    streamed so far, then live until it ends; a reply already finished replays and ends."""
+    chunks = await service.stream(reply_id)
+
+    async def lines() -> AsyncIterator[str]:
+        async for chunk in chunks:
+            yield f"data: {chunk}\n\n"
+
+    return StreamingResponse(lines(), media_type="text/event-stream", headers=UI_STREAM_HEADERS)

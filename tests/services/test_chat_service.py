@@ -19,11 +19,10 @@ from acervo.model_clients.fakes import FakeDecider, FakeProbs, FakeWriter
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.agent import AgentCreate, AgentUpdate
 from acervo.schemas.conversation import Citation, ConversationStart, MessageRead
-from acervo.schemas.events import ChatEvent, DeltaEvent, DoneEvent, ErrorEvent, StepEvent
 from acervo.schemas.proposal import ProposalRead
 from acervo.services.chat_service import INTERRUPTED, ChatService
 from acervo.services.conversation_service import ConversationService, Upload
-from acervo.services.events import InMemoryEventBus, RecordingJobQueue
+from acervo.services.events import DONE, InMemoryEventBus, RecordingJobQueue
 from acervo.services.proposal_service import ProposalService
 from acervo.services.storage import Storage
 
@@ -76,17 +75,6 @@ class Script:
 
 
 @dataclass
-class RecordingBus:
-    events: list[ChatEvent] = field(default_factory=list)
-
-    async def publish(self, conversation_id: UUID, event: ChatEvent) -> None:
-        self.events.append(event)
-
-    def subscribe(self, conversation_id: UUID) -> AsyncIterator[ChatEvent]:
-        raise NotImplementedError
-
-
-@dataclass
 class Env:
     uow: UnitOfWork
     session: AsyncSession
@@ -95,7 +83,7 @@ class Env:
     chat: ChatService
     script: Script
     decider: FakeDecider
-    bus: RecordingBus
+    bus: InMemoryEventBus
     conversation_id: UUID
     agent_id: UUID
 
@@ -121,8 +109,18 @@ class Env:
         await self.uow.agents.update(self.agent_id, AgentUpdate(mode="auto"))
         await self.uow.commit()
 
+    def chunks(self, reply: MessageRead) -> list[dict[str, Any]]:
+        """The reply's published stream, `[DONE]` as `{"type": "[DONE]"}`."""
+        kept = self.bus.kept[reply.id]
+        return [{"type": DONE} if chunk == DONE else json.loads(chunk) for chunk in kept]
+
     def steps(self) -> list[str]:
-        return [event.step for event in self.bus.events if isinstance(event, StepEvent)]
+        return [
+            chunk["toolName"]
+            for reply_id in self.bus.kept
+            for chunk in map(json.loads, self.bus.kept[reply_id][:-1])
+            if chunk["type"] == "tool-input-available"
+        ]
 
 
 @pytest.fixture
@@ -145,7 +143,7 @@ async def env(
     async with uow:
         agent = await uow.agents.create(AgentCreate(name="Chat do Acervo"), kb_id=tree.kb.id, built_in=True)
         await uow.commit()
-        bucket, bus, jobs = Storage(storage), RecordingBus(), RecordingJobQueue()
+        bucket, bus, jobs = Storage(storage), InMemoryEventBus(), RecordingJobQueue()
         conversations = ConversationService(uow, bucket, jobs, InMemoryEventBus())
         conversation = await conversations.create(tree.kb.id, ConversationStart())
         model = ChatAgent(FunctionModel(stream_function=script))
@@ -163,7 +161,7 @@ async def test_a_greeting_gets_text_and_no_tool_call(env: Env) -> None:
         [],
     )
     assert env.steps() == []
-    deltas = [event.text for event in env.bus.events if isinstance(event, DeltaEvent)]
+    deltas = [chunk["delta"] for chunk in env.chunks(reply) if chunk["type"] == "text-delta"]
     assert "".join(deltas).strip() == reply.text and len(deltas) > 1
     assert await env.proposals(reply) == []
 
@@ -201,7 +199,7 @@ async def test_a_fact_calls_file_fact_and_becomes_an_append_with_its_decisions_l
     logged = await env.uow.decisions.of_run(reply.run_id)
     assert [d.step for d in logged] == ["descent", "descent", "descent", *["page_check"] * 4]
     assert {d.message_id for d in logged} == {reply.id}
-    assert isinstance(env.bus.events[-1], DoneEvent)
+    assert env.chunks(reply)[-1] == {"type": DONE}
 
 
 async def test_a_contradicting_fact_becomes_a_conflict(env: Env) -> None:
@@ -277,8 +275,15 @@ async def test_a_tool_error_fails_the_reply_with_nothing_applied(env: Env) -> No
     [dropped] = await env.proposals(reply)
     assert (dropped.status, dropped.reject_reason) == ("rejected", None)
     assert await env.markdown() == TEXT
-    error = env.bus.events[-1]
-    assert isinstance(error, ErrorEvent) and error.error == "not_found"
+    *_, proposal, metadata, error, finish, done = env.chunks(reply)
+    assert (proposal["type"], proposal["id"], proposal["data"]["status"]) == (
+        "data-proposal",
+        str(dropped.id),
+        "rejected",
+    )
+    assert metadata["messageMetadata"]["status"] == "failed"
+    assert error == {"type": "error", "errorText": reply.error}
+    assert (finish["type"], done["type"]) == ("finish", DONE)
 
 
 async def test_retry_runs_the_message_again(env: Env) -> None:
@@ -332,4 +337,60 @@ async def test_a_cancelled_job_marks_the_reply_failed(env: Env) -> None:
     [_, reply] = await env.uow.messages.of_conversation(env.conversation_id)
     assert (reply.status, reply.error) == ("failed", INTERRUPTED)
     assert await env.proposals(reply) == []
-    assert isinstance(env.bus.events[-1], ErrorEvent)
+    types = [chunk["type"] for chunk in env.chunks(reply)]
+    assert (types[0], types[-4:]) == ("start", ["message-metadata", "error", "finish", DONE])
+    assert types.count("start") == 1
+
+
+async def test_a_run_streams_text_tools_proposals_sources_and_finish(env: Env) -> None:
+    page_id = env.tree[PAGE].id
+
+    reply = await env.send(
+        FACT,
+        [("read_page", {"node_id": str(page_id), "section": "prazos"})],
+        [("file_fact", {"text": FACT})],
+        "Hoje são cinco dias [1]; propus o acréscimo.",
+    )
+
+    chunks = env.chunks(reply)
+    types = [chunk["type"] for chunk in chunks]
+    assert chunks[0] == {"type": "start", "messageId": str(reply.id)}
+    assert types[-3:] == ["finish-step", "finish", DONE]
+    called = [chunk["toolName"] for chunk in chunks if chunk["type"] == "tool-input-available"]
+    assert called == ["read_page", "file_fact"]
+    [read, filed] = [chunk["output"] for chunk in chunks if chunk["type"] == "tool-output-available"]
+    assert (read["cite"], filed["outcome"]) == ("[1]", "proposed")
+    [proposal] = await env.proposals(reply)
+    proposed = [chunk for chunk in chunks if chunk["type"] == "data-proposal"]
+    assert [(p["id"], p["data"]["status"]) for p in proposed] == [(str(proposal.id), "pending")] * 2
+    # The first comes with the tool's result, the second once the run ended.
+    assert types.index("data-proposal") < types.index("text-start")
+    [source] = [chunk for chunk in chunks if chunk["type"] == "source-document"]
+    assert (source["sourceId"], source["mediaType"], source["providerMetadata"]["acervo"]["anchor"]) == (
+        "[1]",
+        "text/markdown",
+        "prazos",
+    )
+    deltas = "".join(chunk["delta"] for chunk in chunks if chunk["type"] == "text-delta")
+    assert deltas.strip() == reply.text
+    [metadata] = [
+        c["messageMetadata"] for c in chunks if c["type"] == "message-metadata" and "status" in c["messageMetadata"]
+    ]
+    assert metadata == {
+        "status": "done",
+        "grounded": True,
+        "error": None,
+        "replaces_id": None,
+        "attachments": [],
+        "created_at": None,
+    }
+
+
+async def test_an_auto_approved_proposal_is_sent_again_with_the_same_id(env: Env) -> None:
+    await env.auto()
+
+    reply = await env.send(FACT, [("file_fact", {"text": FACT})], "Acrescentei.")
+
+    [applied] = await env.proposals(reply)
+    sent = [(c["id"], c["data"]["status"]) for c in env.chunks(reply) if c["type"] == "data-proposal"]
+    assert sent == [(str(applied.id), "pending"), (str(applied.id), "applied")]
