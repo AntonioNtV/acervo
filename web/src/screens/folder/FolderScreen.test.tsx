@@ -20,6 +20,7 @@ const folder: NodeDetail = {
 class FakeXhr {
   static sent: FakeXhr[] = [];
   upload = {};
+  onerror?: () => void;
   form?: FormData;
   path = "";
   open(_method: string, path: string) {
@@ -49,7 +50,11 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  // Ends what is still sending, so the next test's clearUploads empties the list.
+  for (const sent of FakeXhr.sent) sent.onerror?.();
+  vi.unstubAllGlobals();
+});
 
 function renderFolder() {
   return renderInBase(<FolderScreen node={folder} />, "/kbs/kb-1/n/residencial");
@@ -116,5 +121,20 @@ describe("FolderScreen", () => {
     await waitFor(() =>
       expect(calls.find((call) => call.method === "PATCH")?.body).toEqual({ description: "Emissão e renovação." }),
     );
+  });
+
+  it("invites files when empty and sends them into the folder", async () => {
+    respond("GET", "/v1/kbs/kb-1/children", { body: [] });
+    renderFolder();
+
+    await userEvent.upload(await screen.findByLabelText("Envie um arquivo"), [
+      new File(["%PDF"], "Nova.pdf", { type: "application/pdf" }),
+    ]);
+
+    const [sent] = FakeXhr.sent as [FakeXhr];
+    expect(sent.path).toBe("/v1/kbs/kb-1/files");
+    expect(sent.form?.get("parent_id")).toBe("residencial");
+    expect((sent.form?.get("file") as File).name).toBe("Nova.pdf");
+    expect(await screen.findByRole("progressbar", { name: "Nova.pdf" })).toBeInTheDocument();
   });
 });

@@ -79,8 +79,8 @@ describe("Upload", () => {
 
     const list = screen.getByRole("region", { name: "Envios" });
     const [newRow, dupRow] = within(list).getAllByRole("listitem") as [HTMLElement, HTMLElement];
-    expect(await within(newRow).findByText("40%")).toBeInTheDocument();
-    expect(within(dupRow).getByText("90%")).toBeInTheDocument();
+    expect(await within(newRow).findByText(/40%/)).toBeInTheDocument();
+    expect(within(dupRow).getByText(/90%/)).toBeInTheDocument();
 
     second.reply(409, {
       error: "duplicate",
@@ -93,7 +93,7 @@ describe("Upload", () => {
       "href",
       "/kbs/kb-1/n/cg",
     );
-    expect(within(newRow).getByText("40%")).toBeInTheDocument();
+    expect(within(newRow).getByText(/40%/)).toBeInTheDocument();
   });
 
   it("maps a duplicate with history to \"no histórico de\"", async () => {
@@ -117,5 +117,29 @@ describe("Upload", () => {
     const row = within(screen.getByRole("region", { name: "Envios" })).getAllByRole("listitem").at(-1) as HTMLElement;
     expect(await within(row).findByText(/já está no histórico de/)).toBeInTheDocument();
     expect(within(row).getByRole("link", { name: "Bradesco/CG 2026.pdf" })).toHaveAttribute("href", "/kbs/kb-1/n/cg");
+  });
+
+  it("sends a failed file again to the same folder", async () => {
+    renderInBase(
+      <>
+        <NodeView />
+        <UploadList kbId="kb-1" />
+      </>,
+      "/kbs/kb-1/n/residencial",
+    );
+
+    await screen.findByRole("heading", { name: "Residencial" });
+    await userEvent.upload(screen.getByLabelText("Enviar arquivos"), files("Nova.pdf"));
+    const [failed] = FakeXhr.sent as [FakeXhr];
+    failed.reply(500, { error: "internal", message: "boom" });
+
+    const row = within(screen.getByRole("region", { name: "Envios" })).getAllByRole("listitem").at(-1) as HTMLElement;
+    expect(await within(row).findByText("Falhou")).toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: "Tentar de novo" }));
+
+    const [, again] = FakeXhr.sent as [FakeXhr, FakeXhr];
+    expect(again.form?.get("parent_id")).toBe("residencial");
+    expect(again.form?.get("file")).toBe(failed.form?.get("file"));
+    expect(await within(row).findByText(/0%/)).toBeInTheDocument();
   });
 });
