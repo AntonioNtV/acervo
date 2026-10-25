@@ -55,7 +55,7 @@ function Title({ node }: { node: NodeDetail }) {
           placeholder={t("page.untitled")}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => setDraft((typed) => (typed?.trim() === node.title ? null : typed))}
-          className="w-full border-0 bg-transparent p-0 text-32 font-medium tracking-[-0.025em] text-text outline-none placeholder:text-ghost"
+          className="w-full border-0 bg-transparent p-0 text-32 leading-[40px] font-medium tracking-[-0.025em] text-text outline-none placeholder:text-ghost"
         />
       </h1>
       {error && (
