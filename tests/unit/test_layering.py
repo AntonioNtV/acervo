@@ -7,23 +7,21 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src"
 PACKAGE = SRC / "acervo"
 
-LAYERS = {"core", "domain", "schemas", "db", "repositories", "services", "pipeline", "model_clients", "api", "worker"}
+LAYERS = {"core", "domain", "schemas", "db", "repositories", "services", "pipeline", "api"}
 
 # Layers each layer must not import: nothing upward, plus the skill's explicit rules.
 FORBIDDEN_LAYERS = {
     "core": LAYERS - {"core"},
     "domain": LAYERS - {"core", "domain"},
     "schemas": LAYERS - {"core", "domain", "schemas"},
-    "model_clients": LAYERS - {"core", "domain", "model_clients"},
-    "db": {"repositories", "services", "pipeline", "model_clients", "api", "worker"},
-    "repositories": {"services", "pipeline", "model_clients", "api", "worker"},
-    "pipeline": {"db", "repositories", "services", "api", "worker"},
-    "services": {"db", "api", "worker"},
-    "api": {"db", "repositories", "pipeline", "model_clients", "worker"},
-    "worker": {"db", "pipeline", "api"},
+    "db": {"repositories", "services", "pipeline", "api"},
+    "repositories": {"services", "pipeline", "api"},
+    "pipeline": {"db", "repositories", "services", "api"},
+    "services": {"db", "api"},
+    "api": {"db", "repositories", "pipeline"},
 }
 
-# No SQLAlchemy, FastAPI or httpx below services, except in db, repositories, api and model_clients.
+# No SQLAlchemy, FastAPI or httpx below services, except in db, repositories and api.
 FRAMEWORKS = {"sqlalchemy", "fastapi", "httpx"}
 FRAMEWORK_FREE_LAYERS = {"core", "domain", "schemas", "pipeline"}
 

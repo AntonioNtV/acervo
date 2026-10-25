@@ -1,7 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { Editor } from "@tiptap/core";
 import { calls, resetApi, respond } from "../../api/testing";
 import { pageNode, renderPage, typeInPage } from "./testing";
 
@@ -9,7 +8,6 @@ vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mock
 
 const textPuts = () => calls.filter((call) => call.method === "PUT" && call.path === "/v1/pages/page-1/text");
 const leaves = () => calls.filter((call) => call.path === "/v1/pages/page-1/leave");
-const nodeReads = () => calls.filter((call) => call.method === "GET" && call.path === "/v1/nodes/page-1");
 const nodePatches = () => calls.filter((call) => call.method === "PATCH" && call.path === "/v1/nodes/page-1");
 const pagePaths = () =>
   calls.filter((call) => call.method !== "GET" && call.path.startsWith("/v1/pages/")).map((call) => call.path);
@@ -76,26 +74,6 @@ describe("PageScreen", () => {
     await waitFor(() => expect(textPuts()).toHaveLength(1));
     expect(textPuts()[0]!.body).toEqual({ markdown: "## Documentos\n\nBoleto\n\nno portal\n", revision: 4 });
     expect(await screen.findByText("Salvo")).toBeInTheDocument();
-  });
-
-  it("a save reads the node again only for a link it does not know", async () => {
-    await openPage();
-    const reads = nodeReads().length;
-
-    typeInPage("Boleto");
-    await act(() => vi.advanceTimersByTimeAsync(1100));
-    expect(await screen.findByText("Salvo")).toBeInTheDocument();
-    expect(nodeReads()).toHaveLength(reads);
-
-    const { editor } = screen.getByRole("textbox", { name: "Texto da página" }) as HTMLElement & { editor: Editor };
-    act(() => {
-      editor.commands.insertContentAt(editor.state.doc.content.size, {
-        type: "paragraph",
-        content: [{ type: "pageLink", attrs: { title: "Renovação 2026" } }],
-      });
-    });
-    await act(() => vi.advanceTimersByTimeAsync(1100));
-    await waitFor(() => expect(nodeReads()).toHaveLength(reads + 1));
   });
 
   it("a stale_page reloads the newest text and says so", async () => {
@@ -246,22 +224,6 @@ describe("PageScreen", () => {
     expect(textPuts()[1]!.body).toEqual({ markdown: "## Documentos\n\nBoleto\n\nno portal\n", revision: 4 });
   });
 
-  it("hiding the tab during a save with nothing new typed only leaves", async () => {
-    const release = holdSaves();
-    await openPage();
-
-    typeInPage("Boleto");
-    await act(() => vi.advanceTimersByTimeAsync(1100));
-    await waitFor(() => expect(textPuts()).toHaveLength(1));
-    hideTab();
-
-    await waitFor(() => expect(leaves()).toHaveLength(1));
-    await release();
-    expect(textPuts()).toHaveLength(1);
-    expect(await screen.findByText("Salvo")).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-
   it("a newer revision from the API reloads an idle editor", async () => {
     const { queryClient } = await openPage();
 
@@ -318,40 +280,6 @@ describe("PageScreen", () => {
     expect(sent[0]!.form.get("file")).toBeInstanceOf(File);
   });
 
-  it("files dropped together read the node again once, after the last lands", async () => {
-    const sent: Array<{ onload?: () => void; status: number; response: unknown }> = [];
-    vi.stubGlobal(
-      "XMLHttpRequest",
-      class {
-        upload = {};
-        status = 0;
-        response: unknown = null;
-        onload?: () => void;
-        open() {}
-        setRequestHeader() {}
-        send() {
-          sent.push(this);
-        }
-      },
-    );
-    await openPage();
-    const reads = nodeReads().length;
-
-    const files = ["Apólice.pdf", "Boleto.pdf"].map((name) => new File(["%PDF"], name, { type: "application/pdf" }));
-    fireEvent.drop(screen.getByRole("textbox", { name: "Texto da página" }), {
-      dataTransfer: { files, types: ["Files"] },
-    });
-    await waitFor(() => expect(sent).toHaveLength(2));
-    for (const request of sent) {
-      request.status = 201;
-      act(() => request.onload?.());
-    }
-
-    await waitFor(() => expect(nodeReads()).toHaveLength(reads + 1));
-    await act(() => vi.advanceTimersByTimeAsync(100));
-    expect(nodeReads()).toHaveLength(reads + 1);
-  });
-
   it("the title renames the node after the pause", async () => {
     respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), title: "Emissão da apólice" } });
     await openPage();
@@ -368,21 +296,6 @@ describe("PageScreen", () => {
         expect.objectContaining({ body: { title: "Emissão da apólice" } }),
       ]),
     );
-  });
-
-  it("leaving the title for another page renames the node at once, and only once", async () => {
-    respond("PATCH", "/v1/nodes/page-1", { body: { ...pageNode(), title: "Emissão da apólice" } });
-    const { unmount } = await openPage();
-    const title = screen.getByRole("textbox", { name: "Título da página" });
-
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    await user.clear(title);
-    await user.type(title, "Emissão da apólice");
-    act(() => title.blur());
-    unmount();
-    await act(() => vi.advanceTimersByTimeAsync(1100));
-
-    expect(nodePatches().map((call) => call.body)).toEqual([{ title: "Emissão da apólice" }]);
   });
 
   it("an emoji picked in the header is sent as the node's icon", async () => {

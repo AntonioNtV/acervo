@@ -13,8 +13,6 @@ export const ptBR = {
   "trash.bases": "Bases",
   "trash.noBases": "Nenhuma base na Lixeira.",
   path: "Caminho",
-  "chat.label": "Chat",
-  "chat.close": "Fechar o chat",
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
@@ -32,6 +30,4 @@ export const en: Record<keyof typeof ptBR, string> = {
   "trash.bases": "Bases",
   "trash.noBases": "No base in the Trash.",
   path: "Path",
-  "chat.label": "Chat",
-  "chat.close": "Close the chat",
 };

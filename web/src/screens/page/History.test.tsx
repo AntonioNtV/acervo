@@ -27,8 +27,7 @@ describe("History", () => {
     const day = await within(panel).findByRole("region", { name: "14 de outubro" });
     const rows = within(day).getAllByRole("button");
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent("você · 12 min de edição");
-    expect(rows[1]).toHaveTextContent("proposta do chat");
+    expect(rows[0]).toHaveTextContent("12 min de edição");
   });
 
   it("shows the selected version in the page with what came in and went out marked", async () => {

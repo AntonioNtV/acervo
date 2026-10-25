@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 
@@ -16,16 +16,6 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("opens the chat from the top bar, with one box and no modes", async () => {
-    renderAt("/lixeira");
-
-    await userEvent.click(screen.getByRole("button", { name: "Chat" }));
-
-    const chat = screen.getByRole("complementary", { name: "Chat" });
-    expect(chat).toHaveTextContent("Abra uma base para conversar");
-    expect(within(chat).queryByRole("button", { name: "Capturar" })).not.toBeInTheDocument();
-  });
-
   it("switching theme changes the root class", async () => {
     renderAt("/lixeira");
 

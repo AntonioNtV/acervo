@@ -12,7 +12,7 @@ from sqlalchemy.pool import NullPool
 
 from acervo.core.errors import StalePage
 from acervo.core.settings import Settings
-from acervo.db.models import Agent, Kb, Node, PageDraft, PageLink, PageVersion
+from acervo.db.models import Kb, Node, PageDraft, PageLink, PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
@@ -75,7 +75,7 @@ async def test_create_writes_an_empty_version_1(services: Services, make_tree: M
 
     page = await services.pages.read(node.id)
     assert (page.markdown, page.revision, page.links, page.sections) == ("", 0, {}, [])
-    assert [(v.id, v.author) for v in await services.pages.versions(node.id)] == [(page.version_id, "user")]
+    assert [v.id for v in await services.pages.versions(node.id)] == [page.version_id]
 
 
 async def test_save_creates_a_whole_file_version_by_user(services: Services, make_tree: MakeTree) -> None:
@@ -85,7 +85,6 @@ async def test_save_creates_a_whole_file_version_by_user(services: Services, mak
     saved = await _write(services.pages, page.id, "# Emissão de apólice\n\n## Documentos\n- RG\n")
 
     assert saved.id != first
-    assert saved.author == "user"
     current = await services.pages.read(page.id)
     assert (current.version_id, current.markdown) == (saved.id, "# Emissão de apólice\n\n## Documentos\n- RG\n")
     assert [(s.anchor, s.heading) for s in current.sections] == [("documentos", "Documentos")]
@@ -223,7 +222,6 @@ async def test_history_newest_first_without_text(services: Services, make_tree: 
 
     assert [v.id for v in history] == [third.id, second.id, first]
     assert history[0].created_at > history[1].created_at > history[2].created_at
-    assert {v.author for v in history} == {"user"}
     assert not hasattr(history[0], "markdown")
 
 
@@ -280,7 +278,7 @@ async def test_rename_fixes_linking_pages_as_new_versions(services: Services, ma
 
     assert await _markdown(services.pages, emission.id) == "Antes da [[Renovação anual]], ver [[Renovação anual]].\n"
     assert await _markdown(services.pages, vistoria.id) == "Depois da [[Renovação anual]].\n"
-    assert [v.author for v in await services.pages.versions(emission.id)] == ["user"] * 3
+    assert len(await services.pages.versions(emission.id)) == 3
     assert (await services.pages.read(unrelated)).version_id == unrelated_version.id
 
 
@@ -352,7 +350,6 @@ async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_s
         await session.execute(delete(PageDraft).where(PageDraft.node_id.in_(of_base)))
         await session.execute(delete(PageVersion).where(PageVersion.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
-        await session.execute(delete(Agent).where(Agent.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
         await session.commit()
     await engine.dispose()

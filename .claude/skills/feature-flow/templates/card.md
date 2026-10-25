@@ -1,6 +1,6 @@
 ---
 id: <NN>
-title: <verb + what, e.g. "Show the second path in a PDF proposal">
+title: <verb + what, e.g. "Show a page's backlinks under its text">
 wave: <0, 1, 2…>
 depends_on: [<ids>]
 files:

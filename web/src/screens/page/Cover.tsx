@@ -151,7 +151,7 @@ export function HeaderDecor({ node }: { node: NodeDetail }) {
   return (
     <>
       {node.icon && (
-        // Over the cover's lower edge, as in Notion: the column's top padding plus half the icon.
+        // Over the cover's lower edge: the column's top padding plus half the icon.
         <div className={cx("w-fit", node.cover && "-mt-[78px]")}>
           <button
             type="button"

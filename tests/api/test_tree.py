@@ -282,7 +282,7 @@ async def test_open_a_file_and_a_folder_node(client: httpx.AsyncClient, make_tre
     assert set(opened["file"]) == {"size", "mime", "pages", "protected", "sha256"}
 
 
-async def test_edit_description_locks_it_and_children_carry_counts(
+async def test_edit_description_and_children_carry_counts(
     client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
 ) -> None:
     tree = await make_tree({"Bradesco": {"Residencial": ["A.md", "B.md"]}, "Vazia": None})
@@ -292,18 +292,14 @@ async def test_edit_description_locks_it_and_children_carry_counts(
 
     assert edited.status_code == 200
     row = await session.get(Node, residencial, populate_existing=True)
-    assert row is not None and (row.description, row.description_locked, row.title) == (
-        "Produto residencial.",
-        True,
-        "Residencial",
-    )
+    assert row is not None and (row.description, row.title) == ("Produto residencial.", "Residencial")
     top = {node["title"]: node for node in await _children(client, tree.kb.id, None)}
     assert (top["Bradesco"]["child_count"], top["Vazia"]["child_count"]) == (1, 0)
     inside = await _children(client, tree.kb.id, tree["Bradesco"].id)
     assert (inside[0]["child_count"], inside[0]["pages"], inside[0]["size"]) == (2, None, None)
 
 
-async def test_clearing_the_description_unlocks_it(
+async def test_clearing_the_description_empties_it(
     client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
 ) -> None:
     tree = await make_tree({"Bradesco": None})
@@ -314,7 +310,7 @@ async def test_clearing_the_description_unlocks_it(
 
     assert cleared.status_code == 200
     row = await session.get(Node, bradesco, populate_existing=True)
-    assert row is not None and (row.description, row.description_locked) == ("", False)
+    assert row is not None and row.description == ""
 
 
 async def test_a_file_is_not_a_parent(client: httpx.AsyncClient, make_tree: MakeTree) -> None:

@@ -21,7 +21,7 @@ class Node(UUIDPkMixin, TimestampMixin, Base):
             postgresql_nulls_not_distinct=True,
             postgresql_where=text("deleted_at is null"),
         ),
-        # The person's name filter only (rule 2 of CLAUDE.md): agents never search by title.
+        # The name filter of the tree and of search.
         Index(
             "ix_node_title_trgm",
             text("acervo.immutable_unaccent(lower(title)) gin_trgm_ops"),
@@ -35,7 +35,6 @@ class Node(UUIDPkMixin, TimestampMixin, Base):
     # A file's title keeps its extension; a page's does not.
     title: Mapped[str] = mapped_column(Text)
     description: Mapped[str] = mapped_column(Text, server_default="", default="")
-    description_locked: Mapped[bool] = mapped_column(server_default="false", default=False)
     # Fractional index, so moving one item rewrites one row.
     sort: Mapped[str] = mapped_column(Text)
     deleted_at: Mapped[datetime | None]

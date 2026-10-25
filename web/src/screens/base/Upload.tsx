@@ -1,7 +1,7 @@
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../../data/request";
-import { useUploadFiles } from "../../data/upload";
+import { useUploadFile } from "../../data/upload";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -42,30 +42,52 @@ export function clearUploads(kbId: string) {
 
 /** Sends each file into `parentId` (null for the root), one row of progress per file. */
 export function useStartUpload(kbId: string) {
-  const upload = useUploadFiles(kbId);
+  const upload = useUploadFile(kbId);
   const errorText = useTreeErrorText();
   return (files: Iterable<File>, parentId: string | null) => {
-    const list = Array.from(files);
-    const ids = list.map((file) => {
+    for (const file of files) {
       const id = nextId++;
       update([...rows, { id, kbId, name: file.name, percent: 0, state: "sending" }]);
-      return id;
-    });
-    const progress = (i: number) => (loaded: number, total: number) =>
-      patch(ids[i]!, { percent: total ? Math.round((loaded / total) * 100) : 0 });
-    upload(parentId, list, progress).forEach((sent, i) =>
-      sent.then(
-        () => patch(ids[i]!, { state: "done", percent: 100 }),
-        (error: unknown) => {
-          if (error instanceof ApiError && error.code === "duplicate") {
-            patch(ids[i]!, { state: "duplicate", duplicate: error.details as Row["duplicate"] });
-          } else {
-            patch(ids[i]!, { state: "error", message: errorText(error) });
-          }
-        },
-      ),
-    );
+      upload
+        .mutateAsync({
+          parentId,
+          file,
+          onProgress: (loaded, total) => patch(id, { percent: total ? Math.round((loaded / total) * 100) : 0 }),
+        })
+        .then(
+          () => patch(id, { state: "done", percent: 100 }),
+          (error: unknown) => {
+            if (error instanceof ApiError && error.code === "duplicate") {
+              patch(id, { state: "duplicate", duplicate: error.details as Row["duplicate"] });
+            } else {
+              patch(id, { state: "error", message: errorText(error) });
+            }
+          },
+        );
+    }
   };
+}
+
+export function UploadButton({ kbId, parentId }: { kbId: string; parentId: string | null }) {
+  const { t } = useI18n();
+  const start = useStartUpload(kbId);
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <Button onClick={() => input.current?.click()}>{t("base.upload")}</Button>
+      <input
+        ref={input}
+        type="file"
+        multiple
+        hidden
+        aria-label={t("base.upload")}
+        onChange={(event) => {
+          start(Array.from(event.target.files ?? []), parentId);
+          event.target.value = "";
+        }}
+      />
+    </>
+  );
 }
 
 export function UploadGlyph() {

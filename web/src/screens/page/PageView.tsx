@@ -4,7 +4,7 @@ import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
-import { useChildren, useDebouncedSearch, useRenameNode } from "../../data/tree";
+import { useChildren, useRenameNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { FileName } from "../../ui/FileName";
@@ -23,29 +23,28 @@ import { PageMenu } from "./PageMenu";
 import { useAutosave } from "./useAutosave";
 
 const RENAME_DELAY_MS = 1000;
+const SEARCH_DELAY_MS = 200;
 
 type Page = NonNullable<NodeDetail["page"]>;
 
 /**
- * The title as the page's first line: it renames the node a second after the person stops typing in it, or at once
- * when they leave it. Until they type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
+ * The title as the page's first line: it renames the node a second after the person stops typing in it. Until they
+ * type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
  */
 function Title({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
-  const [focused, setFocused] = useState(false);
   const { mutate: rename, error } = useRenameNode();
 
   useEffect(() => {
     const next = draft?.trim();
     if (!next || next === node.title) return;
-    const send = () =>
-      rename({ nodeId: node.id, title: next }, { onSuccess: () => setDraft((typed) => (typed === next ? null : typed)) });
-    // Not after a timer: leaving the title to leave the page unmounts it, and a pending timer with it.
-    if (!focused) return send();
-    const timer = setTimeout(send, RENAME_DELAY_MS);
+    const timer = setTimeout(
+      () => rename({ nodeId: node.id, title: next }, { onSuccess: () => setDraft((typed) => (typed === next ? null : typed)) }),
+      RENAME_DELAY_MS,
+    );
     return () => clearTimeout(timer);
-  }, [draft, focused, node.id, node.title, rename]);
+  }, [draft, node.id, node.title, rename]);
 
   return (
     <>
@@ -55,11 +54,7 @@ function Title({ node }: { node: NodeDetail }) {
           value={draft ?? node.title}
           placeholder={t("page.untitled")}
           onChange={(event) => setDraft(event.target.value)}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false);
-            setDraft((typed) => (typed?.trim() === node.title ? null : typed));
-          }}
+          onBlur={() => setDraft((typed) => (typed?.trim() === node.title ? null : typed))}
           className="w-full border-0 bg-transparent p-0 text-32 font-medium tracking-[-0.025em] text-text outline-none placeholder:text-ghost"
         />
       </h1>
@@ -84,7 +79,13 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const untitled = useCreateUntitledPage(kbId, node.id);
   const errorText = useTreeErrorText();
   const [pageQuery, setPageQuery] = useState<string | null>(null);
-  const { searched, found } = useDebouncedSearch(kbId, pageQuery ?? "");
+  const [searched, setSearched] = useState("");
+  const found = useSearch(kbId, searched).data;
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearched(pageQuery?.trim() ?? ""), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [pageQuery]);
 
   const childPages = children.filter((child) => child.kind === "page");
   const href = (id: string) => `/kbs/${kbId}/n/${id}`;

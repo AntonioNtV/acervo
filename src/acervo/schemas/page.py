@@ -1,13 +1,11 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from acervo.schemas.file import FileResponse
 from acervo.schemas.node import NodeRead, NodeWithPath
-
-Author = Literal["user", "agent"]
 
 
 class PageVersionCreate(BaseModel):
@@ -15,7 +13,6 @@ class PageVersionCreate(BaseModel):
 
     node_id: UUID = Field(description="Page the version belongs to.")
     markdown: str = Field(description="The page's whole text.")
-    author: Author = Field(description="Who wrote it.")
     edit_started_at: datetime | None = Field(default=None, description="First change of the editing session it ends.")
     edit_ended_at: datetime | None = Field(default=None, description="Last change of the editing session it ends.")
 
@@ -26,7 +23,6 @@ class PageVersionSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID = Field(description="Version ID.")
-    author: Author = Field(description="Who wrote it.")
     created_at: datetime = Field(description="When it was written.")
     edit_started_at: datetime | None = Field(
         description="First change of the editing session it came from; null when it did not come from one."
@@ -100,10 +96,7 @@ class PageRead(BaseModel):
 class PageTextPut(BaseModel):
     """The page's whole text as the person typed it."""
 
-    # Postgres refuses NUL in text.
-    markdown: Annotated[str, AfterValidator(lambda text: text.replace("\x00", ""))] = Field(
-        description="The page's whole text."
-    )
+    markdown: str = Field(description="The page's whole text.")
     revision: int = Field(description="The revision the person was editing, from the last read or save.")
 
 

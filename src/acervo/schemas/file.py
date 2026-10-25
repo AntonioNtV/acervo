@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -8,7 +7,7 @@ from acervo.schemas.node import NodeRead
 
 
 class FileContent(BaseModel):
-    """What is known about one stored content of a file. Metadata only: never its text (rule 1 of CLAUDE.md)."""
+    """What is known about one stored content of a file. Metadata only: never its text (rule 3 of CLAUDE.md)."""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -18,10 +17,6 @@ class FileContent(BaseModel):
     mime: str = Field(description="The media type; application/octet-stream when unknown.")
     pages: int | None = Field(description="A PDF's page count; null for other files or a broken PDF.")
     protected: bool = Field(description="A PDF that needs a password to open.")
-    doc_type: str | None = Field(description="What kind of document it is, once known.")
-    sensitive: bool = Field(description="Whether the content is sensitive.")
-    map: dict[str, Any] | None = Field(description="A PDF's section map, once built.")
-    map_origin: Literal["bookmarks", "toc", "generated"] | None = Field(description="Where the map came from.")
 
     def only_content(self) -> "FileContent":
         """The content's own fields, every one set, so an update or a history row takes all of them."""
