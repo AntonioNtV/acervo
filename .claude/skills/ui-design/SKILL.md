@@ -38,7 +38,7 @@ component there before building or changing one. When the app changes, update th
 | `--line` / `--line-2` | #EDEDEB / #DEDEDB | #1C1C1E / #2B2B2E |
 | `--text` / `--text-2` / `--text-3` / `--ghost` | #0A0A0A / #5C5C58 / #72726D / #959590 | #EDEDEC / #A1A19D / #8A8A85 / #66665F |
 | `--ink` / `--on-ink` / `--accent-soft` | #002311 / #FFFFFF / rgba(0,35,17,.08) | #EDEDEC / #0B0B0C / rgba(169,199,181,.13) |
-| `--ok` / `--err` / `--warn` / `--run` | #18A058 / #E5484D / #B06F0A / #0A7CFF | #3DD68C / #FF6369 / #F1A10D / #4C9AFF |
+| `--ok` / `--err` / `--warn` / `--run` | #18A058 / #C9302C / #B06F0A / #0A7CFF | #3DD68C / #FF6369 / #F1A10D / #4C9AFF |
 | `--add` / `--del` | rgba(24,160,88,.10) / rgba(229,72,77,.08) | rgba(61,214,140,.12) / rgba(255,99,105,.12) |
 | `--desk` | #EDEDEB | #151516 |
 | `--cover-*` | the cover gallery (`gallery:<slug>`): sage, sand, stone, sky, clay, and the gradients moss, dawn, dusk; soft in both themes so the buttons over a cover read | |
