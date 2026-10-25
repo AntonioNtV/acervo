@@ -13,9 +13,8 @@ app ships: tokens, typography, spacing, radii, sizes, icons, layouts, every comp
 screens built from them, each with its props, variants, measurements and code. Check a token, a type style or a
 component there before building or changing one. When the app changes, update the page. Its Blocos tab also draws the
 blocks the editor does not have yet, marked "Planejado", with their Markdown form and the tokens only they use
-(`--mark`, `--tc-*`, `--cite`, `--page`); they are built from the components of the Sistema tab's "Planejados" group
-(pickers, media, database views and controls). Both are the target design, not part of the app: when a planned block
-is built, its components move into the app and out of that group.
+(`--cite`, `--page`); they are the target design, not part of the app. The components they are built from (pickers,
+media, database views and controls) are in the app, in `web/src/ui/`, with `--mark` and `--tc-*`.
 
 ## The rules
 
