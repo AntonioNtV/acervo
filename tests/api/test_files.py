@@ -238,17 +238,3 @@ async def test_file_response_has_no_internal_fields(client: httpx.AsyncClient, m
     assert set(uploaded["file"]) == set(replaced["file"]) == public
     assert set(old) == public | {"id", "replaced_at"}
     assert old["sha256"] == hashlib.sha256(SIMPLE.read_bytes()).hexdigest()
-
-
-async def test_a_slash_in_a_title_is_refused_and_an_uploaded_name_is_normalized(
-    client: httpx.AsyncClient, make_tree: MakeTree
-) -> None:
-    kb_id, folder = await _folder(make_tree)
-
-    created = await client.post(f"/v1/kbs/{kb_id}/nodes", json={"kind": "page", "title": "Auto/Moto"})
-    renamed = await client.patch(f"/v1/nodes/{folder}", json={"title": "Residencial/Auto"})
-    slashed = await _upload(client, kb_id, folder, PROTECTED, name="Auto/CG.pdf")
-    uploaded = await _upload(client, kb_id, folder, SIMPLE, name="  CG   2026.pdf ")
-
-    assert [(r.status_code, r.json()["error"]) for r in (created, renamed, slashed)] == [(422, "validation")] * 3
-    assert uploaded.json()["title"] == "CG 2026.pdf"

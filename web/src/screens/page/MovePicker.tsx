@@ -1,9 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { NodeDetail } from "../../api/client";
+import type { KbSummary, NodeDetail } from "../../api/client";
 import { useKbs } from "../../data/kbs";
 import { ApiError } from "../../data/request";
-import { useDebouncedSearch, useMoveNode } from "../../data/tree";
+import { useMoveNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
@@ -12,41 +12,43 @@ import { folderPath } from "../../ui/names";
 import { NodeIcon } from "../../ui/NodeIcon";
 import { useTreeErrorText } from "../base/names";
 
+const SEARCH_DELAY_MS = 200;
+
 const rowClass =
   "flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-[6px] border-0 bg-transparent px-2 text-left font-[inherit] text-13 text-text hover:bg-subtle disabled:cursor-default";
 
-/**
- * One base as a destination: `root` (its root's row), then its folders and pages whose title holds `query`, but
- * `skip` (the node being moved).
- */
-export function Destinations({
-  kbId,
-  root,
+type Choose = (kbId: string, parentId: string | null) => void;
+
+/** One base as a destination: its root, then its folders and pages whose title holds what is typed. */
+function BaseDestinations({
+  kb,
   query,
-  skip,
+  node,
   onPick,
-  busy = false,
+  busy,
 }: {
-  kbId: string;
-  root: ReactNode;
+  kb: KbSummary;
   query: string;
-  skip?: string;
-  onPick: (parentId: string | null, path: string) => void;
-  busy?: boolean;
+  node: NodeDetail;
+  onPick: Choose;
+  busy: boolean;
 }) {
-  const { searched, found = [] } = useDebouncedSearch(kbId, query);
-  const places = searched ? found.filter((hit) => hit.kind !== "file" && hit.id !== skip) : [];
+  const found = useSearch(kb.id, query).data ?? [];
+  const places = query ? found.filter((hit) => hit.kind !== "file" && hit.id !== node.id) : [];
   return (
     <li className="flex flex-col gap-px">
-      <button type="button" disabled={busy} onClick={() => onPick(null, "")} className={rowClass}>
-        {root}
+      <button type="button" disabled={busy} onClick={() => onPick(kb.id, null)} className={rowClass}>
+        <span className="text-text-3">
+          <NodeIcon icon={kb.icon} kind="bases" />
+        </span>
+        <span className="truncate font-medium">{kb.name}</span>
       </button>
       {places.map((place) => (
         <button
           key={place.id}
           type="button"
           disabled={busy}
-          onClick={() => onPick(place.id, place.path)}
+          onClick={() => onPick(kb.id, place.id)}
           className={rowClass}
           style={{ paddingLeft: 30 }}
         >
@@ -72,13 +74,19 @@ export function MovePicker({ node, onClose }: { node: NodeDetail; onClose: () =>
   const move = useMoveNode();
   const treeErrorText = useTreeErrorText();
   const [query, setQuery] = useState("");
+  const [searched, setSearched] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearched(query.trim()), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
 
   const errorText = (error: unknown) => {
     const files = error instanceof ApiError && error.code === "conflict" ? (error.details.files as string[] | undefined) : undefined;
     return files?.length ? t("page.move.held", { files: files.join(", ") }) : treeErrorText(error);
   };
 
-  const pick = (kbId: string, parentId: string | null) =>
+  const pick: Choose = (kbId, parentId) =>
     move.mutate(
       { nodeId: node.id, kb_id: kbId, parent_id: parentId, before_id: null },
       {
@@ -112,22 +120,7 @@ export function MovePicker({ node, onClose }: { node: NodeDetail; onClose: () =>
       />
       <ul className="m-0 -mx-2 flex max-h-[320px] list-none flex-col gap-1 overflow-y-auto p-0">
         {kbs.map((kb) => (
-          <Destinations
-            key={kb.id}
-            kbId={kb.id}
-            root={
-              <>
-                <span className="text-text-3">
-                  <NodeIcon icon={kb.icon} kind="bases" />
-                </span>
-                <span className="truncate font-medium">{kb.name}</span>
-              </>
-            }
-            query={query}
-            skip={node.id}
-            onPick={(parentId) => pick(kb.id, parentId)}
-            busy={move.isPending}
-          />
+          <BaseDestinations key={kb.id} kb={kb} query={searched} node={node} onPick={pick} busy={move.isPending} />
         ))}
       </ul>
       {move.error && (

@@ -134,7 +134,7 @@ const quietClass =
 
 const titleClass = "m-0 text-32 leading-[40px] font-medium tracking-[-0.025em] break-words";
 
-/** The folder's description, edited in place; the person's text is locked against agents. */
+/** The folder's description, edited in place. */
 function Description({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
   const describe = useDescribeNode();
@@ -157,7 +157,7 @@ function Description({ node }: { node: NodeDetail }) {
         }}
         className={cx(
           "mt-1.5 block cursor-text border-0 bg-transparent p-0 text-left font-[inherit] leading-6",
-          // An empty description is only a hint, shown when the header is hovered or focused, as Notion does.
+          // An empty description is only a hint, shown when the header is hovered or focused.
           node.description
             ? "text-15 text-text-2"
             : "text-13 text-ghost opacity-0 group-hover/header:opacity-100 focus-visible:opacity-100",

@@ -34,8 +34,8 @@ describe("Markdown round-trip", () => {
     for (const raw of raws(markdown)) expect(rewritten).toContain(raw);
   });
 
-  it("keeps every provenance comment of an agent's page where it was", () => {
-    const markdown = fixtures["./fixtures/agent-page.md"]!;
+  it("keeps every HTML comment of a page where it was", () => {
+    const markdown = fixtures["./fixtures/comments-page.md"]!;
     const { node, source } = open(markdown);
     const paragraph = schema.nodeFromJSON({ type: "paragraph", content: [{ type: "text", text: "Só o boleto." }] });
     const edited = node.copy(node.content.replaceChild(1, paragraph));

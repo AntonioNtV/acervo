@@ -22,7 +22,7 @@ session drops, resume from that folder: the cards' `status` says what is done.
 | Size | When | Path |
 |---|---|---|
 | Trivial | typo, rename, a bug with one obvious fix | do it, no flow |
-| S | fits one card: one concept, no migration, no change to the contract, no new decision or threshold | short flow |
+| S | fits one card: one concept, no migration, no change to the contract | short flow |
 | Normal | everything else | full flow |
 
 In doubt, take the bigger size and say so. **Short flow**: interview only the categories that apply; spec and card
@@ -36,14 +36,13 @@ answer; ask about intent, rules and priority, never what reading the code answer
 
 ## 2. Exploration
 
-Read what the feature touches before designing: the service and the layers under it, the agent that uses it, the decisions it
-asks (decision log, `Thresholds`), the repositories, the tests and evals covering the area and the closest similar
-feature (it becomes the exemplar). Skill
+Read what the feature touches before designing: the screen, the route, the service and the layers under it, the
+repositories, the tests covering the area and the closest similar feature (it becomes the exemplar). Skill
 `repo-structure` says where things live. For wide sweeps, use `Explore` agents in parallel and keep the conclusion.
 
-Record in `exploration.md`, short: what exists, what changes per concept, the exemplar file of each, risks (the rules in
-`CLAUDE.md`, the contract, thresholds, stored versions). Then a **second round of questions**, technical: only the forks the
-code did not decide, each with a recommendation and the cost of each path.
+Record in `exploration.md`, short: what exists, what changes per concept, the exemplar file of each, risks (the rules
+in `CLAUDE.md`, the contract, stored versions and files). Then a **second round of questions**, technical: only the
+forks the code did not decide, each with a recommendation and the cost of each path.
 
 ## 3. Spec ✋
 
@@ -55,15 +54,14 @@ changes only with the engineer.
 
 Split the spec into cards from [templates/card.md](templates/card.md), one file each in `cards/NN-slug.md`.
 
-- **Wave 0** holds what the others consume: migration, models, proposal kinds, question types, thresholds, shared
-  Pydantic models. It runs alone, first.
+- **Wave 0** holds what the others consume: migration, models, settings, shared Pydantic models, the regenerated
+  API client. It runs alone, first.
 - **Exclusive files.** Two cards of the same wave never touch the same file. Files everyone edits
   (`core/settings.py`, `db/models/__init__.py`, `repositories/uow.py`, `api/main.py`) go in wave 0
   or in a final wiring card.
 - **Size.** One card is one concept or a thin slice. More than 10 cards is two features.
-- **Tests are decided here.** Each card names the tests and where (skill `testing`), or "none" and why. A card
-  that changes a prompt, a question, option texts or a threshold also names the eval to run before and after
-  (skill `evals`).
+- **Tests are decided here.** Each card names the tests and where (skill `testing`, or `ui-web` for `web/`), or
+  "none" and why.
 
 Before showing: every behavior of the spec lands in a card, and no file appears in two cards of one wave. Show a
 table (id, title, wave, depends on, tests) and ask for approval. Approving the cards authorizes local commits on

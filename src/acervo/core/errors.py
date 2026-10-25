@@ -44,7 +44,3 @@ class ValidationError(AcervoError):
 
 class AuthError(AcervoError):
     code = "unauthorized"
-
-
-class DecisionUnavailable(AcervoError):
-    code = "decision_unavailable"

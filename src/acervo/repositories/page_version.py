@@ -30,7 +30,6 @@ class PageVersionRepository(BaseRepository[PageVersion, PageVersionRead, PageVer
         rows = await self._session.execute(
             select(
                 PageVersion.id,
-                PageVersion.author,
                 PageVersion.created_at,
                 PageVersion.edit_started_at,
                 PageVersion.edit_ended_at,

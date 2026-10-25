@@ -20,7 +20,7 @@ def slug(heading: str) -> str:
 def sections(markdown: str) -> list[Section]:
     """The `##` headings of a page, each with an anchor unique in the page."""
     found: list[Section] = []
-    taken: set[str] = set()
+    seen: dict[str, int] = {}
     in_code = False
     for line in markdown.splitlines():
         if line.startswith(("```", "~~~")):
@@ -29,12 +29,7 @@ def sections(markdown: str) -> list[Section]:
         if match is None:
             continue
         heading = match.group(1)
-        # "" is the text before the first heading, so a heading of only emoji or punctuation needs a slug of its own.
-        base = slug(heading) or "secao"
-        anchor, count = base, 1
-        while anchor in taken:
-            count += 1
-            anchor = f"{base}-{count}"
-        taken.add(anchor)
-        found.append(Section(anchor, heading))
+        anchor = slug(heading)
+        seen[anchor] = seen.get(anchor, 0) + 1
+        found.append(Section(anchor if seen[anchor] == 1 else f"{anchor}-{seen[anchor]}", heading))
     return found

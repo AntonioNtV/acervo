@@ -10,7 +10,6 @@ x-acervo: &acervo
   environment:
     DATABASE_URL: postgresql+asyncpg://acervo:acervo@postgres:5432/acervo
     S3_ENDPOINT: http://minio:9000
-    REDIS_URL: redis://redis:6379/0
 
 services:
   postgres:
@@ -27,11 +26,6 @@ services:
       test: ["CMD-SHELL", "pg_isready -U acervo"]
       interval: 2s
       retries: 30
-
-  redis:
-    image: redis:7
-    ports:
-      - "127.0.0.1:56379:6379"
 
   # minio/minio is no longer published; Chainguard's build is the same server.
   minio:
@@ -83,17 +77,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
-
-  worker:
-    <<: *acervo
-    command: ["arq", "acervo.worker.settings.WorkerSettings"]
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      minio-bucket:
-        condition: service_completed_successfully
-      redis:
-        condition: service_started
 
 volumes:
   postgres:

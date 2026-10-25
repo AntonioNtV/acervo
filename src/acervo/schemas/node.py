@@ -36,7 +36,6 @@ class NodeUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, description="New title.")
     sort: str | None = Field(default=None, description="New sort key.")
     description: str | None = Field(default=None, description="New description.")
-    description_locked: bool | None = Field(default=None, description="Whether agents may rewrite the description.")
     deleted_at: datetime | None = Field(default=None, description="When the node went to the trash; null restores it.")
     trashed_with: UUID | None = Field(default=None, description="Node whose trashing hid this one.")
     icon: str | None = Field(default=None, description="An emoji; null removes it.")
@@ -55,7 +54,6 @@ class NodeRead(BaseModel):
     kind: NodeKind = Field(description="folder, page or file.")
     title: str = Field(description="Title; a file's keeps its extension, a page's does not.")
     description: str = Field(description="What the node holds.")
-    description_locked: bool = Field(description="Whether agents may rewrite the description.")
     sort: str = Field(description="Fractional sort key among its siblings.")
     deleted_at: datetime | None = Field(description="When the node went to the trash; null while it is live.")
     trashed_with: UUID | None = Field(description="Node whose trashing hid this one.")
@@ -80,9 +78,7 @@ class NodeEdit(BaseModel):
     """What the person changes on a node; omitted fields keep their value."""
 
     title: str | None = Field(default=None, description="New title; no live sibling of the same kind may have it.")
-    description: str | None = Field(
-        default=None, max_length=200, description="New description; once the person edits it, agents keep it."
-    )
+    description: str | None = Field(default=None, max_length=200, description="New description.")
     icon: Icon | None = Field(default=None, description="An emoji; null removes it.")
     cover: GalleryCover | None = Field(
         default=None, description="`gallery:<slug>`, for folders and pages only; null removes it."

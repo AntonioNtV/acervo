@@ -20,8 +20,8 @@ Exemplar: `repositories/node.py`.
 | `create(data, **extra)`, `create_many(items)` | flush to get ids; no commit |
 | `update(id, data)` | only the fields set on `data`; an empty update emits no SQL |
 
-Only what a caller uses is there; add a generic method (pdflab's `list`, `paginate`, `exists`, `delete`) with its
-first caller.
+Only what a caller uses is there; add a generic method (`list`, `paginate`, `exists`, `delete`) with its first
+caller.
 
 Rules: no `commit` inside a repository; an unknown filter column → `ValidationError`; `IntegrityError` on
 a unique constraint → `ConflictError` naming the constraint in `details`. Rows are always live unless the query
@@ -40,13 +40,13 @@ async with UnitOfWork(session_factory) as uow:
 | Attribute | Repository |
 |---|---|
 | `kbs` | `KbRepository`: `lock`, `get_in` (live or trashed), `summaries` (counts, last edit), `trashed` |
-| `nodes` | `NodeRepository`: `paths`, `live_parent` (a live folder or page of the base), `title_taken`, `children` (with `has_children`), `ancestors`, sort keys, `trash_subtree`, `restore_trashed_with`, `trash_roots` |
+| `nodes` | `NodeRepository`: `paths`, `live_parent` (a live folder or page of the base), `title_taken`, `children` (with `child_count`), `ancestors`, sort keys, `trash_subtree`, `restore_trashed_with`, `trash_roots`, `search` |
 | `files`, `file_versions` | the current file of a `file` node and its history |
 | `page_versions`, `page_drafts`, `page_links` | immutable versions, the one working text per page (with its `revision`), the `[[…]]` targets |
+| `favorites` | favorites across every base, in their own order (`node.favorite_sort`) |
 
 One `UnitOfWork` per HTTP request (`api/deps.py:get_uow`); the service calls `commit()` at the end of the use case,
-and an exception rolls everything back. From F2 the worker opens one per job step, so a failure late in a job keeps
-what earlier steps saved, and the decision log gets its repository on the same `UnitOfWork`.
+and an exception rolls everything back.
 
 ## The per-base lock
 
@@ -62,6 +62,7 @@ Keep it; the unique indexes are the last line, not the first.
 4. Register it as an attribute of `UnitOfWork`.
 5. Tests in `tests/repositories/` against real Postgres: the new queries and any constraint they rely on.
 
-A query that only filters by equality uses `get_by` / `list`; write a method only when it needs a join, an
-aggregate, a recursive CTE (paths, subtrees), a lock or a JSONB path. SQL expressions shared by several queries
-(`sort_key`, `siblings`, `folded`) are module functions next to the repository that uses them.
+A query that only filters by equality uses `get_by` (or a generic `list`, added with its first caller); write a
+method only when it needs a join, an aggregate, a recursive CTE (paths, subtrees), a lock or a JSONB path. SQL
+expressions shared by several queries (`sort_key`, `siblings`, `folded`) are module functions next to the
+repository that uses them.

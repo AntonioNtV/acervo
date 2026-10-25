@@ -14,17 +14,16 @@ the code already there.
 ## Before writing
 
 Read the whole card, the spec (context, not scope), `CLAUDE.md` and the exemplar file the card names. Load the
-skill for what you touch (`http-api`, `repositories`, `creating-migrations`, `jev-decisions`, `llm-calls`,
-`curator-agent`, `navigator-agent`, `pdf-files`, `markdown-pages`, `proposals`, `ui-design`, `ui-web`). Read the neighboring
+skill for what you touch (`http-api`, `repositories`, `creating-migrations`, `pdf-files`, `markdown-pages`,
+`ui-design`, `ui-web`). Read the neighboring
 code: yours should look written by the same person.
 
 Work in ponytail full: the smallest diff that delivers the card, reusing what the code has.
 
 ## The rules of `CLAUDE.md`
 
-The layers of skill `repo-structure`; Pydantic across every boundary, ORM objects only in `repositories/`; a PDF
-stays a PDF; no chunks, embeddings or vector store; nothing written without an accepted proposal; thresholds only
-in `Thresholds`; every decision logged; every table change with its migration. If the card seems to need breaking
+The layers of skill `repo-structure`; Pydantic across every boundary, ORM objects only in `repositories/`, commits
+only in services; a PDF stays a PDF; every table change with its migration. If the card seems to need breaking
 one, return BLOCKED.
 
 ## Limits
@@ -35,8 +34,6 @@ one, return BLOCKED.
   and return BLOCKED saying which file and why.
 - **Decisions.** Variable names, private methods and internal order are yours. Anything that changes behavior and
   that the card and spec do not cover is the engineer's: return BLOCKED with the question and your recommendation.
-- **Jev and the LLM.** Never call them from tests; use `FakeDecider` and `FakeWriter`. Never invent Jev's wire
-  format: only `model_clients/jev.py` knows it, and only from the docs the engineer gave.
 - **Tests.** Exactly the card's. If the card says "none", none.
 - **Comments and documents.** A comment only for the why the code does not show; no new markdown.
 - **Git.** Commit on your worktree's branch, Conventional Commits (`feat(<area>): <what the card delivers>`). Never
