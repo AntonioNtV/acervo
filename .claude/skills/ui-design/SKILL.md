@@ -13,8 +13,7 @@ and its AI elements are not in it: for those, the boards and rule 4 below still 
 
 The boards are on the canvas https://claude.ai/artifact/Jjq3r6SPUZ9E4jUG7WtqGR ("Acervo · Interface"). Page
 "Notion · proposta" sets the look from phase A on: NPagina (shell, page and its blocks, "/" menu), NPasta (folder),
-NHistorico (history panel), NPdf (file), NChat (chat panel), NBusca (⌘K) and NMenu (page menu); NBusca, NMenu and
-the cover, icon and favorites on NPagina are phase B, and their places stay empty until then. Page "F1 · atual" keeps
+NHistorico (history panel), NPdf (file), NChat (chat panel), NBusca (⌘K) and NMenu (page menu); all of them are built. Page "F1 · atual" keeps
 the F1 boards (Bases, Base aberta, Soltar PDF, PDF aberto, Caixa de propostas, Página .md, Estados do chat): the chat
 states and the proposal still come from there. The look comes from autoflow's "v2 · Suíço"
 (https://claude.ai/artifact/6SKxSE3eQAZoNmfh2XBhQ8). Where a board and the code disagree on behavior, the code wins;
@@ -24,15 +23,17 @@ the board sets the look.
 
 1. Type before boxes: hierarchy from size and gray. No card inside a card, no tinted icon tiles, no button shadow.
 2. Color is state: a 6 px dot or the text of an error, never a filled pill.
-3. One ink, Segura's green (`--ink` #002311): primary button, switch, focus, citation and data references.
+3. One ink, Segura's green (`--ink` #002311): the primary button, the to-do checkbox, focus, citation and data
+   references. Preferences (language, theme) are text, not switches.
 4. **Violet is AI only**: the chat's mark, the "Acervo" label on its messages, the dots of its navigation steps,
    and "proposta do chat" in histories. Nothing else is violet.
-5. Navigation recedes: text only, unselected in `--text-3`.
-6. Dense but breathing: 13 px body, rows of 44 to 64 px, thin separators.
+5. Navigation recedes: a 16 px icon and text, unselected in `--text-2`, selected `--text` on `--muted`; no color, no box.
+6. Dense but breathing: 13 px body; rows of 28 (navigation and tree), 36 (folder), 44 (bars, versions) and 56 px
+   (Lixeira); thin separators.
 7. Sizes 11/12/13/15/20/24/32, weights 400 and 500. Index pages get a 32 px title with the count in `--ghost`. The
    text of a page is the exception: 16 px body, headings 24/19/16 (see the shell below).
-8. System font and its mono. Files always show their extension in `--text-3` (`Emissão de apólice.md`,
-   `Condições Gerais 2026.pdf`): the person always sees what is a page and what is a PDF.
+8. System font and its mono. A file shows its extension in `--text-3` (`Condições Gerais 2026.pdf`); a page shows no
+   `.md`, its icon already says it is a page (only the Lixeira shows `.md`).
 9. Tokens only, so light and dark both work.
 10. The only tinted backgrounds besides the focus ring: diff lines (`--add`, `--del`).
 
@@ -70,7 +71,7 @@ The shell (NPagina):
   "Buscar ⌘K", "Favoritos", then one section per base: its emoji and name as a 12 px `--text-3` label with ⋯ and "+",
   and its tree in 28 px rows indented 14 px per level, a caret on what has children, files with their extension.
   "Nova base" and "Lixeira" sit at the bottom with the language and theme switches.
-- **Top bar**, 44 px: the breadcrumb (each part a link), the screen's status in 12 px `--text-3` ("Salvando…",
+- **Top bar**, 44 px: the breadcrumb (each part a link but the current one), the screen's status in 12 px `--text-3` ("Salvando…",
   "Salvo"), its actions (history), "Chat" in `--ai-text` (it opens the AI) and the ⋯ menu last.
 - **Chat panel**: closed by default, toggled by "Chat" and ⌘J; disabled until F2.
 - **Blocks** (`web/src/editor/editor.css`): body 16/26 px; H1 24, H2 19, H3 16, weight 500; lists indented 24 px;
