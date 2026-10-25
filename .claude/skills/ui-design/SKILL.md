@@ -11,7 +11,9 @@ is the reference: `web/src/styles/tokens.css` for the values, the screens in `we
 The design system page https://claude.ai/artifact/XZDGhcSkGB6SqhFBBveeyt ("Acervo Design System") documents what the
 app ships: tokens, typography, spacing, radii, sizes, icons, layouts, every component, the editor's blocks and the
 screens built from them, each with its props, variants, measurements and code. Check a token, a type style or a
-component there before building or changing one. When the app changes, update the page.
+component there before building or changing one. When the app changes, update the page. Its Blocos tab also draws the
+blocks the editor does not have yet, marked "Planejado", with their Markdown form and the tokens only they use
+(`--mark`, `--tc-*`, `--cite`, `--page`); those are the target design, not part of the app.
 
 ## The rules
 
