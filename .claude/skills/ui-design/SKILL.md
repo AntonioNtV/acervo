@@ -45,6 +45,8 @@ is built, its components move into the app and out of that group.
 | `--ok` / `--err` / `--warn` / `--run` | #18A058 / #C9302C / #B06F0A / #0A7CFF | #3DD68C / #FF6369 / #F1A10D / #4C9AFF |
 | `--add` / `--del` | rgba(24,160,88,.10) / rgba(229,72,77,.08) | rgba(61,214,140,.12) / rgba(255,99,105,.12) |
 | `--desk` | #EDEDEB | #151516 |
+| `--mark` | rgba(176,111,10,.16) | rgba(241,161,13,.20) |
+| `--tc-gray` / `--tc-brown` / `--tc-orange` / `--tc-yellow` / `--tc-green` / `--tc-blue` / `--tc-pink` / `--tc-red` | #72726D / #8A5A3C / #C2570C / #A16207 / #18794E / #0B6BCB / #C2185B / #D92D20 | #A1A19D / #C49A7C / #F2994A / #E2B93B / #3DD68C / #5EB0EF / #F17EB8 / #FF6369 |
 | `--cover-*` | the cover gallery (`gallery:<slug>`): sage, sand, stone, sky, clay, and the gradients moss, dawn, dusk; soft in both themes so the buttons over a cover read | |
 
 ## Screen patterns
