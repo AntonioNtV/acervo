@@ -36,7 +36,8 @@ one, return BLOCKED.
   that the card and spec do not cover is the engineer's: return BLOCKED with the question and your recommendation.
 - **Tests.** Exactly the card's. If the card says "none", none.
 - **Comments and documents.** A comment only for the why the code does not show; no new markdown.
-- **Git.** Commit on your worktree's branch, Conventional Commits (`feat(<area>): <what the card delivers>`). Never
+- **Git.** Commit on your worktree's branch, Conventional Commits as `CLAUDE.md` says (`feat(<area>): <what the card
+  delivers>`). Never
   push, merge, rebase, reset, stash or check out another branch.
 
 ## Checks

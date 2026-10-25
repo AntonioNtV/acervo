@@ -26,7 +26,12 @@ original files, with their own versions. Search finds any page, folder or file b
 - Code, identifiers, commits, tests and skills in English. Text the person reads in the app is pt-BR (i18n).
 - A comment only for the why the code does not show. No new markdown files besides skills and `README.md`.
 - `.work/` holds the feature flow's files and never goes into git.
-- Conventional Commits: `feat(<area>): …`, `fix(<area>): …`.
+- Commits follow Conventional Commits: `<type>(<area>): <summary>`, `!` after the area for a breaking change.
+  Types: `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `build`, `ci`, `chore`. The area is the module or app
+  part (`web`, `api`, `pages`, `ui-design`…); the summary is lowercase, imperative, no final period, at most 72
+  characters; the body says why. Bring `main` into a branch with a rebase, never a merge commit.
+- Branches are `<type>/<kebab-slug>` with the same types (`feat/page-backlinks`, `fix/err-contrast`); only the
+  feature flow's local card branches are `card/NN-<slug>` (skill `feature-flow`).
 
 ## Agents (`.claude/agents/`)
 

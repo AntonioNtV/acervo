@@ -11,7 +11,7 @@ suite passing).
 
 ## Before starting
 
-- Create the feature branch from an up-to-date `main`: `feat/<slug>`.
+- Create the feature branch from an up-to-date `main`, named as `CLAUDE.md` says (`feat/<slug>`, `fix/<slug>`…).
 - Worktrees live next to the repo, one per card, branched from the feature branch:
 
   ```bash
