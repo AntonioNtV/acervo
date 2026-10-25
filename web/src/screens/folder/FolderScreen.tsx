@@ -11,8 +11,9 @@ import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Menu, MenuItem } from "../../ui/Menu";
 import { NodeIcon } from "../../ui/NodeIcon";
+import { UploadArea } from "../../ui/UploadArea";
 import { NodeName, useCreateUntitledPage, useTreeErrorText } from "../base/names";
-import { FileDropZone, UploadGlyph, useStartUpload } from "../base/Upload";
+import { FileDropZone, UploadGlyph, useRetryUpload, useStartUpload, useUploads } from "../base/Upload";
 import { formatSize } from "../file/format";
 import { Cover, HeaderDecor } from "../page/Cover";
 import { TopBar } from "../shell/TopBar";
@@ -39,6 +40,10 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
   const untitled = useCreateUntitledPage(kbId, folderId);
   const errorText = useTreeErrorText();
   const startUpload = useStartUpload(kbId);
+  const retryUpload = useRetryUpload(kbId);
+  const upload = useUploads()
+    .filter((row) => row.kbId === kbId && row.parentId === folderId && (row.state === "sending" || row.state === "error"))
+    .at(-1);
   const input = useRef<HTMLInputElement>(null);
 
   const all = children.data ?? [];
@@ -77,7 +82,18 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
             </li>
           ))}
         </ul>
-        {children.isSuccess && all.length === 0 && <p className="m-0 mt-6 text-15 text-ghost">{t("folder.empty")}</p>}
+        {children.isSuccess && all.length === 0 && (
+          <div className="mt-6">
+            <UploadArea
+              kind="file"
+              progress={upload?.state === "sending" ? upload.percent : undefined}
+              name={upload?.name}
+              error={upload?.state === "error" ? upload.message : undefined}
+              onFiles={(files) => startUpload(files, folderId)}
+              onRetry={() => upload && retryUpload(upload)}
+            />
+          </div>
+        )}
 
         <div className="mt-3 -ml-1.5 flex flex-wrap gap-1">
           <button type="button" disabled={untitled.isPending} onClick={newPage} className={quietClass}>

@@ -1,16 +1,23 @@
 import { useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { ApiError } from "../../data/request";
+import { useDownloadFile } from "../../data/files";
 import { useUploadFile } from "../../data/upload";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
+import { MediaRow } from "../../ui/MediaRow";
+import { splitExt } from "../../ui/names";
 import { useTreeErrorText } from "./names";
 
-type Row = {
+export type UploadRow = {
   id: number;
   kbId: string;
+  parentId: string | null;
+  file: File;
   name: string;
+  /** The node it became, once done. */
+  nodeId?: string;
   percent: number;
   state: "sending" | "done" | "duplicate" | "error";
   message?: string;
@@ -18,16 +25,16 @@ type Row = {
 };
 
 // Module state, so a drop on the tree and the folder view's button feed the same list in the tree column.
-let rows: Row[] = [];
+let rows: UploadRow[] = [];
 let nextId = 0;
 const listeners = new Set<() => void>();
 
-function update(next: Row[]) {
+function update(next: UploadRow[]) {
   rows = next;
   for (const listener of listeners) listener();
 }
 
-function patch(id: number, change: Partial<Row>) {
+function patch(id: number, change: Partial<UploadRow>) {
   update(rows.map((row) => (row.id === id ? { ...row, ...change } : row)));
 }
 
@@ -40,30 +47,43 @@ export function clearUploads(kbId: string) {
   update(rows.filter((row) => row.kbId !== kbId || row.state === "sending"));
 }
 
-/** Sends each file into `parentId` (null for the root), one row of progress per file. */
-export function useStartUpload(kbId: string) {
+export function useUploads() {
+  return useSyncExternalStore(subscribe, () => rows);
+}
+
+/** Sends a row's file again to the same folder, in the same row. */
+export function useRetryUpload(kbId: string) {
   const upload = useUploadFile(kbId);
   const errorText = useTreeErrorText();
+  return ({ id, file, parentId }: UploadRow) => {
+    patch(id, { state: "sending", percent: 0, message: undefined });
+    upload
+      .mutateAsync({
+        parentId,
+        file,
+        onProgress: (loaded, total) => patch(id, { percent: total ? Math.round((loaded / total) * 100) : 0 }),
+      })
+      .then(
+        (node) => patch(id, { state: "done", percent: 100, nodeId: node.id }),
+        (error: unknown) => {
+          if (error instanceof ApiError && error.code === "duplicate") {
+            patch(id, { state: "duplicate", duplicate: error.details as UploadRow["duplicate"] });
+          } else {
+            patch(id, { state: "error", message: errorText(error) });
+          }
+        },
+      );
+  };
+}
+
+/** Sends each file into `parentId` (null for the root), one row of progress per file. */
+export function useStartUpload(kbId: string) {
+  const send = useRetryUpload(kbId);
   return (files: Iterable<File>, parentId: string | null) => {
     for (const file of files) {
-      const id = nextId++;
-      update([...rows, { id, kbId, name: file.name, percent: 0, state: "sending" }]);
-      upload
-        .mutateAsync({
-          parentId,
-          file,
-          onProgress: (loaded, total) => patch(id, { percent: total ? Math.round((loaded / total) * 100) : 0 }),
-        })
-        .then(
-          () => patch(id, { state: "done", percent: 100 }),
-          (error: unknown) => {
-            if (error instanceof ApiError && error.code === "duplicate") {
-              patch(id, { state: "duplicate", duplicate: error.details as Row["duplicate"] });
-            } else {
-              patch(id, { state: "error", message: errorText(error) });
-            }
-          },
-        );
+      const row: UploadRow = { id: nextId++, kbId, parentId, file, name: file.name, percent: 0, state: "sending" };
+      update([...rows, row]);
+      send(row);
     }
   };
 }
@@ -146,8 +166,7 @@ export function FileDropZone({ kbId, parentId, name, className, children }: Drop
 
 export function UploadList({ kbId }: { kbId: string }) {
   const { t } = useI18n();
-  const all = useSyncExternalStore(subscribe, () => rows);
-  const mine = all.filter((row) => row.kbId === kbId);
+  const mine = useUploads().filter((row) => row.kbId === kbId);
   if (mine.length === 0) return null;
   return (
     <section aria-label={t("base.upload.list")} className="mt-3 flex flex-col border-t border-line pt-2">
@@ -157,32 +176,49 @@ export function UploadList({ kbId }: { kbId: string }) {
           {t("base.upload.clear")}
         </Button>
       </div>
-      <ul className="m-0 flex list-none flex-col p-0">
+      <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {mine.map((row) => (
-          <li key={row.id} className="flex flex-col px-2.5 py-1 text-12">
-            <span className="flex justify-between gap-2">
-              <span className="truncate text-text-2">{row.name}</span>
-              {row.state === "sending" && <span className="text-text-3 tabular-nums">{row.percent}%</span>}
-              {row.state === "done" && <span className="text-text-3">{t("base.upload.done")}</span>}
-            </span>
-            {row.state === "duplicate" && row.duplicate && (
-              <span className="text-err">
-                {row.duplicate.trashed ? (
-                  t("base.upload.duplicateTrashed", { path: row.duplicate.path })
-                ) : (
-                  <>
-                    {t(row.duplicate.history ? "base.upload.duplicateHistory" : "base.upload.duplicate")}{" "}
-                    <Link to={`/kbs/${kbId}/n/${row.duplicate.node_id}`} className="text-err underline">
-                      {row.duplicate.path}
-                    </Link>
-                  </>
-                )}
-              </span>
-            )}
-            {row.state === "error" && <span className="text-err">{row.message}</span>}
+          <li key={row.id} className="flex flex-col gap-0.5 text-12">
+            <Upload row={row} />
           </li>
         ))}
       </ul>
     </section>
+  );
+}
+
+function Upload({ row }: { row: UploadRow }) {
+  const { t } = useI18n();
+  const retry = useRetryUpload(row.kbId);
+  const { name, ext } = splitExt(row.name);
+  // A duplicate's Baixar gives the file it matches.
+  const download = useDownloadFile(row.nodeId ?? row.duplicate?.node_id ?? "", row.name);
+  return (
+    <>
+      <MediaRow
+        kind="file"
+        name={name}
+        ext={ext}
+        progress={row.state === "sending" ? row.percent : undefined}
+        failed={row.state === "error"}
+        onDownload={() => download.mutate(undefined)}
+        onRetry={() => retry(row)}
+      />
+      {row.state === "duplicate" && row.duplicate && (
+        <span className="px-1 text-err">
+          {row.duplicate.trashed ? (
+            t("base.upload.duplicateTrashed", { path: row.duplicate.path })
+          ) : (
+            <>
+              {t(row.duplicate.history ? "base.upload.duplicateHistory" : "base.upload.duplicate")}{" "}
+              <Link to={`/kbs/${row.kbId}/n/${row.duplicate.node_id}`} className="text-err underline">
+                {row.duplicate.path}
+              </Link>
+            </>
+          )}
+        </span>
+      )}
+      {row.state === "error" && <span className="px-1 text-err">{row.message}</span>}
+    </>
   );
 }
