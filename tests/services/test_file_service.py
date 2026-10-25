@@ -106,6 +106,14 @@ async def test_non_pdf_file_has_no_pages(files: FileService, make_tree: MakeTree
     assert (saved.file.mime, saved.file.pages, saved.file.protected) == ("image/png", None, False)
 
 
+async def test_m4a_is_audio_whatever_the_host_knows(files: FileService, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Bradesco": None})
+
+    saved = await _save(files, tree, "Bradesco", FIXTURES / "files" / "photo.png", "Reunião.m4a")
+
+    assert saved.file.mime == "audio/mp4"
+
+
 async def test_duplicate_in_base_is_refused_with_its_path(
     files: FileService, make_tree: MakeTree, session: AsyncSession
 ) -> None:
