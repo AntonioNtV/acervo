@@ -1,0 +1,31 @@
+export const ptBR = {
+  views: "Visões",
+  filter: "Filtrar",
+  sort: "Ordenar",
+  search: "Buscar",
+  new: "Nova",
+  "property.name": "Nome da propriedade",
+  "property.type": "Tipo · {type}",
+  "type.select": "Seleção",
+  "type.text": "Texto",
+  "type.number": "Número",
+  "type.date": "Data",
+  "option.new": "+ Nova opção",
+  drop: "Soltar aqui",
+};
+
+export const en: Record<keyof typeof ptBR, string> = {
+  views: "Views",
+  filter: "Filter",
+  sort: "Sort",
+  search: "Search",
+  new: "New",
+  "property.name": "Property name",
+  "property.type": "Type · {type}",
+  "type.select": "Select",
+  "type.text": "Text",
+  "type.number": "Number",
+  "type.date": "Date",
+  "option.new": "+ New option",
+  drop: "Drop here",
+};
