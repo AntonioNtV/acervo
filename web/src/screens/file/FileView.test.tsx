@@ -82,6 +82,38 @@ describe("FileView", () => {
     expect(openPdf).not.toHaveBeenCalled();
   });
 
+  it("plays a video from a signed link", async () => {
+    renderFile(fileNode("Vistoria.mp4", "video/mp4"));
+
+    await screen.findByRole("button", { name: "Tocar" });
+    expect(document.querySelector("video")).toHaveAttribute("src", SIGNED);
+    expect(screen.getByRole("button", { name: "Baixar" })).toBeInTheDocument();
+    expect(openPdf).not.toHaveBeenCalled();
+  });
+
+  it("plays an audio from a signed link", async () => {
+    renderFile(fileNode("Reunião.m4a", "audio/mp4"));
+
+    await screen.findByRole("button", { name: "Tocar" });
+    expect(document.querySelector("audio")).toHaveAttribute("src", SIGNED);
+    expect(document.querySelector("video")).not.toBeInTheDocument();
+  });
+
+  it("downloads an image from its toolbar", async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    renderFile(fileNode("Fachada.png", "image/png"));
+
+    const toolbar = await screen.findByRole("toolbar");
+    expect(within(toolbar).getByRole("button", { name: "Substituir" })).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Abrir" })).toBeInTheDocument();
+    await userEvent.click(within(toolbar).getByRole("button", { name: "Baixar" }));
+
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+    const link = click.mock.contexts[0] as HTMLAnchorElement;
+    expect(link.download).toBe("Fachada.png");
+    expect(link.getAttribute("href")).toBe(SIGNED);
+  });
+
   it("shows a text instead of an image that does not load", async () => {
     renderFile(fileNode("Fachada.png", "image/png"));
 

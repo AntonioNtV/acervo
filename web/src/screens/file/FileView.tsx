@@ -1,17 +1,21 @@
 import { useState } from "react";
 import type { NodeDetail } from "../../api/client";
 import { useErrorText } from "../../app/errors";
-import { useRawFileUrl } from "../../data/files";
+import { useDownloadFile, useRawFileUrl } from "../../data/files";
 import { useI18n } from "../../i18n";
+import { MediaRow } from "../../ui/MediaRow";
+import { MediaToolbar } from "../../ui/MediaToolbar";
+import { useReplacePicker } from "./FileActions";
 import { FileHeader } from "./FileHeader";
 import { formatSize } from "./format";
 import { PdfViewer } from "../../viewer/PdfViewer";
 
-type Viewer = "pdf" | "image" | "other";
+type Viewer = "pdf" | "image" | "video" | "audio" | "other";
 
 function viewerFor(mime: string): Viewer {
   if (mime === "application/pdf") return "pdf";
-  return mime.startsWith("image/") ? "image" : "other";
+  const type = mime.split("/")[0];
+  return type === "image" || type === "video" || type === "audio" ? type : "other";
 }
 
 /** A file node, shown as the original file; `?p=` opens a PDF at a page. */
@@ -24,6 +28,8 @@ export function FileView({ node }: { node: NodeDetail }) {
         <PdfViewer node={node} />
       ) : viewer === "image" ? (
         <ImageView node={node} />
+      ) : viewer === "video" || viewer === "audio" ? (
+        <MediaView node={node} kind={viewer} />
       ) : (
         <OtherFile node={node} />
       )}
@@ -36,22 +42,60 @@ function ImageView({ node }: { node: NodeDetail }) {
   const errorText = useErrorText();
   const link = useRawFileUrl(node.id, node.file?.sha256);
   const [failed, setFailed] = useState<string | null>(null);
+  const replace = useReplacePicker(node.id);
+  const download = useDownloadFile(node.id, node.title);
   return (
     <>
       <FileHeader node={node} />
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6">
         {link.isError ? (
           <p className="m-0 text-err">{errorText(link.error)}</p>
         ) : link.data && failed === link.data ? (
           <p className="m-0 text-err">{t("file.error.image")}</p>
         ) : (
           link.data && (
-            <img
-              src={link.data}
-              alt={node.title}
-              onError={() => setFailed(link.data)}
-              className="block max-h-full max-w-full object-contain"
-            />
+            <div className="group relative flex min-h-0 max-w-full">
+              <img
+                src={link.data}
+                alt={node.title}
+                onError={() => setFailed(link.data)}
+                className="block max-h-full max-w-full object-contain"
+              />
+              <MediaToolbar
+                tools={["replace", "download", "open"]}
+                floating
+                onAction={(tool) => {
+                  if (tool === "replace") replace.choose();
+                  else if (tool === "download") download.mutate(undefined);
+                  else window.open(link.data, "_blank", "noopener");
+                }}
+              />
+            </div>
+          )
+        )}
+        <p className="m-0 flex gap-2">
+          {replace.view}
+          {download.isError && <span className="px-1 text-12 text-err">{errorText(download.error)}</span>}
+        </p>
+      </div>
+    </>
+  );
+}
+
+function MediaView({ node, kind }: { node: NodeDetail; kind: "video" | "audio" }) {
+  const errorText = useErrorText();
+  const link = useRawFileUrl(node.id, node.file?.sha256);
+  return (
+    <>
+      <FileHeader node={node} />
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-6">
+        {link.isError ? (
+          <p className="m-0 text-err">{errorText(link.error)}</p>
+        ) : (
+          link.data && (
+            <div className="w-full max-w-[720px]">
+              <MediaRow kind={kind} name={node.title} src={link.data} />
+            </div>
           )
         )}
       </div>
