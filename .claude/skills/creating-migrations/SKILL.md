@@ -7,27 +7,23 @@ description: How to change Acervo's tables - SQLAlchemy 2 model, schemas, reposi
 
 Acervo owns the `acervo` schema and its Alembic history. Alembic's async `migrations/env.py` reads `Base.metadata`
 and `Settings.database_url`. The compose service `migrate` runs `alembic upgrade head` before `api` starts.
-Exemplar: `migrations/versions/0001_initial.py`.
+Exemplar: `migrations/versions/0003_icon_cover_favorite.py`.
 
 ## Tables
 
 | Table | Holds |
 |---|---|
-| `kb` | bases; `deleted_at` while the base is in the global trash |
-| `node` | the tree: `kind` folder, page or file; `parent_id` (null at the root), `title` (a file's keeps its extension), `description`, `description_locked`, `sort` (fractional index), `deleted_at`, `trashed_with` (the node whose trashing hid this one) |
-| `page_version` | immutable whole Markdown per version, `author` (`user` or `agent`), `proposal_id`, `edit_started_at`/`edit_ended_at` (set when cut from an editing session) |
-| `page_draft` | the page's working text: `markdown`, `revision`, `started_at` (the editing session), `base_version_id`; versions are cut from it (skill `markdown-pages`) |
+| `kb` | bases: `name`, `description`, `icon`; `deleted_at` while the base is in the global trash |
+| `node` | the tree: `kind` folder, page or file; `parent_id` (null at the root), `title` (a file's keeps its extension), `description`, `sort` (fractional index), `icon`, `cover` (`gallery:<slug>` or `image:<sha256>`), `favorite_sort` (null when not a favorite), `deleted_at`, `trashed_with` (the node whose trashing hid this one) |
+| `page_version` | immutable whole Markdown per version, `edit_started_at`/`edit_ended_at` (set when cut from an editing session) |
+| `page_draft` | the page's working text: `markdown`, `revision`, `started_at` (the editing session); versions are cut from it (skill `markdown-pages`) |
 | `page_link` | `[[…]]` links: `from_node_id` and the normalized `target` title, to fix links on rename |
-| `file` | the current file of a `file` node: `storage_key`, `sha256`, `size`, `mime`, `pages`, `protected`, `doc_type`, `sensitive`, `map` (jsonb), `map_origin` |
+| `file` | the current file of a `file` node: `storage_key`, `sha256`, `size`, `mime`, `pages`, `protected` |
 | `file_version` | earlier files of a `file` node, same columns plus `replaced_at` |
-| `proposal` | `kind`, `payload`, `edited_payload`, `alternatives`, `status`, `reject_reason`, `run_id`, `base_version_id` |
-| `decision_log` | `run_id`, `step`, `question_type`, `options`, `probs`, `threshold`, `action`, `latency_ms`, `cached` |
-
-There is no table of chunks or embeddings, and none may be added (`CLAUDE.md`, no chunks, no embeddings).
 
 Two siblings that are alive cannot share a title: a unique index on (`kb_id`, parent, `kind`, `lower(title)`) where
 `deleted_at is null`, with nulls not distinct so the root counts as a parent. A trigram index on
-`acervo.immutable_unaccent(lower(title))` serves the person's name filter only (skill `navigator-agent`).
+`acervo.immutable_unaccent(lower(title))` serves the title search.
 
 Trashing marks the whole subtree with `deleted_at` and the trashed root's id in `trashed_with`; restore unmarks by
 that id. Every query of live nodes filters `deleted_at is null`.

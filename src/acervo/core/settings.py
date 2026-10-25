@@ -1,51 +1,7 @@
 from functools import lru_cache
-from typing import Literal
 
-from pydantic import BaseModel, SecretStr, field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class Thresholds(BaseModel):
-    """Every cut-off a probability from Jev is compared to (skill `jev-decisions`)."""
-
-    # Below: do not choose a place; ask the person with the top 3 options.
-    place_min: float = 0.60
-    # Below: the proposal shows the 2nd option next to the 1st.
-    place_show_second: float = 0.90
-    # Above: "already written", no proposal.
-    covered: float = 0.80
-    # Above: a conflict proposal instead of an edit.
-    contradicts: float = 0.60
-    # Above, for the page line about the same thing as the input: edit that line instead of appending a new one.
-    same_line: float = 0.70
-    # Above: propose replacing the existing PDF with the new one.
-    pdf_new_version: float = 0.70
-    # Above: the read page is kept as evidence.
-    page_answers: float = 0.50
-    # Above: stop navigating and answer.
-    sufficient: float = 0.80
-    # Below: the claim is removed from the answer.
-    claim_supported: float = 0.70
-
-
-class NavigatorBudget(BaseModel):
-    """What one question may spend before the Navigator says "Não encontrei" (skill `navigator-agent`)."""
-
-    expansion_rounds: int = 3
-    pages_read: int = 25
-    jev_questions: int = 30
-
-
-class LlmRoles(BaseModel):
-    """The model serving each role, as a PydanticAI model string `<provider>:<model>` (skill `llm-calls`)."""
-
-    card: str = "anthropic:claude-haiku-5-5"
-    patch: str = "anthropic:claude-opus-5-5"
-    describe: str = "anthropic:claude-haiku-5-5"
-    # The LLM decider, until Jev's client exists: probabilities per option through structured output.
-    decide: str = "anthropic:claude-opus-5-5"
-    # The chat: it converses and chooses when to use the base's tools; it never decides where anything goes.
-    chat: str = "anthropic:claude-opus-5-5"
 
 
 class Settings(BaseSettings):
@@ -55,28 +11,14 @@ class Settings(BaseSettings):
 
     api_key: SecretStr
     database_url: str = "postgresql+asyncpg://acervo:acervo@localhost:55433/acervo"
-    redis_url: str = "redis://localhost:56379/0"
     s3_endpoint: str = "http://localhost:59000"
     s3_access_key: str = "acervo"
     s3_secret_key: str = "acervo-secret"
     s3_bucket: str = "acervo"
     cors_origins: list[str] = ["http://localhost:5173"]
-    thresholds: Thresholds = Thresholds()
-    navigator_budget: NavigatorBudget = NavigatorBudget()
-    llm_roles: LlmRoles = LlmRoles()
-    # Who answers decisions: Jev (refused as not configured until its client exists), the LLM, or the tests' fake.
-    decider: Literal["jev", "llm", "fake"] = "llm"
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024
-    # A file sent in the chat or by an MCP agent's save_file is refused past this.
-    upload_max_bytes: int = 100 * 1024 * 1024
-    # A message's job is cancelled past this, and its reply marked failed.
-    job_timeout_seconds: int = 600
-    # How many earlier messages of a conversation the chat reads as its history.
-    chat_history: int = 20
-    # The list of applied proposals, where an agent's automatic changes are undone, goes back this many days.
-    applied_list_days: int = 7
 
     @field_validator("api_key")
     @classmethod

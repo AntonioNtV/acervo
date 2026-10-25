@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { SearchPalette } from "../screens/search/SearchPalette";
-import { ChatPanel } from "../screens/shell/ChatPanel";
 import { ShellProvider, useShell } from "../screens/shell/shell";
 import { Sidebar } from "../screens/shell/Sidebar";
 
@@ -25,17 +24,15 @@ function Frame() {
   return (
     <div className="flex h-full min-h-0">
       {sidebarOpen && <Sidebar onSearch={() => setSearchOpen(true)} />}
-      {/* Isolated, so a narrow window's chat, drawn over it, is above its top bar and below the dialogs. */}
-      <main className="isolate flex min-w-0 flex-1 flex-col overflow-y-auto">
+      <main className="flex min-w-[480px] flex-1 flex-col overflow-y-auto">
         <Outlet />
       </main>
-      <ChatPanel />
       {searchOpen && <SearchPalette onClose={() => setSearchOpen(false)} />}
     </div>
   );
 }
 
-/** Sidebar · the screen of the route · the chat panel when open; ⌘K (Ctrl+K) opens the search palette anywhere. */
+/** Sidebar · the screen of the route; ⌘K (Ctrl+K) opens the search palette anywhere. */
 export function ShellFrame() {
   return (
     <ShellProvider>

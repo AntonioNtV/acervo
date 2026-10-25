@@ -43,13 +43,12 @@ class DuplicateService:
                 sort=sort,
                 description=page.description,
             ),
-            description_locked=page.description_locked,
             icon=page.icon,
             cover=page.cover,
         )
         text = await self._uow.page_drafts.get_by(node_id=page.id)
         markdown = (await self._uow.page_versions.current(page.id)).markdown if text is None else text.markdown
-        await self._uow.page_versions.add(PageVersionCreate(node_id=copy.id, markdown=markdown, author="user"))
+        await self._uow.page_versions.add(PageVersionCreate(node_id=copy.id, markdown=markdown))
         await self._uow.page_links.replace(copy.kb_id, copy.id, links.targets(markdown))
         # Sub-pages are renamed too, so a `[[link]]` to an original still resolves to that one page.
         for child in await self._uow.nodes.children(page.kb_id, page.id):

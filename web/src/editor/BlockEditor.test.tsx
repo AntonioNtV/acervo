@@ -107,7 +107,7 @@ describe("BlockEditor", () => {
 
   it("loading emits nothing", async () => {
     const markdown =
-      "## Documentos\n\n- Boleto <!-- origem: chat · 22/10/2026 · proposta 8f3a -->\n\n> [!NOTE]\n> Aviso\n\nVer [[Sinistros]].\n";
+      "## Documentos\n\n- Boleto <!-- nota · 22/10/2026 · 8f3a -->\n\n> [!NOTE]\n> Aviso\n\nVer [[Sinistros]].\n";
     const { editor, onChange } = renderEditor(markdown);
 
     act(() => {

@@ -17,8 +17,6 @@
   --err: #e5484d;
   --warn: #b06f0a;
   --run: #0a7cff;
-  --ai: #6941c6;
-  --ai-text: #5b34b5;
   --add: rgba(24, 160, 88, 0.1);
   --del: rgba(229, 72, 77, 0.08);
   --desk: #ededeb;
@@ -52,8 +50,6 @@
   --err: #ff6369;
   --warn: #f1a10d;
   --run: #4c9aff;
-  --ai: #b39dfa;
-  --ai-text: #c8b8ff;
   --add: rgba(61, 214, 140, 0.12);
   --del: rgba(255, 99, 105, 0.12);
   --desk: #151516;

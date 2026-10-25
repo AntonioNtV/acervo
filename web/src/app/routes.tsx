@@ -1,5 +1,4 @@
 import type { RouteObject } from "react-router-dom";
-import { AgentsScreen } from "../screens/agents/AgentsScreen";
 import { BasesPage } from "../screens/bases/BasesPage";
 import { BaseRootScreen } from "../screens/folder/FolderScreen";
 import { Lixeira } from "../screens/shell/Lixeira";
@@ -16,7 +15,6 @@ export const routes: RouteObject[] = [
       { path: "/lixeira", element: <Lixeira /> },
       { path: "/kbs/:kbId", element: <BaseRootScreen /> },
       { path: "/kbs/:kbId/n/:nodeId", element: <NodeView /> },
-      { path: "/kbs/:kbId/agents", element: <AgentsScreen /> },
     ],
   },
 ];

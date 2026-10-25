@@ -49,7 +49,7 @@ relaunch a new agent on the same worktree (a finished agent resumed with `SendMe
    make lint
    uv run pytest tests/<card areas> tests/unit/test_layering.py
    ```
-   A card in `web/`: the checks of skill `ui-web`. A card that changes a decision: its eval (skill `evals`).
+   A card in `web/`: the checks of skill `ui-web`.
 4. Failed: send the output to a new agent on the same worktree. A one-line fix you make yourself.
 5. Green: card `status: done`, `branch: <name>`; `git worktree remove ../acervo-worktrees/card-NN` and
    `git branch -d card/NN-<slug>`.

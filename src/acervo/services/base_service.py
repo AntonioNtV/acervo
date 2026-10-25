@@ -4,20 +4,14 @@ from uuid import UUID
 
 from acervo.core.errors import ValidationError
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.agent import AgentCreate
 from acervo.schemas.kb import KbCreate, KbEdit, KbRead, KbSummary, KbUpdate
 
 
 def _name(name: str) -> str:
-    name = name.replace("\x00", "").strip()
+    name = name.strip()
     if not name:
         raise ValidationError("a base needs a name", {"name": name})
     return name
-
-
-def _description(text: str) -> str:
-    # Postgres refuses NUL, which text pasted from a PDF can carry.
-    return text.replace("\x00", "").strip()
 
 
 class BaseService:
@@ -30,8 +24,7 @@ class BaseService:
         return await self._uow.kbs.summaries(name)
 
     async def create(self, data: KbCreate) -> KbRead:
-        kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=_description(data.description)))
-        await self._uow.agents.create(AgentCreate(name="Chat do Acervo"), kb_id=kb.id, built_in=True)
+        kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=data.description.strip()))
         await self._uow.commit()
         return kb
 
@@ -41,7 +34,7 @@ class BaseService:
         if data.name is not None:
             change.name = _name(data.name)
         if data.description is not None:
-            change.description = _description(data.description)
+            change.description = data.description.strip()
         if "icon" in data.model_fields_set:
             change.icon = data.icon
         kb = await self._uow.kbs.update(kb_id, change)

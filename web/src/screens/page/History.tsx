@@ -56,7 +56,7 @@ export function History({
               <li className={rowClass}>
                 <span className="font-medium">{t("page.history.now")}</span>
                 <span className="text-12 text-text-3">
-                  {t("page.author.user")} · {t("page.history.editing")}
+                  {t("page.history.editing")}
                 </span>
               </li>
             )}
@@ -71,7 +71,7 @@ export function History({
                     className={cx(rowClass, "cursor-pointer text-text hover:bg-side", on && "border-l-ink bg-subtle hover:bg-subtle")}
                   >
                     <span className="font-medium tabular-nums">{timeOf(version.created_at, lang)}</span>
-                    <AuthorLine author={version.author}>{spanText(t, version)}</AuthorLine>
+                    <AuthorLine>{spanText(t, version)}</AuthorLine>
                   </button>
                 </li>
               );

@@ -37,11 +37,10 @@ export const versions: PageVersion[] = [
   {
     id: "v2",
     created_at: "2026-10-14T16:10:00Z",
-    author: "user",
     edit_started_at: "2026-10-14T15:58:00Z",
     edit_ended_at: "2026-10-14T16:10:00Z",
   },
-  { id: "v1", created_at: "2026-10-14T11:03:00Z", author: "agent", edit_started_at: null, edit_ended_at: null },
+  { id: "v1", created_at: "2026-10-14T11:03:00Z", edit_started_at: null, edit_ended_at: null },
 ];
 
 export function renderPage() {

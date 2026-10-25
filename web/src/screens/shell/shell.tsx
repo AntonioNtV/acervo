@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useMatch } from "react-router-dom";
 
 const SIDEBAR_KEY = "acervo.sidebar";
@@ -6,16 +6,12 @@ const SIDEBAR_KEY = "acervo.sidebar";
 type Shell = {
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  chatOpen: boolean;
-  setChatOpen: (open: boolean) => void;
 };
 
 // Outside the shell (a screen rendered alone in a test) the bars still render, with nothing to toggle.
 const ShellContext = createContext<Shell>({
   sidebarOpen: true,
   setSidebarOpen: () => {},
-  chatOpen: false,
-  setChatOpen: () => {},
 });
 
 function readSidebar(): boolean {
@@ -26,10 +22,9 @@ function readSidebar(): boolean {
   }
 }
 
-/** Whether the sidebar and the chat are open; ⌘J (Ctrl+J) toggles the chat anywhere in the app. */
+/** Whether the sidebar is open, remembered across visits. */
 export function ShellProvider({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarState] = useState(readSidebar);
-  const [chatOpen, setChatOpen] = useState(false);
 
   const setSidebarOpen = useCallback((open: boolean) => {
     setSidebarState(open);
@@ -40,22 +35,9 @@ export function ShellProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Captured, so ⌘J reaches the chat before the editor or an open menu handles it.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === "j") {
-        event.preventDefault();
-        event.stopPropagation();
-        setChatOpen((open) => !open);
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, []);
-
   const value = useMemo(
-    () => ({ sidebarOpen, setSidebarOpen, chatOpen, setChatOpen }),
-    [sidebarOpen, setSidebarOpen, chatOpen],
+    () => ({ sidebarOpen, setSidebarOpen }),
+    [sidebarOpen, setSidebarOpen],
   );
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }

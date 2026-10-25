@@ -20,7 +20,6 @@ from sqlalchemy.pool import NullPool
 from acervo.core.settings import Settings
 from acervo.db.models import File, Node, PageVersion
 from acervo.db.session import async_url
-from acervo.model_clients.fakes import FakeDecider, FakeWriter
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.node import NodeRepository
 from acervo.repositories.uow import UnitOfWork
@@ -145,18 +144,6 @@ def storage(test_settings: Settings) -> Settings:
     return test_settings
 
 
-@pytest.fixture
-def fake_decider() -> FakeDecider:
-    """Answers from `fake_decider.table`, set by the test; Jev and the LLM are never called."""
-    return FakeDecider()
-
-
-@pytest.fixture
-def fake_writer() -> FakeWriter:
-    """Fixed outputs per role, changed by the test; records every input."""
-    return FakeWriter()
-
-
 @dataclass
 class Tree:
     kb: KbRead
@@ -205,7 +192,7 @@ def make_tree(session: AsyncSession) -> Callable[..., Awaitable[Tree]]:
             path = f"{prefix}{name}"
             tree.nodes[path] = node
             if kind == "page":
-                session.add(PageVersion(node_id=node.id, markdown=f"# {node.title}\n", author="user"))
+                session.add(PageVersion(node_id=node.id, markdown=f"# {node.title}\n"))
             elif kind == "file":
                 sha256 = hashlib.sha256(f"{tree.kb.id}/{path}".encode()).hexdigest()
                 session.add(

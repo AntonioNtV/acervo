@@ -1,5 +1,4 @@
 import type { PageVersion } from "../../api/client";
-import { AiMark } from "../../app/AiMark";
 import { locale, useI18n, type Lang } from "../../i18n";
 
 type T = ReturnType<typeof useI18n>["t"];
@@ -33,22 +32,7 @@ export function spanText(t: T, version: PageVersion): string | null {
   return minutes < 1 ? t("page.history.spanShort") : t("page.history.span", { n: minutes });
 }
 
-/** Who wrote a version: the person, or (from F2) the chat, which is one of the few violet things. */
-export function AuthorLine({ author, children }: { author: PageVersion["author"]; children?: string | null }) {
-  const { t } = useI18n();
-  if (author === "agent") {
-    return (
-      <span className="inline-flex items-center gap-[5px] text-12 text-ai-text">
-        <AiMark size={12} />
-        {t("page.author.agent")}
-        {children && ` · ${children}`}
-      </span>
-    );
-  }
-  return (
-    <span className="text-12 text-text-3">
-      {t("page.author.user")}
-      {children && ` · ${children}`}
-    </span>
-  );
+/** A version's line under its time: how long its editing session lasted, when it came from one. */
+export function AuthorLine({ children }: { children?: string | null }) {
+  return <span className="text-12 text-text-3">{children}</span>;
 }

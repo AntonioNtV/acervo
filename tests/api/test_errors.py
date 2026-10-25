@@ -12,7 +12,6 @@ from acervo.core.errors import (
     AcervoError,
     AuthError,
     ConflictError,
-    DecisionUnavailable,
     Duplicate,
     NotFoundError,
     SameFile,
@@ -33,7 +32,6 @@ ERRORS: dict[str, type[AcervoError]] = {
         SameFile,
         ValidationError,
         AuthError,
-        DecisionUnavailable,
         AcervoError,
     )
 }
@@ -77,7 +75,6 @@ def _test_router(app: FastAPI) -> None:
         ("same_file", 409),
         ("validation", 422),
         ("unauthorized", 401),
-        ("decision_unavailable", 503),
         ("internal", 500),
     ],
 )

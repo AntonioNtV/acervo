@@ -7,7 +7,6 @@ from acervo.core.errors import (
     AcervoError,
     AuthError,
     ConflictError,
-    DecisionUnavailable,
     NotFoundError,
     ValidationError,
 )
@@ -19,7 +18,6 @@ STATUS_BY_ERROR: dict[type[AcervoError], int] = {
     ConflictError: 409,
     ValidationError: 422,
     AuthError: 401,
-    DecisionUnavailable: 503,
     AcervoError: 500,
 }
 

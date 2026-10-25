@@ -7,7 +7,7 @@ class ErrorResponse(BaseModel):
     """Body of every error response."""
 
     error: str = Field(
-        description="Error code: not_found, conflict, validation, unauthorized, decision_unavailable, or one the "
+        description="Error code: not_found, conflict, validation, unauthorized, or one the "
         "screens tell apart: title_taken, duplicate, stale_page, same_file."
     )
     message: str = Field(description="Human-readable explanation; the app shows the code's own text instead.")

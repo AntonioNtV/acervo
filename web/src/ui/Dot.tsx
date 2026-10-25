@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type Tone = "neutral" | "ok" | "err" | "warn" | "run" | "ai";
+export type Tone = "neutral" | "ok" | "err" | "warn" | "run";
 
 const tones: Record<Tone, string> = {
   neutral: "bg-text-3",
@@ -8,7 +8,6 @@ const tones: Record<Tone, string> = {
   err: "bg-err",
   warn: "bg-warn",
   run: "bg-run",
-  ai: "bg-ai",
 };
 
 export function Dot({ tone = "neutral", children }: { tone?: Tone; children?: ReactNode }) {

@@ -37,4 +37,4 @@ approved_on: <YYYY-MM-DD, filled on approval>
 
 ## How we know it is done
 
-- <end-to-end check: what to do in the UI, the database or an eval, and what to see>
+- <end-to-end check: what to do in the UI or the database, and what to see>

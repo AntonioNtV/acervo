@@ -1,4 +1,4 @@
-.PHONY: up down migrate revision worker test lint openapi web-check eval-ai1
+.PHONY: up down migrate revision test lint openapi web-check
 
 up:
 	docker compose up -d --build --wait
@@ -12,15 +12,8 @@ migrate:
 revision:
 	uv run alembic revision --autogenerate -m "$(m)"
 
-worker:
-	uv run arq acervo.worker.settings.WorkerSettings
-
 test:
 	uv run pytest --cov=acervo
-
-# The AI-1 synthetic cases with the LLM decider, in a database and bucket of their own; skipped without an LLM key.
-eval-ai1:
-	uv run python evals/ai1/run.py
 
 lint:
 	uv run ruff check .

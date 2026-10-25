@@ -4,13 +4,14 @@ import { useNavigate } from "react-router-dom";
 import type { NodeWithPath } from "../../api/client";
 import { forgetRecent, readRecentPages } from "../../app/lastPage";
 import { useKbs } from "../../data/kbs";
-import { useCreateNode, useDebouncedSearch, useNode } from "../../data/tree";
+import { useCreateNode, useNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../ui/Icon";
 import { NodeIcon } from "../../ui/NodeIcon";
 import { NodeName, useTreeErrorText } from "../base/names";
 import { useCurrent } from "../shell/shell";
 
+const SEARCH_DELAY_MS = 200;
 const CREATE = "create";
 
 type Found = Pick<NodeWithPath, "id" | "kb_id" | "kind" | "title" | "icon" | "path">;
@@ -91,15 +92,21 @@ export function SearchPalette({ onClose }: { onClose: () => void }) {
   const [recent] = useState(() => (kbId ? readRecentPages(kbId) : []));
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState("");
+  const [searched, setSearched] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   // Enter pressed while the search for what is typed is on its way: it acts once that search answers.
   const [waiting, setWaiting] = useState(false);
-  const { searched, found } = useDebouncedSearch(kbId ?? "", query);
+  const found = useSearch(kbId ?? "", searched).data;
   const create = useCreateNode(kbId ?? "");
   const title = query.trim();
   const results = title && searched ? found : undefined;
   // What is shown may still be the answer to what was typed before.
   const pending = Boolean(title) && (searched !== title || found === undefined);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSearched(title), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [title]);
 
   const onGone = useCallback((id: string) => setGone((ids) => new Set(ids).add(id)), []);
 
