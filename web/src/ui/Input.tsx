@@ -11,7 +11,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
       className={cx(
         "h-[30px] w-full rounded-[7px] border border-line-2 bg-bg px-2.5 text-13 text-text placeholder:text-ghost",
         "focus:border-ink focus:shadow-[0_0_0_3px_var(--accent-soft)] focus:outline-none focus-visible:outline-none",
-        "aria-invalid:border-err",
+        "aria-invalid:border-err disabled:cursor-default disabled:opacity-50",
         className,
       )}
       {...rest}

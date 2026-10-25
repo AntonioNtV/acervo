@@ -14,7 +14,8 @@ export const IconButton = forwardRef<HTMLButtonElement, Props>(function IconButt
       type={type}
       className={cx(
         "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-[6px] border-0 bg-transparent p-0 text-text-2",
-        "enabled:hover:bg-subtle enabled:hover:text-text disabled:cursor-default disabled:opacity-50",
+        "enabled:hover:bg-subtle enabled:hover:text-text aria-pressed:bg-subtle aria-pressed:text-text",
+        "disabled:cursor-default disabled:opacity-50",
         size === "sm" ? "size-[22px]" : "size-7",
         className,
       )}
