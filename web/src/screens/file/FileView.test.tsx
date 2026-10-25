@@ -99,6 +99,28 @@ describe("FileView", () => {
     expect(document.querySelector("video")).not.toBeInTheDocument();
   });
 
+  it("asks for a new link when the one a video played from expires", async () => {
+    renderFile(fileNode("Vistoria.mp4", "video/mp4"));
+    await screen.findByRole("button", { name: "Tocar" });
+    const video = document.querySelector("video") as HTMLVideoElement;
+    fireEvent.loadedMetadata(video);
+
+    const FRESH = `${RAW}?expires=1792000060&signature=def`;
+    respond("POST", LINK, { body: { url: `http://localhost:8000${FRESH}`, expires_at: "2026-10-22T10:02:00Z" } });
+    fireEvent.error(video);
+
+    await waitFor(() => expect(document.querySelector("video")).toHaveAttribute("src", FRESH));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("says a video cannot play when it never loaded", async () => {
+    renderFile(fileNode("Vistoria.mp4", "video/mp4"));
+    await screen.findByRole("button", { name: "Tocar" });
+    fireEvent.error(document.querySelector("video") as HTMLVideoElement);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+  });
+
   it("downloads an image from its toolbar", async () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderFile(fileNode("Fachada.png", "image/png"));

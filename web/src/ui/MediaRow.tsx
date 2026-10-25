@@ -15,10 +15,18 @@ type Props =
       /** 0–100; given while the file uploads. */
       progress?: number;
       failed?: boolean;
-      onDownload: () => void;
+      /** Without it, a row at rest shows no Baixar. */
+      onDownload?: () => void;
       onRetry: () => void;
     }
-  | { kind: "video" | "audio"; name: string; ext?: string; src: string };
+  | {
+      kind: "video" | "audio";
+      name: string;
+      ext?: string;
+      src: string;
+      /** A link that stopped working after it had played; the player picks up where it was on the new `src`. */
+      onExpired?: () => void;
+    };
 
 /** A file to download, a video in a 16:9 box or an audio in a one-line player; both play the original file. */
 export function MediaRow(props: Props) {
@@ -45,10 +53,12 @@ function FileRow({ name, ext, size, progress, failed, onDownload, onRetry }: Ext
           </Button>
         </span>
       ) : (
-        <Button variant="quiet" size="sm" onClick={onDownload}>
-          <Icon name="download" size={14} />
-          {t("media.download")}
-        </Button>
+        onDownload && (
+          <Button variant="quiet" size="sm" onClick={onDownload}>
+            <Icon name="download" size={14} />
+            {t("media.download")}
+          </Button>
+        )
       )}
     </div>
   );
@@ -59,12 +69,15 @@ function clock(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function Player({ kind, name, ext, src }: Extract<Props, { kind: "video" | "audio" }>) {
+function Player({ kind, name, ext, src, onExpired }: Extract<Props, { kind: "video" | "audio" }>) {
   const { t } = useI18n();
   const media = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [broken, setBroken] = useState(false);
   const [time, setTime] = useState({ at: 0, total: 0 });
+  // A file that never loaded its metadata is broken, not expired, so it is not asked for again.
+  const loaded = useRef(false);
+  const resume = useRef<{ at: number; play: boolean } | null>(null);
   const pct = time.total ? (time.at / time.total) * 100 : 0;
   const label = t(playing ? "media.pause" : "media.play");
 
@@ -82,10 +95,23 @@ function Player({ kind, name, ext, src }: Extract<Props, { kind: "video" | "audi
     onPlay: () => setPlaying(true),
     onPause: () => setPlaying(false),
     onEnded: () => setPlaying(false),
-    onError: () => setBroken(true),
+    onError: (event: SyntheticEvent<HTMLMediaElement>) => {
+      if (!onExpired || !loaded.current) return setBroken(true);
+      loaded.current = false;
+      resume.current = { at: event.currentTarget.currentTime, play: playing };
+      onExpired();
+    },
     onLoadedMetadata: (event: SyntheticEvent<HTMLMediaElement>) => {
-      const total = event.currentTarget.duration;
-      setTime({ at: 0, total: Number.isFinite(total) ? total : 0 });
+      const el = event.currentTarget;
+      const total = el.duration;
+      const at = resume.current?.at ?? 0;
+      loaded.current = true;
+      if (resume.current) {
+        el.currentTime = at;
+        if (resume.current.play) void el.play()?.catch(() => {});
+        resume.current = null;
+      }
+      setTime({ at, total: Number.isFinite(total) ? total : 0 });
     },
     onTimeUpdate: (event: SyntheticEvent<HTMLMediaElement>) => {
       const at = event.currentTarget.currentTime;

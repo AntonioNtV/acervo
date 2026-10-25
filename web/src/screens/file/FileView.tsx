@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { NodeDetail } from "../../api/client";
 import { useErrorText } from "../../app/errors";
-import { useDownloadFile, useRawFileUrl } from "../../data/files";
+import { useDownloadFile, useOpenFile, useRawFileUrl } from "../../data/files";
 import { useI18n } from "../../i18n";
 import { MediaRow } from "../../ui/MediaRow";
 import { MediaToolbar } from "../../ui/MediaToolbar";
@@ -44,6 +44,7 @@ function ImageView({ node }: { node: NodeDetail }) {
   const [failed, setFailed] = useState<string | null>(null);
   const replace = useReplacePicker(node.id);
   const download = useDownloadFile(node.id, node.title);
+  const open = useOpenFile(node.id);
   return (
     <>
       <FileHeader node={node} />
@@ -67,7 +68,7 @@ function ImageView({ node }: { node: NodeDetail }) {
                 onAction={(tool) => {
                   if (tool === "replace") replace.choose();
                   else if (tool === "download") download.mutate(undefined);
-                  else window.open(link.data, "_blank", "noopener");
+                  else open.mutate();
                 }}
               />
             </div>
@@ -76,6 +77,7 @@ function ImageView({ node }: { node: NodeDetail }) {
         <p className="m-0 flex gap-2">
           {replace.view}
           {download.isError && <span className="px-1 text-12 text-err">{errorText(download.error)}</span>}
+          {open.isError && <span className="px-1 text-12 text-err">{errorText(open.error)}</span>}
         </p>
       </div>
     </>
@@ -94,7 +96,7 @@ function MediaView({ node, kind }: { node: NodeDetail; kind: "video" | "audio" }
         ) : (
           link.data && (
             <div className="w-full max-w-[720px]">
-              <MediaRow kind={kind} name={node.title} src={link.data} />
+              <MediaRow kind={kind} name={node.title} src={link.data} onExpired={() => void link.refetch()} />
             </div>
           )
         )}

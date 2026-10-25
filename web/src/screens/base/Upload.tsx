@@ -190,9 +190,9 @@ export function UploadList({ kbId }: { kbId: string }) {
 function Upload({ row }: { row: UploadRow }) {
   const { t } = useI18n();
   const retry = useRetryUpload(row.kbId);
+  const errorText = useTreeErrorText();
   const { name, ext } = splitExt(row.name);
-  // A duplicate's Baixar gives the file it matches.
-  const download = useDownloadFile(row.nodeId ?? row.duplicate?.node_id ?? "", row.name);
+  const download = useDownloadFile(row.nodeId ?? "", row.name);
   return (
     <>
       <MediaRow
@@ -201,7 +201,7 @@ function Upload({ row }: { row: UploadRow }) {
         ext={ext}
         progress={row.state === "sending" ? row.percent : undefined}
         failed={row.state === "error"}
-        onDownload={() => download.mutate(undefined)}
+        onDownload={row.nodeId ? () => download.mutate(undefined) : undefined}
         onRetry={() => retry(row)}
       />
       {row.state === "duplicate" && row.duplicate && (
@@ -219,6 +219,7 @@ function Upload({ row }: { row: UploadRow }) {
         </span>
       )}
       {row.state === "error" && <span className="px-1 text-err">{row.message}</span>}
+      {download.isError && <span className="px-1 text-err">{errorText(download.error)}</span>}
     </>
   );
 }
