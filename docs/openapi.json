@@ -1,6 +1,69 @@
 {
   "components": {
     "schemas": {
+      "AccountRead": {
+        "description": "The signed-in person as the web app sees them.",
+        "properties": {
+          "email": {
+            "description": "As typed.",
+            "title": "Email",
+            "type": "string"
+          },
+          "email_verified": {
+            "description": "Whether the email was confirmed.",
+            "title": "Email Verified",
+            "type": "boolean"
+          },
+          "has_google": {
+            "description": "Whether Google is linked.",
+            "title": "Has Google",
+            "type": "boolean"
+          },
+          "has_password": {
+            "description": "False for an account that only signs in with Google.",
+            "title": "Has Password",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Account ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Shown name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The photo, a 256 px square; null shows the initials.",
+            "title": "Photo Url"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/Preferences"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "has_password",
+          "has_google",
+          "email_verified",
+          "photo_url",
+          "preferences"
+        ],
+        "title": "AccountRead",
+        "type": "object"
+      },
       "Attachment": {
         "description": "A file put in a page, which its Markdown reaches as `arquivos/<name>`.",
         "properties": {
@@ -40,6 +103,20 @@
           "file"
         ],
         "title": "Body_replace_file_v1_nodes__node_id__file_post",
+        "type": "object"
+      },
+      "Body_set_photo_v1_account_photo_put": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_set_photo_v1_account_photo_put",
         "type": "object"
       },
       "Body_upload_attachment_v1_pages__node_id__attachments_post": {
@@ -97,6 +174,21 @@
         "title": "Body_upload_file_v1_kbs__kb_id__files_post",
         "type": "object"
       },
+      "CodeIn": {
+        "properties": {
+          "code": {
+            "description": "The 6 digits sent by email.",
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "CodeIn",
+        "type": "object"
+      },
       "DiffLine": {
         "description": "One line of a difference between two texts, in reading order.",
         "properties": {
@@ -121,6 +213,54 @@
           "text"
         ],
         "title": "DiffLine",
+        "type": "object"
+      },
+      "EmailChange": {
+        "properties": {
+          "new_email": {
+            "format": "email",
+            "title": "New Email",
+            "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current password; required when the account has one.",
+            "title": "Password"
+          }
+        },
+        "required": [
+          "new_email"
+        ],
+        "title": "EmailChange",
+        "type": "object"
+      },
+      "EmailCodeIn": {
+        "description": "A code that confirms the email of an account not yet signed in.",
+        "properties": {
+          "code": {
+            "description": "The 6 digits sent by email.",
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "email"
+        ],
+        "title": "EmailCodeIn",
         "type": "object"
       },
       "ErrorResponse": {
@@ -171,7 +311,7 @@
         "type": "object"
       },
       "FileLink": {
-        "description": "A short-lived URL of a file's bytes that needs no X-API-Key header.",
+        "description": "A short-lived URL of a file's bytes that opens without the session cookie.",
         "properties": {
           "expires_at": {
             "description": "When the link stops working.",
@@ -453,6 +593,40 @@
           "replaced_at"
         ],
         "title": "FileVersionResponse",
+        "type": "object"
+      },
+      "GoogleLinkIn": {
+        "description": "The password that links Google to an account whose email was not yet confirmed.",
+        "properties": {
+          "password": {
+            "description": "The account's password.",
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "description": "From the `/entrar/vincular` link the callback redirected to.",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "GoogleLinkIn",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
         "type": "object"
       },
       "HealthResponse": {
@@ -1549,6 +1723,103 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "Preferences": {
+        "description": "How the app looks and opens for the account, on every device.",
+        "properties": {
+          "language": {
+            "default": "pt-BR",
+            "description": "Language of the app and of the emails.",
+            "enum": [
+              "pt-BR",
+              "en"
+            ],
+            "title": "Language",
+            "type": "string"
+          },
+          "page_width": {
+            "default": "default",
+            "description": "default (720 px) or wide (1040 px).",
+            "enum": [
+              "default",
+              "wide"
+            ],
+            "title": "Page Width",
+            "type": "string"
+          },
+          "start_page": {
+            "default": "last",
+            "description": "What opens on start: the last page opened, or Bases.",
+            "enum": [
+              "last",
+              "bases"
+            ],
+            "title": "Start Page",
+            "type": "string"
+          },
+          "theme": {
+            "default": "system",
+            "description": "light, dark, or system to follow the device.",
+            "enum": [
+              "light",
+              "dark",
+              "system"
+            ],
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "title": "Preferences",
+        "type": "object"
+      },
+      "ProfileUpdate": {
+        "properties": {
+          "name": {
+            "description": "New shown name.",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "ProfileUpdate",
+        "type": "object"
+      },
+      "ResetConfirm": {
+        "properties": {
+          "password": {
+            "minLength": 10,
+            "title": "Password",
+            "type": "string"
+          },
+          "token": {
+            "description": "From the link sent by email.",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "ResetConfirm",
+        "type": "object"
+      },
+      "ResetRequest": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ResetRequest",
+        "type": "object"
+      },
       "RestoredNode": {
         "description": "A node back from the trash.",
         "properties": {
@@ -1714,6 +1985,52 @@
           "heading"
         ],
         "title": "Section",
+        "type": "object"
+      },
+      "SignIn": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SignIn",
+        "type": "object"
+      },
+      "SignUp": {
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "description": "Shown name.",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 10,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "title": "SignUp",
         "type": "object"
       },
       "TreeNode": {
@@ -1893,6 +2210,46 @@
         ],
         "title": "TreeNode",
         "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
       }
     }
   },
@@ -1902,14 +2259,13 @@
   },
   "openapi": "3.1.0",
   "paths": {
-    "/v1/favorites": {
+    "/v1/account": {
       "get": {
-        "description": "Live favorites of live bases, across bases, in the person's order.",
-        "operationId": "list_favorites_v1_favorites_get",
+        "operationId": "get_account_v1_account_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -1920,7 +2276,1183 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Account",
+        "tags": [
+          "account"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_account_v1_account_patch",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Rename Account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/email": {
+      "post": {
+        "description": "Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`.",
+        "operationId": "request_email_change_v1_account_email_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Request Email Change",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/email/confirm": {
+      "post": {
+        "description": "The code sent to the new address changes the email; the old address is told.",
+        "operationId": "confirm_email_change_v1_account_email_confirm_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Confirm Email Change",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/photo": {
+      "delete": {
+        "description": "Back to the initials.",
+        "operationId": "remove_photo_v1_account_photo_delete",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Photo",
+        "tags": [
+          "account"
+        ]
+      },
+      "put": {
+        "description": "A PNG, JPEG or WebP of at most 2 MB; its centered square, 256 px, becomes the photo.",
+        "operationId": "set_photo_v1_account_photo_put",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_set_photo_v1_account_photo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set Photo",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/preferences": {
+      "put": {
+        "description": "Replaces every preference at once.",
+        "operationId": "set_preferences_v1_account_preferences_put",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Preferences"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set Preferences",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/accounts/{account_id}/photo": {
+      "get": {
+        "description": "Any account's photo, for any signed-in person.",
+        "operationId": "account_photo_v1_accounts__account_id__photo_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "The photo, a 256 px square."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Account Photo",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/google/callback": {
+      "get": {
+        "description": "Where Google returns. Signs in or up and opens `next`; opens `/entrar/vincular?token=` when the account with\nthat email must confirm its password first; any failure opens `/entrar?erro=google`.",
+        "operationId": "google_callback_v1_auth_google_callback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Code"
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "State"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_google",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Google"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Callback",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/google/link": {
+      "post": {
+        "description": "Links Google to the account of `token` (10 minutes) after its password, and signs in.\n\nA wrong password is 401 `invalid_credentials`; an expired or already linked token is 422 `code_invalid`.",
+        "operationId": "google_link_v1_auth_google_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Google Link",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/google/start": {
+      "get": {
+        "description": "Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.",
+        "operationId": "google_start_v1_auth_google_start_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "next",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Start",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/me": {
+      "get": {
+        "operationId": "me_v1_auth_me_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/resend-code": {
+      "post": {
+        "description": "A new code, the old one no longer valid; 204 also when the email has no account.",
+        "operationId": "resend_code_v1_auth_resend_code_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Resend Code",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/reset": {
+      "post": {
+        "description": "A single-use link valid for an hour goes to the email; 204 also when the email has no account.",
+        "operationId": "request_reset_v1_auth_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Request Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/reset/confirm": {
+      "post": {
+        "description": "Sets the password, ends every session of the account and signs in.",
+        "operationId": "confirm_reset_v1_auth_reset_confirm_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Confirm Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sign-in": {
+      "post": {
+        "operationId": "sign_in_v1_auth_sign_in_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sign In",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sign-out": {
+      "post": {
+        "operationId": "sign_out_v1_auth_sign_out_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sign Out",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sign-up": {
+      "post": {
+        "description": "An unconfirmed account; a 6-digit code goes to the email.",
+        "operationId": "sign_up_v1_auth_sign_up_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUp"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sign Up",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/verify-email": {
+      "post": {
+        "description": "Confirms the email with its code and signs in.",
+        "operationId": "verify_email_v1_auth_verify_email_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailCodeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Verify Email",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/favorites": {
+      "get": {
+        "description": "Live favorites of live bases, across bases, in the person's order.",
+        "operationId": "list_favorites_v1_favorites_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
             }
           }
         ],
@@ -1968,7 +3500,7 @@
     },
     "/v1/files/{node_id}/link": {
       "post": {
-        "description": "A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.",
+        "description": "A link to the file's bytes, or to one older content of it, that opens without the cookie for 60 seconds.",
         "operationId": "file_link_v1_files__node_id__link_post",
         "parameters": [
           {
@@ -1999,8 +3531,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2011,7 +3543,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2065,7 +3597,7 @@
     },
     "/v1/files/{node_id}/raw": {
       "get": {
-        "description": "The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.",
+        "description": "The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.\n\nTakes the session cookie or a link from `POST /v1/files/{node_id}/link`.",
         "operationId": "raw_file_v1_files__node_id__raw_get",
         "parameters": [
           {
@@ -2093,6 +3625,23 @@
                 }
               ],
               "title": "Version Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
             }
           },
           {
@@ -2144,8 +3693,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2156,7 +3705,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2228,8 +3777,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2240,7 +3789,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2321,8 +3870,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2333,7 +3882,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2432,8 +3981,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2444,7 +3993,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2493,8 +4042,8 @@
         "operationId": "create_kb_v1_kbs_post",
         "parameters": [
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2505,7 +4054,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2563,8 +4112,8 @@
         "operationId": "list_trashed_kbs_v1_kbs_trash_get",
         "parameters": [
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2575,7 +4124,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2637,8 +4186,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2649,7 +4198,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2714,8 +4263,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2726,7 +4275,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2821,8 +4370,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2833,7 +4382,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -2904,8 +4453,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -2916,7 +4465,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3004,8 +4553,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3016,7 +4565,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3103,8 +4652,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3115,7 +4664,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3192,8 +4741,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3204,7 +4753,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3266,8 +4815,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3278,7 +4827,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3339,8 +4888,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3351,7 +4900,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3409,8 +4958,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3421,7 +4970,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3487,8 +5036,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3499,7 +5048,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3565,8 +5114,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3577,7 +5126,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3665,8 +5214,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3677,7 +5226,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3741,7 +5290,7 @@
     },
     "/v1/nodes/{node_id}/cover/link": {
       "post": {
-        "description": "A link to the node's uploaded cover image that opens without the key for 60 seconds.",
+        "description": "A link to the node's uploaded cover image that opens without the cookie for 60 seconds.",
         "operationId": "cover_link_v1_nodes__node_id__cover_link_post",
         "parameters": [
           {
@@ -3755,8 +5304,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3767,7 +5316,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3821,7 +5370,7 @@
     },
     "/v1/nodes/{node_id}/cover/raw": {
       "get": {
-        "description": "The node's uploaded cover image.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/cover/link`.",
+        "description": "The node's uploaded cover image.\n\nTakes the session cookie or a link from `POST /v1/nodes/{node_id}/cover/link`.",
         "operationId": "raw_cover_v1_nodes__node_id__cover_raw_get",
         "parameters": [
           {
@@ -3832,6 +5381,23 @@
               "format": "uuid",
               "title": "Node Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
             }
           },
           {
@@ -3867,8 +5433,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3879,7 +5445,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -3943,8 +5509,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -3955,7 +5521,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4009,7 +5575,7 @@
     },
     "/v1/nodes/{node_id}/export": {
       "get": {
-        "description": "A page or folder and everything live under it as a zip: pages as their Markdown text, files as stored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/export/link`.\nA storage error breaks the download off instead of ending it as a shorter zip.",
+        "description": "A page or folder and everything live under it as a zip: pages as their Markdown text, files as stored.\n\nTakes the session cookie or a link from `POST /v1/nodes/{node_id}/export/link`.\nA storage error breaks the download off instead of ending it as a shorter zip.",
         "operationId": "export_node_v1_nodes__node_id__export_get",
         "parameters": [
           {
@@ -4020,6 +5586,23 @@
               "format": "uuid",
               "title": "Node Id",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
             }
           },
           {
@@ -4055,8 +5638,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4067,7 +5650,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4117,7 +5700,7 @@
     },
     "/v1/nodes/{node_id}/export/link": {
       "post": {
-        "description": "A link to the zip of a page or folder that opens without the key for 60 seconds.",
+        "description": "A link to the zip of a page or folder that opens without the cookie for 60 seconds.",
         "operationId": "export_link_v1_nodes__node_id__export_link_post",
         "parameters": [
           {
@@ -4131,8 +5714,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4143,7 +5726,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4210,8 +5793,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4222,7 +5805,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4288,8 +5871,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4300,7 +5883,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4377,8 +5960,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4389,7 +5972,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4476,8 +6059,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4488,7 +6071,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4575,8 +6158,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4587,7 +6170,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4664,8 +6247,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4676,7 +6259,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4744,8 +6327,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4756,7 +6339,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4820,7 +6403,7 @@
     },
     "/v1/pages/{node_id}/attachments/{name}/link": {
       "post": {
-        "description": "A link to the attachment's bytes that opens without the key for 60 seconds.",
+        "description": "A link to the attachment's bytes that opens without the cookie for 60 seconds.",
         "operationId": "attachment_link_v1_pages__node_id__attachments__name__link_post",
         "parameters": [
           {
@@ -4843,8 +6426,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4855,7 +6438,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -4909,7 +6492,7 @@
     },
     "/v1/pages/{node_id}/attachments/{name}/raw": {
       "get": {
-        "description": "The attachment byte for byte; one `Range` of bytes is honored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from\n`POST /v1/pages/{node_id}/attachments/{name}/link`.",
+        "description": "The attachment byte for byte; one `Range` of bytes is honored.\n\nTakes the session cookie or a link from `POST /v1/pages/{node_id}/attachments/{name}/link`.",
         "operationId": "raw_attachment_v1_pages__node_id__attachments__name__raw_get",
         "parameters": [
           {
@@ -4929,6 +6512,23 @@
             "schema": {
               "title": "Name",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Session"
             }
           },
           {
@@ -4980,8 +6580,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -4992,7 +6592,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5065,8 +6665,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5077,7 +6677,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5138,8 +6738,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5150,7 +6750,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5222,8 +6822,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5234,7 +6834,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5322,8 +6922,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5334,7 +6934,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5415,8 +7015,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5427,7 +7027,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],
@@ -5504,8 +7104,8 @@
             }
           },
           {
-            "in": "header",
-            "name": "x-api-key",
+            "in": "cookie",
+            "name": "acervo_session",
             "required": false,
             "schema": {
               "anyOf": [
@@ -5516,7 +7116,7 @@
                   "type": "null"
                 }
               ],
-              "title": "X-Api-Key"
+              "title": "Acervo Session"
             }
           }
         ],

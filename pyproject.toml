@@ -16,6 +16,10 @@ dependencies = [
     "uuid6>=2025.0.1",
     "zipstream-ng>=1.9.3",
     "httpx>=0.28.1",
+    "argon2-cffi>=25.1.0",
+    "email-validator>=2.3.0",
+    "pillow>=13.0.0",
+    "pyjwt[crypto]>=2.15.1",
 ]
 
 [dependency-groups]

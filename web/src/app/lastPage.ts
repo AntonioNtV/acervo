@@ -1,4 +1,10 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { browserLang, useI18n } from "../i18n";
+import { useTheme } from "./theme";
+
 const KEY = "acervo.lastPage";
+const ACCOUNT_KEY = "acervo.account";
 const RECENT_MAX = 10;
 
 const recentKey = (kbId: string) => `acervo.recent.${kbId}`;
@@ -49,6 +55,44 @@ export function forgetBase(kbId: string) {
   } catch {
     // Nothing was stored.
   }
+}
+
+/** The account this browser last showed, to notice a switch that came through a full page load (Google). */
+export function readAccountId(): string | null {
+  try {
+    return localStorage.getItem(ACCOUNT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberAccountId(id: string) {
+  try {
+    localStorage.setItem(ACCOUNT_KEY, id);
+  } catch {
+    // Without storage, a switch through Google keeps the last account's pages and theme.
+  }
+}
+
+/**
+ * Drops what the last account left in this browser, so whoever signs in next does not land where it was or see its
+ * cache: its queries, pages and id, and its theme and language, as the screens follow the browser again.
+ */
+export function useForgetAccount() {
+  const queryClient = useQueryClient();
+  const { setTheme } = useTheme();
+  const { setLang } = useI18n();
+  return useCallback(() => {
+    queryClient.clear();
+    try {
+      for (const key of Object.keys(localStorage))
+        if (key === KEY || key === ACCOUNT_KEY || key.startsWith(recentKey(""))) localStorage.removeItem(key);
+    } catch {
+      // Nothing was stored.
+    }
+    setTheme("system");
+    setLang(browserLang());
+  }, [queryClient, setTheme, setLang]);
 }
 
 /** After the last page turned out to be gone, so `/` falls back. */

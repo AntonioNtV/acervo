@@ -10,6 +10,8 @@ x-acervo: &acervo
   environment:
     DATABASE_URL: postgresql+asyncpg://acervo:acervo@postgres:5432/acervo
     S3_ENDPOINT: http://minio:9000
+    SMTP_HOST: mailpit
+    SMTP_PORT: 1025
 
 services:
   postgres:
@@ -54,6 +56,13 @@ services:
       MC_HOST_local: http://acervo:acervo-secret@minio:9000
     command: mb --ignore-existing local/acervo
     restart: on-failure
+
+  # Catches every email sent in development; read them at http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
   migrate:
     <<: *acervo

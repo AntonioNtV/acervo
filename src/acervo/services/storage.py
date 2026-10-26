@@ -61,6 +61,10 @@ class Storage:
             await s3.abort_multipart_upload(**target)
             raise
 
+    async def delete(self, key: str) -> None:
+        async with self._client() as s3:
+            await s3.delete_object(Bucket=self.bucket, Key=key)
+
     async def stream(
         self, key: str, byte_range: tuple[int, int] | None = None, chunk_size: int = 1024 * 1024
     ) -> AsyncIterator[bytes]:

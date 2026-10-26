@@ -9,10 +9,10 @@ LINK_SECONDS = 60
 Purpose = Literal["file", "cover", "export", "attachment"]
 
 
-def sign(secret: str, purpose: Purpose, node_id: UUID, version_id: UUID | None, expires: int) -> str:
-    """The signature of a download link of one content of a node for `purpose`, valid until `expires` (Unix
-    seconds)."""
-    message = f"{purpose}:{node_id}:{version_id or ''}:{expires}".encode()
+def sign(secret: str, purpose: Purpose, node_id: UUID, version_id: UUID | None, session_id: UUID, expires: int) -> str:
+    """The signature of a download link of one content of a node for `purpose`, minted in session `session_id` and
+    valid until `expires` (Unix seconds)."""
+    message = f"{purpose}:{node_id}:{version_id or ''}:{session_id}:{expires}".encode()
     return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
 
 
@@ -21,10 +21,11 @@ def verify(
     purpose: Purpose,
     node_id: UUID,
     version_id: UUID | None,
+    session_id: UUID,
     expires: int,
     signature: str,
     now: float,
 ) -> bool:
     # Bytes, as compare_digest raises on a str with non-ASCII characters; the signature comes from the URL.
-    expected = sign(secret, purpose, node_id, version_id, expires).encode()
+    expected = sign(secret, purpose, node_id, version_id, session_id, expires).encode()
     return now < expires and hmac.compare_digest(expected, signature.encode())

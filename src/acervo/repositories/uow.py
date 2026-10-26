@@ -1,17 +1,23 @@
 from types import TracebackType
 from typing import Self
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from acervo.repositories.account import AccountRepository
+from acervo.repositories.email_code import EmailCodeRepository
 from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
 from acervo.repositories.kb import KbRepository
+from acervo.repositories.login_failure import LoginFailureRepository
 from acervo.repositories.node import NodeRepository
 from acervo.repositories.page_attachment import PageAttachmentRepository
 from acervo.repositories.page_draft import PageDraftRepository
 from acervo.repositories.page_link import PageLinkRepository
 from acervo.repositories.page_version import PageVersionRepository
+from acervo.repositories.password_reset import PasswordResetRepository
+from acervo.repositories.session import SessionRepository
 
 
 class UnitOfWork:
@@ -26,6 +32,11 @@ class UnitOfWork:
     page_links: PageLinkRepository
     page_attachments: PageAttachmentRepository
     favorites: FavoriteRepository
+    accounts: AccountRepository
+    sessions: SessionRepository
+    email_codes: EmailCodeRepository
+    password_resets: PasswordResetRepository
+    login_failures: LoginFailureRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -41,6 +52,11 @@ class UnitOfWork:
         self.page_links = PageLinkRepository(self._session)
         self.page_attachments = PageAttachmentRepository(self._session)
         self.favorites = FavoriteRepository(self._session)
+        self.accounts = AccountRepository(self._session)
+        self.sessions = SessionRepository(self._session)
+        self.email_codes = EmailCodeRepository(self._session)
+        self.password_resets = PasswordResetRepository(self._session)
+        self.login_failures = LoginFailureRepository(self._session)
         return self
 
     async def __aexit__(
@@ -55,3 +71,7 @@ class UnitOfWork:
 
     async def rollback(self) -> None:
         await self._session.rollback()
+
+    def act_as(self, account_id: UUID) -> None:
+        """Reads that depend on who asks (a node's `favorite`) answer for this account from now on."""
+        self._session.info["account_id"] = account_id

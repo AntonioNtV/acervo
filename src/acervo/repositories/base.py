@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy import Select, func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.core.errors import ConflictError, NotFoundError, ValidationError
 from acervo.db.base import Base
@@ -54,11 +55,18 @@ class BaseRepository[OrmT: Base, ReadT: BaseModel, CreateT: BaseModel, UpdateT: 
         await self._flush()
         return self._to_read(obj)
 
+    def _options(self) -> list[ORMOption]:
+        """Loader options every load of a row takes, such as what depends on the request's account."""
+        return []
+
     def _select(self) -> Select[OrmT]:
-        return select(self.orm_model)
+        options = self._options()
+        return select(self.orm_model).options(*options).execution_options(populate_existing=bool(options))  # type: ignore[return-value]
 
     async def _get_orm(self, id: UUID) -> OrmT:
-        obj = await self._session.get(self.orm_model, id)
+        # populate_existing: a row already in the session was maybe loaded without the options.
+        options = self._options()
+        obj = await self._session.get(self.orm_model, id, options=options, populate_existing=bool(options))
         if obj is None:
             raise NotFoundError(f"{self.orm_model.__tablename__} {id} not found", {"id": str(id)})
         return obj  # type: ignore[return-value]

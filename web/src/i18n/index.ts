@@ -30,15 +30,21 @@ export function translate(lang: Lang, key: string, vars?: Record<string, string 
 }
 
 /** The BCP 47 tag that `Intl` and `toLocale*String` take for `lang`. */
-export function locale(lang: Lang): string {
+export function locale(lang: Lang): "en" | "pt-BR" {
   return lang === "en" ? "en" : "pt-BR";
+}
+
+/** The browser's language, what the screens use before anyone signs in. */
+export function browserLang(): Lang {
+  return navigator.language.toLowerCase().startsWith("en") ? "en" : "ptBR";
 }
 
 function readLang(): Lang {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "ptBR";
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved === "en" || saved === "ptBR" ? saved : browserLang();
   } catch {
-    return "ptBR";
+    return browserLang();
   }
 }
 

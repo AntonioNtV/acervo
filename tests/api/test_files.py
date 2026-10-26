@@ -13,7 +13,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from acervo.core import signing
 from acervo.core.settings import Settings
 from acervo.repositories.kb import KbRepository
+from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.kb import KbUpdate
+from acervo.services.session_service import SessionService
 
 PDFS = Path(__file__).parent.parent / "fixtures" / "pdfs"
 SIMPLE = PDFS / "simple.pdf"
@@ -168,15 +170,16 @@ async def test_raw_exposes_range_headers_to_the_web_origin(
     assert {"content-range", "accept-ranges", "content-disposition"} <= exposed
 
 
-async def test_file_routes_without_the_key_are_401(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
+async def test_file_routes_without_a_session_are_401(
+    client: httpx.AsyncClient, anon_client: httpx.AsyncClient, make_tree: MakeTree
+) -> None:
     kb_id, folder = await _folder(make_tree)
     node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
-    del client.headers["X-API-Key"]
 
     responses = [
-        await _upload(client, kb_id, folder, PROTECTED, "Outro.pdf"),
-        await client.get(f"/v1/files/{node_id}/raw"),
-        await client.get(f"/v1/files/{node_id}/versions"),
+        await _upload(anon_client, kb_id, folder, PROTECTED, "Outro.pdf"),
+        await anon_client.get(f"/v1/files/{node_id}/raw"),
+        await anon_client.get(f"/v1/files/{node_id}/versions"),
     ]
 
     assert [(response.status_code, response.json()["error"]) for response in responses] == [(401, "unauthorized")] * 3
@@ -190,8 +193,8 @@ async def _link(client: httpx.AsyncClient, node_id: str, version_id: str | None 
     return url
 
 
-async def test_link_downloads_without_the_header(
-    client: httpx.AsyncClient, make_tree: MakeTree, test_settings: Settings
+async def test_link_downloads_without_the_cookie(
+    client: httpx.AsyncClient, anon_client: httpx.AsyncClient, make_tree: MakeTree, session_token: str
 ) -> None:
     kb_id, folder = await _folder(make_tree)
     node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
@@ -200,29 +203,48 @@ async def test_link_downloads_without_the_header(
     [old] = (await client.get(f"/v1/files/{node_id}/versions")).json()
 
     current, older = await _link(client, node_id), await _link(client, node_id, old["id"])
-    del client.headers["X-API-Key"]
 
-    assert test_settings.api_key.get_secret_value() not in current + older
-    assert (await client.get(current)).content == PROTECTED.read_bytes()
-    assert (await client.get(older)).content == SIMPLE.read_bytes()
-    ranged = await client.get(current, headers={"Range": "bytes=0-9"})
+    assert session_token not in current + older
+    assert (await anon_client.get(current)).content == PROTECTED.read_bytes()
+    assert (await anon_client.get(older)).content == SIMPLE.read_bytes()
+    ranged = await anon_client.get(current, headers={"Range": "bytes=0-9"})
     assert (ranged.status_code, ranged.content) == (206, PROTECTED.read_bytes()[:10])
 
 
+async def test_a_link_stops_working_once_its_session_ends(
+    client: httpx.AsyncClient,
+    anon_client: httpx.AsyncClient,
+    make_tree: MakeTree,
+    uow: UnitOfWork,
+    session_token: str,
+    test_settings: Settings,
+) -> None:
+    kb_id, folder = await _folder(make_tree)
+    node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
+    link = await _link(client, node_id)
+
+    before = await anon_client.get(link)
+    async with uow:
+        await SessionService(uow, test_settings.session_days).end(session_token)
+    after = await anon_client.get(link)
+
+    assert before.status_code == 200
+    assert (after.status_code, after.json()["error"]) == (401, "unauthorized")
+
+
 async def test_expired_or_foreign_link_is_401(
-    client: httpx.AsyncClient, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
+    client: httpx.AsyncClient, anon_client: httpx.AsyncClient, make_tree: MakeTree, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     kb_id, folder = await _folder(make_tree)
     node_id = (await _upload(client, kb_id, folder, SIMPLE)).json()["id"]
     other_id = (await _upload(client, kb_id, folder, PROTECTED, "Outro.pdf")).json()["id"]
     link = httpx.URL(await _link(client, node_id))
-    del client.headers["X-API-Key"]
 
     foreign = link.copy_with(path=f"/v1/files/{other_id}/raw")
     tampered = link.copy_merge_params({"signature": "0" * 64})
     later = time.time() + signing.LINK_SECONDS + 1
     monkeypatch.setattr(time, "time", lambda: later)
-    responses = [await client.get(url) for url in (link, foreign, tampered)]
+    responses = [await anon_client.get(url) for url in (link, foreign, tampered)]
 
     assert [(response.status_code, response.json()["error"]) for response in responses] == [(401, "unauthorized")] * 3
 

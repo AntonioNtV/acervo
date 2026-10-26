@@ -1,9 +1,14 @@
+from collections.abc import Mapping
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import CTE, ColumnElement, SQLColumnExpression, exists, func, literal, select, update
+from sqlalchemy import CTE, ColumnElement, SQLColumnExpression, exists, false, func, literal, select, update
 from sqlalchemy.dialects.postgresql import aggregate_order_by
+from sqlalchemy.orm import with_expression
+from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.core.errors import NotFoundError, ValidationError
+from acervo.db.models.favorite import Favorite
 from acervo.db.models.file import File
 from acervo.db.models.kb import Kb
 from acervo.db.models.node import Node
@@ -33,6 +38,13 @@ def contains(column: SQLColumnExpression[str], query: str) -> ColumnElement[bool
     return folded(column).like(func.concat("%", folded(literal(escaped)), "%"), escape="\\")
 
 
+def favorited(account_id: UUID | None) -> ColumnElement[bool]:
+    """Whether the node is among the account's favorites; false with no account."""
+    if account_id is None:
+        return false()
+    return exists().where(Favorite.node_id == Node.id, Favorite.account_id == account_id).correlate(Node)
+
+
 def upwards(node_ids: list[UUID]) -> CTE:
     """Each start node and its ancestors, with their distance from the start."""
     up = (
@@ -48,6 +60,14 @@ def upwards(node_ids: list[UUID]) -> CTE:
 class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
     orm_model = Node
     read_schema = NodeRead
+
+    def _options(self) -> list[ORMOption]:
+        return [with_expression(Node.favorite, favorited(self._session.info.get("account_id")))]
+
+    def _new(self, data: NodeCreate, extra: Mapping[str, Any]) -> Node:
+        node = super()._new(data, extra)
+        node.favorite = False  # A new node is no one's favorite yet; nothing loads the expression for it.
+        return node
 
     async def paths(self, node_ids: list[UUID]) -> dict[UUID, str]:
         """Each node's path: the titles from the root down to it, joined by "/"."""
@@ -72,7 +92,7 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             raise NotFoundError(f"kb {kb_id} not found", {"id": str(kb_id)})
         if parent_id is None:
             return
-        parent = await self._session.get(Node, parent_id, populate_existing=True)
+        parent = await self._session.get(Node, parent_id, options=self._options(), populate_existing=True)
         if parent is None or parent.deleted_at is not None:
             raise NotFoundError(f"node {parent_id} not found", {"id": str(parent_id)})
         if parent.kb_id != kb_id:
@@ -93,14 +113,14 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
 
     async def live(self, node_id: UUID) -> NodeRead:
         # populate_existing: trash and restore update rows in bulk, behind the identity map.
-        node = await self._session.get(Node, node_id, populate_existing=True)
+        node = await self._session.get(Node, node_id, options=self._options(), populate_existing=True)
         if node is None or node.deleted_at is not None:
             raise NotFoundError(f"node {node_id} not found", {"id": str(node_id)})
         return self._to_read(node)
 
     async def trashed_root(self, node_id: UUID) -> NodeRead:
         """A node trashed on its own, not one that went with a folder."""
-        node = await self._session.get(Node, node_id, populate_existing=True)
+        node = await self._session.get(Node, node_id, options=self._options(), populate_existing=True)
         if node is None or node.trashed_with != node.id:
             raise NotFoundError(f"node {node_id} is not in the trash", {"id": str(node_id)})
         return self._to_read(node)
@@ -119,6 +139,7 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
             .outerjoin(File, File.node_id == Node.id)
             .where(*siblings(kb_id, parent_id))
             .order_by(sort_key(), Node.id)
+            .options(*self._options())
             .execution_options(populate_existing=True)
         )
         rows = await self._session.execute(query)
@@ -173,7 +194,7 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
         """The node and every node under it, trashed ones included."""
         down = select(Node.id).where(Node.id == node_id).cte("down", recursive=True)
         down = down.union_all(select(Node.id).join(down, Node.parent_id == down.c.id))
-        query = select(Node).where(Node.id.in_(select(down.c.id))).execution_options(populate_existing=True)
+        query = self._select().where(Node.id.in_(select(down.c.id)))
         return [self._to_read(node) for node in await self._session.scalars(query)]
 
     async def set_base(self, node_ids: list[UUID], kb_id: UUID) -> None:
@@ -190,15 +211,15 @@ class NodeRepository(BaseRepository[Node, NodeRead, NodeCreate, NodeUpdate]):
 
     async def trash_roots(self, kb_id: UUID) -> list[NodeRead]:
         """One node per trashing, most recent first."""
-        query = select(Node).where(Node.kb_id == kb_id, Node.trashed_with == Node.id).order_by(Node.deleted_at.desc())
-        nodes = await self._session.scalars(query.execution_options(populate_existing=True))
+        query = self._select().where(Node.kb_id == kb_id, Node.trashed_with == Node.id).order_by(Node.deleted_at.desc())
+        nodes = await self._session.scalars(query)
         return [self._to_read(node) for node in nodes]
 
     async def search(self, kb_id: UUID, query: str) -> list[NodeRead]:
         """The person's name search: titles only."""
         closeness = func.similarity(folded(Node.title), folded(literal(query)))
         rows = (
-            select(Node)
+            self._select()
             .where(Node.kb_id == kb_id, Node.deleted_at.is_(None), contains(Node.title, query))
             .order_by(closeness.desc(), Node.title)
             .limit(SEARCH_LIMIT)

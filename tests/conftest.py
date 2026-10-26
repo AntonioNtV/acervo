@@ -5,6 +5,7 @@ import os
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -17,23 +18,27 @@ from sqlalchemy import make_url, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from acervo.core.passwords import hash_password
 from acervo.core.settings import Settings
 from acervo.db.models import File, Node, PageVersion
 from acervo.db.session import async_url
+from acervo.repositories.account import AccountRepository
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.node import NodeRepository
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.account import AccountCreate, AccountRead
 from acervo.schemas.kb import KbCreate, KbRead
 from acervo.schemas.node import NodeCreate
+from acervo.services.mailer import FakeMailer
 
 ROOT = Path(__file__).resolve().parents[1]
-API_KEY = "test-api-key"
+SESSION_SECRET = "test-session-secret"
 # acervo.api.main builds its app from the environment at import; the tests then build their own with create_app.
-os.environ.setdefault("API_KEY", API_KEY)
+os.environ.setdefault("SESSION_SECRET", SESSION_SECRET)
 
 
 def _base_settings() -> Settings:
-    return Settings(api_key=SecretStr(API_KEY))
+    return Settings(session_secret=SecretStr(SESSION_SECRET))
 
 
 async def _admin(sql: str) -> None:
@@ -214,3 +219,29 @@ def make_tree(session: AsyncSession) -> Callable[..., Awaitable[Tree]]:
         return tree
 
     return make
+
+
+@pytest.fixture
+def make_account(session: AsyncSession) -> Callable[..., Awaitable[AccountRead]]:
+    """Stores an account with a password, confirmed unless `verified=False`."""
+    accounts = AccountRepository(session)
+
+    async def make(
+        email: str = "ana@example.com", password: str = "senha-de-teste", verified: bool = True, name: str = "Ana"
+    ) -> AccountRead:
+        created = await accounts.create(
+            AccountCreate(
+                email=email,
+                name=name,
+                password_hash=hash_password(password),
+                email_verified_at=datetime.now(UTC) if verified else None,
+            )
+        )
+        return AccountRead.of(created)
+
+    return make
+
+
+@pytest.fixture
+def fake_mailer() -> FakeMailer:
+    return FakeMailer()

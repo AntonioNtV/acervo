@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import type { ErrorResponse } from "../api/client";
+import { api, type ErrorResponse } from "../api/client";
 
 /** Any answer outside 2xx; `status` 0 when the request never reached the API. Its message is never shown. */
 export class ApiError extends Error {
@@ -28,6 +28,34 @@ export class ApiError extends Error {
     return this.body.details ?? {};
   }
 }
+
+let onUnauthorized: (() => void) | null = null;
+
+/** What a 401 from any request does while a screen of the account is open; null on the screens before signing in. */
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+/** A request was refused for lack of a session: the generated client's and an upload's alike. */
+export function unauthorized() {
+  onUnauthorized?.();
+}
+
+/** Only `unauthorized` means the session is gone; a 401 `invalid_credentials` is a wrong password typed on a form. */
+export function lostSession(status: number, body: unknown): boolean {
+  return status === 401 && (body as { error?: unknown } | null)?.error === "unauthorized";
+}
+
+api.use({
+  async onResponse({ response }) {
+    if (response.status !== 401) return;
+    const body: unknown = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (lostSession(response.status, body)) unauthorized();
+  },
+});
 
 export async function call<T>(request: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   const { data, error, response } = await request;

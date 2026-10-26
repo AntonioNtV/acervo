@@ -1,32 +1,46 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 
 export type Theme = "light" | "dark";
+/** What the person picked; "system" follows the device's light or dark, live. */
+export type ThemeChoice = Theme | "system";
 
 const STORAGE_KEY = "acervo.theme";
 
-function readTheme(): Theme {
+function readChoice(): ThemeChoice {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "light" || saved === "dark") return saved;
+    if (saved === "light" || saved === "dark" || saved === "system") return saved;
   } catch {
-    // No storage: fall back to the system's preference.
+    // No storage: follow the system.
   }
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "system";
 }
 
-type ThemeState = { theme: Theme; setTheme: (theme: Theme) => void };
+const darkQuery = () => window.matchMedia?.("(prefers-color-scheme: dark)");
+
+type ThemeState = { theme: Theme; choice: ThemeChoice; setTheme: (choice: ThemeChoice) => void };
 
 const ThemeContext = createContext<ThemeState | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(readTheme);
+  const [choice, setChoice] = useState<ThemeChoice>(readChoice);
+  const [deviceDark, setDeviceDark] = useState(() => darkQuery()?.matches ?? false);
+  const theme: Theme = choice === "system" ? (deviceDark ? "dark" : "light") : choice;
+
+  useEffect(() => {
+    const query = darkQuery();
+    if (!query) return;
+    const onChange = () => setDeviceDark(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   useLayoutEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+  const setTheme = useCallback((next: ThemeChoice) => {
+    setChoice(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -34,7 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ theme, choice, setTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme(): ThemeState {

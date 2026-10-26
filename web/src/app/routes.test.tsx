@@ -13,8 +13,8 @@ beforeEach(() => {
   resetApi();
 });
 
-function renderHome() {
-  const router = createMemoryRouter(routes, { initialEntries: ["/"] });
+function renderHome(path = "/") {
+  const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
     <Providers>
       <RouterProvider router={router} />
@@ -64,6 +64,48 @@ describe("routes", () => {
     const router = renderHome();
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/bradesco"));
+  });
+
+  it("a 401 from any query forgets this browser's pages and sends to Entrar with the way back", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    localStorage.setItem("acervo.recent.kb-1", JSON.stringify(["renovacao"]));
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "unauthorized", message: "no session" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao?p=2");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    expect(router.state.location.search).toBe(`?next=${encodeURIComponent("/kbs/kb-1/n/renovacao?p=2")}`);
+    expect(await screen.findByRole("heading", { name: "Entrar no Acervo" })).toBeInTheDocument();
+    expect(localStorage.getItem("acervo.lastPage")).toBeNull();
+    expect(localStorage.getItem("acervo.recent.kb-1")).toBeNull();
+  });
+
+  it("a 401 sends the theme and language back to the browser's", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.theme", "dark");
+    localStorage.setItem("acervo.lang", "en");
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "unauthorized", message: "no session" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    expect(await screen.findByRole("heading", { name: "Entrar no Acervo" })).toBeInTheDocument();
+    expect(localStorage.getItem("acervo.theme")).toBe("system");
+    expect(localStorage.getItem("acervo.lang")).toBe("ptBR");
+    expect(document.documentElement).not.toHaveClass("dark");
+  });
+
+  it("a 401 for a wrong password typed on a form keeps the session and the screen", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "invalid_credentials", message: "wrong" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao");
+
+    await new Promise((done) => setTimeout(done, 100));
+    expect(router.state.location.pathname).toBe("/kbs/kb-1/n/renovacao");
+    expect(localStorage.getItem("acervo.lastPage")).toBe("/kbs/kb-1/n/renovacao");
   });
 
   it("with no base, / offers a new one", async () => {

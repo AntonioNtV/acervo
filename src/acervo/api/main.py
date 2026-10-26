@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -6,11 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from acervo.api.errors import register_error_handlers
 from acervo.api.routers import (
+    account,
     attachments,
+    auth,
     covers,
     exports,
     favorites,
     files,
+    google,
     health,
     kbs,
     link_previews,
@@ -20,6 +24,8 @@ from acervo.api.routers import (
 )
 from acervo.core.settings import Settings, get_settings
 from acervo.db.session import create_engine, create_session_factory
+from acervo.services.mailer import FakeMailer
+from acervo.services.smtp_mailer import SmtpMailer
 from acervo.services.storage import Storage
 
 
@@ -28,6 +34,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(app.state.settings)
     app.state.session_factory = create_session_factory(engine)
     app.state.storage = Storage(app.state.settings)
+    if app.state.settings.smtp_host:
+        app.state.mailer = SmtpMailer(app.state.settings)
+    else:
+        logging.getLogger(__name__).warning("SMTP_HOST is not set: emails are not sent.")
+        app.state.mailer = FakeMailer()
     try:
         yield
     finally:
@@ -46,7 +57,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=["Content-Range", "Accept-Ranges", "Content-Disposition"],
     )
     register_error_handlers(app)
-    for module in (health, kbs, nodes, trash, files, pages, favorites, covers, attachments, exports, link_previews):
+    for module in (
+        health,
+        kbs,
+        nodes,
+        trash,
+        files,
+        pages,
+        favorites,
+        covers,
+        attachments,
+        exports,
+        link_previews,
+        auth,
+        google,
+        account,
+    ):
         app.include_router(module.router)
     return app
 

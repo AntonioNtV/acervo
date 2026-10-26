@@ -242,14 +242,15 @@ async def test_restore_re_keys_a_repeated_sort_key(client: httpx.AsyncClient, ma
     assert len({node["sort"] for node in children}) == 3
 
 
-async def test_401_without_the_key(client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree) -> None:
+async def test_401_without_a_session(
+    anon_client: httpx.AsyncClient, session: AsyncSession, make_tree: MakeTree
+) -> None:
     tree = await make_tree({"Bradesco": None})
-    del client.headers["X-API-Key"]
 
     responses = [
-        await client.get(f"/v1/kbs/{tree.kb.id}/children"),
-        await client.post(f"/v1/kbs/{tree.kb.id}/nodes", json={"kind": "folder", "title": "Porto"}),
-        await client.delete(f"/v1/nodes/{tree['Bradesco'].id}"),
+        await anon_client.get(f"/v1/kbs/{tree.kb.id}/children"),
+        await anon_client.post(f"/v1/kbs/{tree.kb.id}/nodes", json={"kind": "folder", "title": "Porto"}),
+        await anon_client.delete(f"/v1/nodes/{tree['Bradesco'].id}"),
     ]
 
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(401, "unauthorized")] * 3

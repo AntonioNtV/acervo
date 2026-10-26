@@ -40,7 +40,6 @@ class NodeUpdate(BaseModel):
     trashed_with: UUID | None = Field(default=None, description="Node whose trashing hid this one.")
     icon: str | None = Field(default=None, description="An emoji; null removes it.")
     cover: str | None = Field(default=None, description="`gallery:<slug>` or `image:<sha256>`; null removes it.")
-    favorite_sort: str | None = Field(default=None, description="Sort key among the favorites; null unfavorites.")
 
 
 class NodeRead(BaseModel):

@@ -5,6 +5,10 @@ import { useI18n } from "../i18n";
 const BY_CODE: Record<string, string> = {
   not_found: "errors.notFound",
   unauthorized: "errors.unauthorized",
+  invalid_credentials: "errors.invalidCredentials",
+  too_many_attempts: "errors.tooManyAttempts",
+  email_taken: "errors.emailTaken",
+  code_invalid: "errors.codeInvalid",
   validation: "errors.invalid",
 };
 
