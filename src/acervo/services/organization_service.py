@@ -160,7 +160,8 @@ class OrganizationService:
         return organization, membership
 
     async def _keep_an_owner(self, organization_id: UUID) -> None:
-        # shortcut: two Owners demoting each other at the same instant can both pass; lock the rows if that shows up.
+        # Locked, so two Owners demoting each other at the same instant cannot both pass.
+        await self._uow.memberships.lock(organization_id)
         if await self._uow.memberships.count({"organization_id": organization_id, "role": "owner"}) <= 1:
             raise LastOwner("the organization needs an Owner", {"organization_id": str(organization_id)})
 
