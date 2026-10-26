@@ -30,6 +30,7 @@ from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.mailer import Mailer
 from acervo.services.organization_service import OrganizationService
 from acervo.services.page_service import PageService
+from acervo.services.passkey_service import PasskeyService
 from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import SessionService, token_hash
 from acervo.services.storage import Storage
@@ -168,6 +169,15 @@ def get_google_auth_service(
     redirect_uri = f"{settings.public_url.rstrip('/')}/v1/auth/google/callback"
     secret = settings.session_secret.get_secret_value()
     return GoogleAuthService(uow, sessions, google, mailer, secret, redirect_uri)
+
+
+def get_passkey_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PasskeyService:
+    secret = settings.session_secret.get_secret_value()
+    return PasskeyService(uow, mailer, secret, settings.webauthn_rp_id, settings.webauthn_origin, settings.session_days)
 
 
 def get_security_log(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> SecurityLog:
