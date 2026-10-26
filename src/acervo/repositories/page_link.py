@@ -23,10 +23,10 @@ class PageLinkRepository(BaseRepository[PageLink, PageLinkRead, PageLinkCreate, 
         return list(await self._session.scalars(select(PageLink.target).where(PageLink.from_node_id == node_id)))
 
     async def candidates(self, kb_id: UUID, targets: list[str]) -> list[NodeRead]:
-        """Live pages of the base whose title is one of the targets."""
+        """Live pages and files of the base whose title is one of the targets."""
         query = select(Node).where(
             Node.kb_id == kb_id,
-            Node.kind == "page",
+            Node.kind != "folder",
             Node.deleted_at.is_(None),
             func.lower(Node.title).in_(targets),
         )

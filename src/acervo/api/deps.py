@@ -10,12 +10,14 @@ from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
+from acervo.services.attachment_service import AttachmentService
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
 from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
+from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
@@ -110,3 +112,15 @@ def get_export_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> ExportService:
     return ExportService(uow, storage)
+
+
+def get_attachment_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AttachmentService:
+    return AttachmentService(uow, storage, settings.attachment_max_bytes)
+
+
+def get_link_preview_service(settings: Annotated[Settings, Depends(get_settings)]) -> LinkPreviewService:
+    return LinkPreviewService(settings.link_preview_timeout_seconds, settings.link_preview_max_bytes)

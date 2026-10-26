@@ -8,6 +8,7 @@ from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.node import NodeRepository
+from acervo.repositories.page_attachment import PageAttachmentRepository
 from acervo.repositories.page_draft import PageDraftRepository
 from acervo.repositories.page_link import PageLinkRepository
 from acervo.repositories.page_version import PageVersionRepository
@@ -23,6 +24,7 @@ class UnitOfWork:
     page_versions: PageVersionRepository
     page_drafts: PageDraftRepository
     page_links: PageLinkRepository
+    page_attachments: PageAttachmentRepository
     favorites: FavoriteRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -37,6 +39,7 @@ class UnitOfWork:
         self.page_versions = PageVersionRepository(self._session)
         self.page_drafts = PageDraftRepository(self._session)
         self.page_links = PageLinkRepository(self._session)
+        self.page_attachments = PageAttachmentRepository(self._session)
         self.favorites = FavoriteRepository(self._session)
         return self
 

@@ -62,6 +62,15 @@ describe("MediaRow", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it("opens a file Acervo can show", async () => {
+    const onOpen = vi.fn();
+    renderRow({ kind: "file", name: "contrato", ext: "pdf", onOpen, onRetry: () => {} });
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir" }));
+
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
   it("plays and pauses a video by click and Space, with its duration", async () => {
     const container = renderRow({ kind: "video", name: "Vistoria", ext: "mp4", src: "/v/vistoria.mp4" });
     const video = container.querySelector("video")!;
@@ -90,6 +99,15 @@ describe("MediaRow", () => {
     await userEvent.click(screen.getByRole("button", { name: "Tocar" }));
 
     expect(screen.getByRole("button", { name: "Pausar" })).toBeInTheDocument();
+  });
+
+  it.each(["video", "audio"] as const)("downloads a %s from its row", async (kind) => {
+    const onDownload = vi.fn();
+    renderRow({ kind, name: "Vistoria", ext: kind === "video" ? "mp4" : "m4a", src: "/m/vistoria", onDownload });
+
+    await userEvent.click(screen.getByRole("button", { name: "Baixar" }));
+
+    expect(onDownload).toHaveBeenCalledOnce();
   });
 
   it("says when the file cannot be played", () => {

@@ -149,17 +149,17 @@ class PageService:
 
     async def unlink_moved(self, moved: list[NodeRead]) -> None:
         """Turns into text the links that `moved`, a subtree going to another base, would break: in live pages left
-        behind that link to a moved page, and in moved pages that link to a page left behind. Each changed page has
+        behind that link to a moved page or file, and in moved pages that link to one left behind. Each changed page has
         its working text cut as a version first, then gets the new text as a version and as its working text.
 
         Called before the nodes change base, with both bases locked, in the caller's transaction.
         """
         kb_id = moved[0].kb_id
         moved_ids = {node.id for node in moved}
-        pages = [node for node in moved if node.kind == "page" and node.deleted_at is None]
+        linkable = [node for node in moved if node.kind != "folder" and node.deleted_at is None]
         broken: dict[UUID, set[str]] = defaultdict(set)
         holders: dict[UUID, NodeRead] = {}
-        for page in pages:
+        for page in linkable:
             target = links.normalize(page.title)
             candidates = await self._uow.page_links.candidates(kb_id, [target])
             for linking in await self._uow.page_links.linking(kb_id, target):
@@ -168,7 +168,7 @@ class PageService:
                 if links.resolve([target], candidates, linking.parent_id)[target] == page.id:
                     broken[linking.id].add(target)
                     holders[linking.id] = linking
-        for page in pages:
+        for page in (node for node in linkable if node.kind == "page"):
             wanted = await self._uow.page_links.targets(page.id)
             resolved = links.resolve(wanted, await self._uow.page_links.candidates(kb_id, wanted), page.parent_id)
             left_behind = {target for target, to in resolved.items() if isinstance(to, UUID) and to not in moved_ids}

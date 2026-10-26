@@ -1,8 +1,14 @@
 import type { ChainedCommands } from "@tiptap/core";
+import { blockMathKinds } from "./nodes/blockMath";
 import { columnsKinds } from "./nodes/columns";
+import { diagramKinds } from "./nodes/diagram";
+import { fileMediaKinds } from "./nodes/fileMedia";
 import { footnoteKinds } from "./nodes/footnote";
 import { GENERATED_KINDS } from "./nodes/generated";
+import { imageKinds } from "./nodes/image";
+import { linkBlockKinds } from "./nodes/linkBlock";
 import { MATH_KINDS } from "./nodes/math";
+import { pdfPageKinds } from "./nodes/pdfPage";
 import { syncedKinds } from "./nodes/synced";
 import { toggleHeadingKinds } from "./nodes/toggleHeading";
 
@@ -58,9 +64,15 @@ export const BLOCK_KINDS: BlockKind[] = [
   ...GENERATED_KINDS,
   ...footnoteKinds,
   ...MATH_KINDS,
+  ...imageKinds,
+  ...fileMediaKinds,
+  ...blockMathKinds,
+  ...diagramKinds,
   { id: "subpage", group: "blocks" },
   { id: "pageLink", group: "link", shortcut: "[[" },
   ...syncedKinds,
+  ...linkBlockKinds,
+  ...pdfPageKinds,
 ];
 
 const fold = (text: string) =>

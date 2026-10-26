@@ -85,7 +85,7 @@ class TreeService:
         return node
 
     async def rename(self, node_id: UUID, title: str) -> NodeRead:
-        """A page's rename also fixes the links that resolve to it, in the same transaction."""
+        """A page's or a file's rename also fixes the links that resolve to it, in the same transaction."""
         renamed = await self._rename(await self._uow.nodes.live(node_id), title)
         await self._uow.commit()
         return renamed
@@ -96,7 +96,7 @@ class TreeService:
         await self._uow.kbs.lock(node.kb_id)
         if title.lower() != node.title.lower():
             await self._ensure_title_free(node.kb_id, node.parent_id, node.kind, title)
-        if node.kind == "page" and title != node.title:
+        if node.kind != "folder" and title != node.title:
             await self._pages.fix_links(node, title)
         return await self._uow.nodes.update(node_id, NodeUpdate(title=title))
 

@@ -107,6 +107,11 @@ export function BlockHandle({ editor, block, onClose }: { editor: Editor; block:
     done();
   };
 
+  const toLink = () => {
+    editor.chain().focus().linkBlockToLink(block.pos).run();
+    done();
+  };
+
   const remove = () => {
     editor.chain().focus().deleteRange({ from: block.pos, to: after }).run();
     done();
@@ -163,6 +168,11 @@ export function BlockHandle({ editor, block, onClose }: { editor: Editor; block:
             </button>
           ))}
           <div className="my-1 h-px bg-line" />
+          {node.type.name === "linkBlock" && (
+            <button type="button" role="menuitem" className={itemClass} onClick={toLink}>
+              {t("editor.link.toLink")}
+            </button>
+          )}
           <button type="button" role="menuitem" className={itemClass} onClick={duplicate}>
             {t("editor.handle.duplicate")}
           </button>

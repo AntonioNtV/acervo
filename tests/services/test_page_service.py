@@ -282,6 +282,26 @@ async def test_rename_fixes_linking_pages_as_new_versions(services: Services, ma
     assert (await services.pages.read(unrelated)).version_id == unrelated_version.id
 
 
+async def test_links_resolve_to_a_file(services: Services, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Porto": ["Vistoria.md", "Edital.pdf"]})
+    page = tree["Porto/Vistoria.md"]
+    await _write(services.pages, page.id, "Ver [[Edital.pdf#p=3]].\n")
+
+    assert (await services.pages.read(page.id)).links == {"edital.pdf": tree["Porto/Edital.pdf"].id}
+
+
+async def test_file_rename_fixes_links_keeping_the_page(services: Services, make_tree: MakeTree) -> None:
+    tree = await make_tree({"Porto": ["Vistoria.md", "Edital.pdf"]})
+    page = tree["Porto/Vistoria.md"]
+    before = await _write(services.pages, page.id, "Ver [[Edital.pdf#p=3]].\n")
+
+    await services.tree.rename(tree["Porto/Edital.pdf"].id, "Edital 2026.pdf")
+
+    assert await _markdown(services.pages, page.id) == "Ver [[Edital 2026.pdf#p=3]].\n"
+    assert before.id in [version.id for version in await services.pages.versions(page.id)]
+    assert (await services.pages.read(page.id)).links == {"edital 2026.pdf": tree["Porto/Edital.pdf"].id}
+
+
 async def test_rename_fixes_only_links_to_that_page(services: Services, make_tree: MakeTree) -> None:
     tree = await make_tree(
         {

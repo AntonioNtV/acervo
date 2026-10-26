@@ -45,9 +45,28 @@ describe("Markdown round-trip", () => {
       expect.arrayContaining(["h4", "h5", "h6", "underline", "highlight", "textColor", "inlineMath", "footnoteRef", "footnote"]),
     );
     expect([...kinds]).toEqual(expect.arrayContaining(["toggleHeading", "tableOfContents", "breadcrumb", "columns", "syncedBlock"]));
-    expect(kinds.has("rawInline") || kinds.has("rawBlock")).toBe(false);
+    expect([...kinds]).toEqual(
+      expect.arrayContaining(["attachmentImage", "attachmentFile", "linkBlock", "pdfPage", "blockMath", "diagram"]),
+    );
+    const raw: string[] = [];
+    node.descendants((child) => {
+      if (child.type.name === "rawInline" || child.type.name === "rawBlock") raw.push(child.attrs.markdown ?? child.textContent);
+    });
+    // An image from outside the page stays as it was written, not uploaded again.
+    expect(raw).toEqual(["![x](https://a.b/c.png)"]);
     expect(node.textContent).toContain("R$ 400 e R$ 500");
   });
+
+  it.each(["- ![[Sinistros]]", "- <!-- toc -->", "- [a.pdf](arquivos/a.pdf)", "- ![a](arquivos/a.png)", "- [[a.pdf#p=2]]"])(
+    "a list item opening with %s keeps it as its text",
+    (markdown) => {
+      const { node, source } = open(`${markdown}\n`);
+      node.check();
+      expect(node.child(0).child(0).child(0).type.name).toBe("paragraph");
+      expect(serializeMarkdown(node, source)).toBe(`${markdown}\n`);
+      expect(rewrite(`${markdown}\n`)).toBe(`${markdown}\n`);
+    },
+  );
 
   it("keeps every HTML comment of a page where it was", () => {
     const markdown = fixtures["./fixtures/comments-page.md"]!;

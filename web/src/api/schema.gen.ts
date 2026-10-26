@@ -293,6 +293,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/link-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Link Preview
+         * @description The site's title, description and image, read by the server within 5 seconds and 1 MB.
+         *
+         *     A site that fails or is too slow gives only `url` and `domain`. A URL that is not http(s), or whose host or any
+         *     redirect points to a loopback, private, link-local, multicast or reserved address, is 422 `link_not_allowed`.
+         */
+        get: operations["link_preview_v1_link_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/nodes/{node_id}": {
         parameters: {
             query?: never;
@@ -535,6 +558,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pages/{node_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Attachment
+         * @description Any file of at most 100 MB put in the page, outside the tree; over it is 422 `attachment_too_large`.
+         */
+        post: operations["upload_attachment_v1_pages__node_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/attachments/{name}/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Attachment Link
+         * @description A link to the attachment's bytes that opens without the key for 60 seconds.
+         */
+        post: operations["attachment_link_v1_pages__node_id__attachments__name__link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/attachments/{name}/raw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Raw Attachment
+         * @description The attachment byte for byte; one `Range` of bytes is honored.
+         *
+         *     Takes the X-API-Key header or the `expires` and `signature` of a link from
+         *     `POST /v1/pages/{node_id}/attachments/{name}/link`.
+         */
+        get: operations["raw_attachment_v1_pages__node_id__attachments__name__raw_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pages/{node_id}/leave": {
         parameters: {
             query?: never;
@@ -654,8 +740,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Attachment
+         * @description A file put in a page, which its Markdown reaches as `arquivos/<name>`.
+         */
+        Attachment: {
+            /**
+             * Mime
+             * @description The media type; application/octet-stream when unknown.
+             */
+            mime: string;
+            /**
+             * Name
+             * @description Unique in the page; the uploaded file's name made safe, with -2, -3… on a clash.
+             */
+            name: string;
+            /**
+             * Size
+             * @description In bytes.
+             */
+            size: number;
+        };
         /** Body_replace_file_v1_nodes__node_id__file_post */
         Body_replace_file_v1_nodes__node_id__file_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_upload_attachment_v1_pages__node_id__attachments_post */
+        Body_upload_attachment_v1_pages__node_id__attachments_post: {
             /** File */
             file: string;
         };
@@ -1063,6 +1175,37 @@ export interface components {
              * @description When the base last changed.
              */
             updated_at: string;
+        };
+        /**
+         * LinkPreview
+         * @description What a site says about itself, for the card of a link; only `url` and `domain` when it did not answer.
+         */
+        LinkPreview: {
+            /**
+             * Description
+             * @description The page's og:description, else its meta description.
+             */
+            description?: string | null;
+            /**
+             * Domain
+             * @description Its host.
+             */
+            domain: string;
+            /**
+             * Image
+             * @description The page's og:image as an absolute http(s) URL, on the site.
+             */
+            image?: string | null;
+            /**
+             * Title
+             * @description The page's og:title, else its <title>.
+             */
+            title?: string | null;
+            /**
+             * Url
+             * @description The URL asked for.
+             */
+            url: string;
         };
         /**
          * Mention
@@ -2579,6 +2722,48 @@ export interface operations {
             };
         };
     };
+    link_preview_v1_link_preview_get: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPreview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_node_v1_nodes__node_id__get: {
         parameters: {
             query?: never;
@@ -3394,6 +3579,185 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    upload_attachment_v1_pages__node_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_attachment_v1_pages__node_id__attachments_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    attachment_link_v1_pages__node_id__attachments__name__link_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileLink"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    raw_attachment_v1_pages__node_id__attachments__name__raw_get: {
+        parameters: {
+            query?: {
+                expires?: number | null;
+                signature?: string | null;
+            };
+            header?: {
+                range?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                node_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The bytes as uploaded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description A range of them. */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The range is outside the file. */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unprocessable Entity */
             422: {

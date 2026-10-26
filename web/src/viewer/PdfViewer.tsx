@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { NodeDetail } from "../api/client";
 import { rawFileSource } from "../data/files";
@@ -6,7 +6,7 @@ import { useI18n } from "../i18n";
 import { Button } from "../ui/Button";
 import { FileHeader } from "../screens/file/FileHeader";
 import { PasswordDialog } from "./Password";
-import { openPdf, type PDFDocumentProxy } from "./pdfjs";
+import { openPdf, type PdfSource, type PDFDocumentProxy } from "./pdfjs";
 
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 // pdf.js scale 1 is 72 dpi; 100% means the page at its printed size on a 96 dpi screen.
@@ -24,9 +24,18 @@ function Chevron({ d }: { d: string }) {
   );
 }
 
-export function PdfViewer({ node }: { node: NodeDetail }) {
+type Props =
+  | { node: NodeDetail }
+  /** A PDF outside the tree (a page's attachment): read only, its bar shows `title` and ends with `children`. */
+  | { source: PdfSource; title: string; children?: ReactNode };
+
+export function PdfViewer(props: Props) {
   const { t } = useI18n();
+  const node = "node" in props ? props.node : null;
+  const attached = "source" in props ? props : null;
   const [params, setParams] = useSearchParams();
+  // Only a file of the tree keeps its page in the address.
+  const [ownPage, setOwnPage] = useState(1);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [failed, setFailed] = useState(false);
   const [ask, setAsk] = useState<Ask | null>(null);
@@ -34,9 +43,13 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
   const [zoom, setZoom] = useState(2);
   const canvas = useRef<HTMLCanvasElement>(null);
 
-  const sha = node.file?.sha256;
-  const total = doc?.numPages ?? node.file?.pages ?? 1;
-  const page = Math.min(Math.max(Math.trunc(Number(params.get("p"))) || 1, 1), total);
+  const sha = node?.file?.sha256;
+  const nodeId = node?.id;
+  const url = attached?.source.url;
+  const headers = attached?.source.httpHeaders;
+  const total = doc?.numPages ?? node?.file?.pages ?? 1;
+  const asked = node ? Math.trunc(Number(params.get("p"))) || 1 : ownPage;
+  const page = Math.min(Math.max(asked, 1), total);
   const scale = ZOOMS[zoom] ?? 1;
 
   useEffect(() => {
@@ -45,7 +58,8 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
     setFailed(false);
     setAsk(null);
     setAsking(false);
-    const load = openPdf(rawFileSource(node.id), (submit, incorrect) => {
+    const source = nodeId ? rawFileSource(nodeId) : { url: url!, httpHeaders: headers! };
+    const load = openPdf(source, (submit, incorrect) => {
       if (!live) return;
       setAsk({ submit, incorrect });
       setAsking(true);
@@ -58,7 +72,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
       live = false;
       load.destroy();
     };
-  }, [node.id, sha]);
+  }, [nodeId, sha, url, headers]);
 
   useEffect(() => {
     if (!doc) return;
@@ -85,6 +99,7 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
   }, [doc, page, scale]);
 
   function goTo(next: number) {
+    if (!node) return setOwnPage(Math.min(Math.max(next, 1), total));
     setParams(
       (current) => {
         current.set("p", String(Math.min(Math.max(next, 1), total)));
@@ -100,53 +115,66 @@ export function PdfViewer({ node }: { node: NodeDetail }) {
   }
 
   const pages = t(total === 1 ? "file.pages.one" : "file.pages.other", { n: total });
+  const controls = (
+    <>
+      <Button
+        variant="quiet"
+        size="sm"
+        icon
+        aria-label={t("file.prev")}
+        disabled={!doc || page <= 1}
+        onClick={() => goTo(page - 1)}
+      >
+        <Chevron d="m15 6-6 6 6 6" />
+      </Button>
+      <PageInput page={page} total={total} disabled={!doc} onCommit={goTo} />
+      <Button
+        variant="quiet"
+        size="sm"
+        icon
+        aria-label={t("file.next")}
+        disabled={!doc || page >= total}
+        onClick={() => goTo(page + 1)}
+      >
+        <Chevron d="m9 6 6 6-6 6" />
+      </Button>
+      <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-line-2" />
+      <Button
+        variant="quiet"
+        size="sm"
+        icon
+        aria-label={t("file.zoom.out")}
+        disabled={zoom === 0}
+        onClick={() => setZoom(zoom - 1)}
+      >
+        <Chevron d="M6 12h12" />
+      </Button>
+      <span className="w-10 text-center text-12 text-text-2 tabular-nums">{Math.round(scale * 100)}%</span>
+      <Button
+        variant="quiet"
+        size="sm"
+        icon
+        aria-label={t("file.zoom.in")}
+        disabled={zoom === ZOOMS.length - 1}
+        onClick={() => setZoom(zoom + 1)}
+      >
+        <Chevron d="M6 12h12M12 6v12" />
+      </Button>
+    </>
+  );
   return (
     <>
-      <FileHeader node={node} detail={doc || node.file?.pages ? pages : undefined}>
-        <Button
-          variant="quiet"
-          size="sm"
-          icon
-          aria-label={t("file.prev")}
-          disabled={!doc || page <= 1}
-          onClick={() => goTo(page - 1)}
-        >
-          <Chevron d="m15 6-6 6 6 6" />
-        </Button>
-        <PageInput page={page} total={total} disabled={!doc} onCommit={goTo} />
-        <Button
-          variant="quiet"
-          size="sm"
-          icon
-          aria-label={t("file.next")}
-          disabled={!doc || page >= total}
-          onClick={() => goTo(page + 1)}
-        >
-          <Chevron d="m9 6 6 6-6 6" />
-        </Button>
-        <span aria-hidden="true" className="mx-1.5 h-4 w-px bg-line-2" />
-        <Button
-          variant="quiet"
-          size="sm"
-          icon
-          aria-label={t("file.zoom.out")}
-          disabled={zoom === 0}
-          onClick={() => setZoom(zoom - 1)}
-        >
-          <Chevron d="M6 12h12" />
-        </Button>
-        <span className="w-10 text-center text-12 text-text-2 tabular-nums">{Math.round(scale * 100)}%</span>
-        <Button
-          variant="quiet"
-          size="sm"
-          icon
-          aria-label={t("file.zoom.in")}
-          disabled={zoom === ZOOMS.length - 1}
-          onClick={() => setZoom(zoom + 1)}
-        >
-          <Chevron d="M6 12h12M12 6v12" />
-        </Button>
-      </FileHeader>
+      {node ? (
+        <FileHeader node={node} detail={doc || node.file?.pages ? pages : undefined}>
+          {controls}
+        </FileHeader>
+      ) : (
+        <div className="flex h-11 shrink-0 items-center gap-3 bg-bg pr-2.5 pl-3.5">
+          <span className="min-w-0 flex-1 truncate text-13">{attached?.title}</span>
+          <div className="flex items-center">{controls}</div>
+          {attached?.children}
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto px-6 py-8">
         {doc ? (
           <canvas
