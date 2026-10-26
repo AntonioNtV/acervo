@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import type { NodeDetail } from "../../api/client";
 import { useErrorText } from "../../app/errors";
+import { useMe } from "../../data/account";
 import { useFavorite } from "../../data/favorites";
+import { useFollowPage } from "../../data/pages";
 import { useDuplicateNode, useExportNode, useTrashNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../ui/Icon";
@@ -14,7 +16,7 @@ import { MovePicker } from "./MovePicker";
 const NOTICE_MS = 2000;
 
 /**
- * The page's ⋯: favorite, duplicate, move, copy link, history, export, upload and trash; without `canEdit` (a Leitor)
+ * The page's ⋯: favorite, follow, duplicate, move, copy link, history, export, upload and trash; without `canEdit` (a Leitor)
  * only what changes nothing. `flush` sends the text still being typed, so a copy, a move or an export has it.
  */
 export function PageMenu({
@@ -33,13 +35,16 @@ export function PageMenu({
   const errorText = useErrorText();
   const kbId = node.kb_id;
   const favorite = useFavorite();
+  const follow = useFollowPage(node.id);
+  const digestOn = useMe().data?.preferences.notify_followed;
+  const following = node.page?.following ?? false;
   const duplicate = useDuplicateNode();
   const exportNode = useExportNode();
   const trash = useTrashNode();
   const startUpload = useStartUpload(kbId);
   const fileInput = useRef<HTMLInputElement>(null);
   const [moving, setMoving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<ReactNode>(null);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
@@ -70,6 +75,25 @@ export function PageMenu({
     run(async () => {
       await navigator.clipboard.writeText(`${window.location.origin}/kbs/${kbId}/n/${node.id}`);
       setNotice(t("page.link.copied"));
+    });
+
+  const toggleFollow = () =>
+    run(async () => {
+      await follow.mutateAsync(!following);
+      if (following) return;
+      setNotice(
+        digestOn ? (
+          t("page.followed")
+        ) : (
+          <>
+            {t("page.followed.off")}{" "}
+            <Link to="/conta/notificacoes" className="text-text-2 hover:text-text">
+              {t("page.followed.offLink")}
+            </Link>
+            .
+          </>
+        ),
+      );
     });
 
   const exportPage = () =>
@@ -117,6 +141,7 @@ export function PageMenu({
         <MenuItem onSelect={() => run(() => favorite.mutateAsync({ nodeId: node.id, favorite: !node.favorite }))}>
           {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
         </MenuItem>
+        <MenuItem onSelect={toggleFollow}>{t(following ? "page.unfollow" : "page.follow")}</MenuItem>
         {canEdit && <MenuItem onSelect={duplicatePage}>{t("page.duplicate")}</MenuItem>}
         {canEdit && <MenuItem onSelect={movePage}>{t("page.move")}</MenuItem>}
         <MenuItem onSelect={copyLink}>{t("page.link.copy")}</MenuItem>
