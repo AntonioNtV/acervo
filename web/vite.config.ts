@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => {
     },
     test: {
       environment: "jsdom",
+      // The tests read the pt-BR copy; jsdom reports en-US, which the app now follows before sign-in.
+      setupFiles: ["./src/test-setup.ts"],
       globals: true,
       // The persistent module cache keeps i18n/index.ts transformed with its old import.meta.glob result, so a new
       // catalog file is not seen until the cache is wiped.

@@ -6,7 +6,7 @@ import { forgetPages } from "../../app/lastPage";
 import { useTheme } from "../../app/theme";
 import { useMe, useSignOut } from "../../data/account";
 import { useKbs } from "../../data/kbs";
-import { locale, useI18n } from "../../i18n";
+import { browserLang, locale, useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { cx } from "../../ui/cx";
 import { Icon, type IconName } from "../../ui/Icon";
@@ -62,7 +62,8 @@ function Switch<T extends string>({
 
 /** The person at the foot: photo or initials and name, opening Conta and Sair. */
 function AccountRow() {
-  const { t } = useI18n();
+  const { t, setLang } = useI18n();
+  const { setTheme } = useTheme();
   const account = useMe().data;
   const signOut = useSignOut();
   const navigate = useNavigate();
@@ -95,6 +96,9 @@ function AccountRow() {
               navigate("/entrar", { replace: true });
               forgetPages();
               queryClient.clear();
+              // Signed out, the screens follow the browser again, not the last account's preferences.
+              setTheme("system");
+              setLang(browserLang());
             },
           })
         }
