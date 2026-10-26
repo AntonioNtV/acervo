@@ -6,6 +6,10 @@ import { SignUp } from "../screens/auth/SignUp";
 import { VerifyEmail } from "../screens/auth/VerifyEmail";
 import { BasesPage } from "../screens/bases/BasesPage";
 import { BaseRootScreen } from "../screens/folder/FolderScreen";
+import { Preferences } from "../screens/settings/Preferences";
+import { Profile } from "../screens/settings/Profile";
+import { SettingsFrame } from "../screens/settings/SettingsFrame";
+import { AccountPreferences } from "../screens/settings/usePreferences";
 import { Lixeira } from "../screens/shell/Lixeira";
 import { Home } from "./Home";
 import { NodeView } from "./NodeView";
@@ -23,13 +27,25 @@ export const routes: RouteObject[] = [
     element: <RequireAccount />,
     children: [
       {
-        element: <ShellFrame />,
+        element: <AccountPreferences />,
         children: [
-          { path: "/", element: <Home /> },
-          { path: "/bases", element: <BasesPage /> },
-          { path: "/lixeira", element: <Lixeira /> },
-          { path: "/kbs/:kbId", element: <BaseRootScreen /> },
-          { path: "/kbs/:kbId/n/:nodeId", element: <NodeView /> },
+          {
+            element: <ShellFrame />,
+            children: [
+              { path: "/", element: <Home /> },
+              { path: "/bases", element: <BasesPage /> },
+              { path: "/lixeira", element: <Lixeira /> },
+              { path: "/kbs/:kbId", element: <BaseRootScreen /> },
+              { path: "/kbs/:kbId/n/:nodeId", element: <NodeView /> },
+            ],
+          },
+          {
+            element: <SettingsFrame />,
+            children: [
+              { path: "/conta/perfil", element: <Profile /> },
+              { path: "/conta/preferencias", element: <Preferences /> },
+            ],
+          },
         ],
       },
     ],

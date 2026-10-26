@@ -30,7 +30,7 @@ export function translate(lang: Lang, key: string, vars?: Record<string, string 
 }
 
 /** The BCP 47 tag that `Intl` and `toLocale*String` take for `lang`. */
-export function locale(lang: Lang): string {
+export function locale(lang: Lang): "en" | "pt-BR" {
   return lang === "en" ? "en" : "pt-BR";
 }
 
