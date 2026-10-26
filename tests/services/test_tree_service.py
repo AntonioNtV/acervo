@@ -47,11 +47,8 @@ async def services(uow: UnitOfWork, session: AsyncSession, default_account_id: U
 
 
 @pytest.fixture
-async def bases(
-    services: Services, make_tree: MakeTree, make_account: MakeTree, uow: UnitOfWork, session: AsyncSession
-) -> Bases:
-    # The owner of both bases' Pessoal moves between them.
-    uow.act_as((await make_account()).id)
+async def bases(services: Services, make_tree: MakeTree, session: AsyncSession) -> Bases:
+    # `services` acts as the default account, owner of the Pessoal both bases are made in.
     x = await make_tree({"Bradesco": ["CG 2026.pdf"], "A.md": None, "B.md": None}, name="X")
     y = await make_tree({"Destino": None}, name="Y")
     a = x["A.md"].id

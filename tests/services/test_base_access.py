@@ -5,12 +5,13 @@ from uuid import UUID
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from acervo.core.errors import ForbiddenError, ValidationError
+from acervo.core.errors import ForbiddenError, NotFoundError, ValidationError
 from acervo.repositories.base_member import BaseMemberRepository
+from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
 from acervo.schemas.kb import KbCreate, KbEdit
-from acervo.schemas.organization import BaseMemberCreate, OrganizationRecord
+from acervo.schemas.organization import BaseMemberCreate, OrganizationChange, OrganizationRecord
 from acervo.services.base_service import BaseService
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
@@ -60,6 +61,17 @@ async def test_restricted_base_hidden_from_a_member_visible_to_an_org_admin(
         await as_("Dani").list(organization_id=team.id)
 
 
+async def test_a_member_creates_a_base_that_starts_restricted(
+    as_: Callable[[str], BaseService], session: AsyncSession, team: OrganizationRecord
+) -> None:
+    await OrganizationRepository(session).update(team.id, OrganizationChange(new_base_access="none"))
+
+    kb = await as_("Caio").create(KbCreate(name="Sinistros", organization_id=team.id))
+
+    assert (kb.general_access, kb.my_role) == ("none", "admin")
+    assert _ids(await as_("Caio").list(organization_id=team.id)) == {kb.id: ("admin", None)}
+
+
 async def test_pessoal_lists_the_bases_shared_with_a_guest(
     as_: Callable[[str], BaseService], session: AsyncSession, team: OrganizationRecord, people: dict[str, UUID]
 ) -> None:
@@ -73,7 +85,8 @@ async def test_pessoal_lists_the_bases_shared_with_a_guest(
     assert pessoal.general_access == "none"
     assert _ids(await as_("Caio").list()) == {pessoal.id: ("reader", "Dani")}
     assert _ids(await as_("Bia").list()) == {}
-    with pytest.raises(ForbiddenError):
+    # Row-level security hides Dani's Pessoal from Ana, so it is not even there for her.
+    with pytest.raises(NotFoundError):
         await as_("Ana").put_member(pessoal.id, people["Bia"], "reader")
 
     await BaseMemberRepository(session).create(

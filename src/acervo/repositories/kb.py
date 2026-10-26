@@ -1,9 +1,10 @@
 from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import delete, func, select, union_all
+from sqlalchemy import delete, func, insert, select, union_all
 
 from acervo.core.errors import NotFoundError
+from acervo.core.ids import uuid7
 from acervo.db.models.account import Account
 from acervo.db.models.base_member import BaseMember
 from acervo.db.models.file_version import FileVersion
@@ -20,6 +21,15 @@ from acervo.schemas.organization import BaseMemberRecord, GeneralAccess, MemberR
 class KbRepository(BaseRepository[Kb, KbRead, KbCreate, KbUpdate]):
     orm_model = Kb
     read_schema = KbRead
+
+    async def create_with_admin(self, data: KbCreate, general_access: GeneralAccess, admin_id: UUID) -> KbRead:
+        """The base with `admin_id` as its Admin."""
+        kb_id = uuid7()
+        # No RETURNING: row-level security hides a restricted base from its creator until the Admin row exists.
+        await self._session.execute(insert(Kb).values(id=kb_id, general_access=general_access, **dict(data)))
+        self._session.add(BaseMember(kb_id=kb_id, account_id=admin_id, role="admin"))
+        await self._flush()
+        return await self.get(kb_id)
 
     async def lock(self, kb_id: UUID) -> None:
         """One writer per base until the transaction ends, so checks such as "já existe" hold until the write."""
