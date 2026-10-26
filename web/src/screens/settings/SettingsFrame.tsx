@@ -30,6 +30,7 @@ const GLYPHS = {
       <circle cx="10" cy="17" r="2" />
     </>
   ),
+  bell: <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />,
   gear: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -159,6 +160,10 @@ export function SettingsFrame() {
         <NavLink to="/conta/preferencias" state={{ from }} className={link}>
           <Glyph name="sliders" />
           {t("settings.preferences")}
+        </NavLink>
+        <NavLink to="/conta/notificacoes" state={{ from }} className={link}>
+          <Glyph name="bell" />
+          {t("notifications.title")}
         </NavLink>
         <NavLink to="/conta/seguranca" state={{ from }} className={link}>
           <Glyph name="shield" />
