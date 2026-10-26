@@ -26,6 +26,7 @@ export function pageNode(page: Partial<NonNullable<NodeDetail["page"]>> = {}): N
       saved_at: "2026-10-14T16:10:00Z",
       links: {},
       sections: [],
+      following: false,
       ...page,
     },
     file: null,
