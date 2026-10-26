@@ -1,7 +1,11 @@
 from collections.abc import Awaitable, Callable
 from typing import Any
+from uuid import UUID
 
 import httpx
+
+from acervo.schemas.account import AccountRead
+from acervo.schemas.organization import OrganizationRecord
 
 MakeTree = Callable[..., Awaitable[Any]]
 
@@ -74,3 +78,32 @@ async def test_base_icon_is_set_and_cleared(client: httpx.AsyncClient) -> None:
     assert (invalid.status_code, invalid.json()["error"]) == (422, "validation")
     assert [kb["icon"] for kb in listed] == ["🛡️"]
     assert (cleared.status_code, cleared.json()["icon"]) == (200, None)
+
+
+async def test_base_access_general_and_members(
+    client: httpx.AsyncClient,
+    make_account: Callable[..., Awaitable[AccountRead]],
+    make_organization: Callable[..., Awaitable[OrganizationRecord]],
+) -> None:
+    olga = await make_account(email="olga@example.com", name="Olga")
+    bia = await make_account(email="bia@example.com", name="Bia")
+    dani = await make_account(email="dani@example.com", name="Dani")
+    me = (await client.get("/v1/account")).json()["id"]
+    team = await make_organization(olga.id, members={UUID(me): "admin", bia.id: "member"})
+    kb = await _create(client, name="Sinistros", organization_id=str(team.id))
+
+    restricted = await client.put(f"/v1/kbs/{kb['id']}/access", json={"general_access": "none"})
+    added = await client.put(f"/v1/kbs/{kb['id']}/members/{bia.id}", json={"role": "reader"})
+    outsider = await client.put(f"/v1/kbs/{kb['id']}/members/{dani.id}", json={"role": "reader"})
+    listed = (await client.get("/v1/kbs", params={"organization_id": str(team.id)})).json()
+    removed = await client.delete(f"/v1/kbs/{kb['id']}/members/{bia.id}")
+    again = await client.delete(f"/v1/kbs/{kb['id']}/members/{bia.id}")
+
+    assert (kb["general_access"], kb["my_role"]) == ("editor", "admin")
+    assert restricted.json()["general_access"] == "none"
+    assert [(m["name"], m["role"]) for m in added.json()["members"]] == [("Ana", "admin"), ("Bia", "reader")]
+    assert (outsider.status_code, outsider.json()["error"]) == (403, "forbidden")
+    assert [(b["id"], b["my_role"]) for b in listed] == [(kb["id"], "admin")]
+    assert [m["name"] for m in removed.json()["members"]] == ["Ana"]
+    assert (again.status_code, again.json()["error"]) == (404, "not_found")
+    assert (await client.get(f"/v1/kbs/{kb['id']}/access")).json() == removed.json()

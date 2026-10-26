@@ -1,15 +1,20 @@
+from collections.abc import Collection
 from uuid import UUID
 
-from sqlalchemy import func, select, union_all
+from sqlalchemy import delete, func, select, union_all
 
 from acervo.core.errors import NotFoundError
+from acervo.db.models.account import Account
+from acervo.db.models.base_member import BaseMember
 from acervo.db.models.file_version import FileVersion
 from acervo.db.models.kb import Kb
 from acervo.db.models.node import Node
 from acervo.db.models.page_version import PageVersion
 from acervo.repositories.base import BaseRepository
 from acervo.repositories.node import contains
+from acervo.schemas.account import AccountRecord
 from acervo.schemas.kb import KbCreate, KbRead, KbSummary, KbUpdate
+from acervo.schemas.organization import BaseMemberRecord, GeneralAccess, MemberRead
 
 
 class KbRepository(BaseRepository[Kb, KbRead, KbCreate, KbUpdate]):
@@ -27,8 +32,8 @@ class KbRepository(BaseRepository[Kb, KbRead, KbCreate, KbUpdate]):
             raise NotFoundError(f"kb {kb_id} not found", {"id": str(kb_id)})
         return self._to_read(kb)
 
-    async def summaries(self, name: str = "") -> list[KbSummary]:
-        """Live bases with their live counts, most recently edited first."""
+    async def summaries(self, ids: Collection[UUID], name: str = "") -> list[KbSummary]:
+        """The live bases of `ids` with their live counts, most recently edited first."""
         counts = (
             select(
                 Node.kb_id,
@@ -50,7 +55,7 @@ class KbRepository(BaseRepository[Kb, KbRead, KbCreate, KbUpdate]):
             select(Kb, func.coalesce(counts.c.pages, 0), func.coalesce(counts.c.files, 0), last_edits.c.at)
             .outerjoin(counts, counts.c.kb_id == Kb.id)
             .join(last_edits, last_edits.c.kb_id == Kb.id)
-            .where(Kb.deleted_at.is_(None))
+            .where(Kb.deleted_at.is_(None), Kb.id.in_(ids))
             .order_by(last_edits.c.at.desc(), Kb.name)
         )
         if name.strip():
@@ -61,9 +66,32 @@ class KbRepository(BaseRepository[Kb, KbRead, KbCreate, KbUpdate]):
             for kb, pages, files, last_edit in rows
         ]
 
-    async def trashed(self) -> list[KbRead]:
-        """Bases in the trash, most recently trashed first."""
-        query = select(Kb).where(Kb.deleted_at.is_not(None)).order_by(Kb.deleted_at.desc())
+    async def trashed(self, ids: Collection[UUID]) -> list[KbRead]:
+        """The bases of `ids` in the trash, most recently trashed first."""
+        query = select(Kb).where(Kb.deleted_at.is_not(None), Kb.id.in_(ids)).order_by(Kb.deleted_at.desc())
         return [
             self._to_read(kb) for kb in await self._session.scalars(query.execution_options(populate_existing=True))
         ]
+
+    async def set_general_access(self, kb_id: UUID, general_access: GeneralAccess) -> None:
+        kb = await self._get_orm(kb_id)
+        kb.general_access = general_access
+        await self._flush()
+
+    async def members(self, kb_id: UUID) -> list[MemberRead]:
+        """The people added to the base with their base role, by name."""
+        query = (
+            select(Account, BaseMember)
+            .join(BaseMember, BaseMember.account_id == Account.id)
+            .where(BaseMember.kb_id == kb_id)
+            .order_by(Account.name, Account.email)
+        )
+        return [
+            MemberRead.of(AccountRecord.model_validate(account), BaseMemberRecord.model_validate(added).role)
+            for account, added in await self._session.execute(query)
+        ]
+
+    async def remove_member(self, kb_id: UUID, account_id: UUID) -> None:
+        await self._session.execute(
+            delete(BaseMember).where(BaseMember.kb_id == kb_id, BaseMember.account_id == account_id)
+        )
