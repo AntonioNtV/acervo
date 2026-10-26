@@ -2277,6 +2277,11 @@
       "PageRead": {
         "description": "What a page holds now.",
         "properties": {
+          "following": {
+            "description": "Whether the asking account follows the page.",
+            "title": "Following",
+            "type": "boolean"
+          },
           "links": {
             "additionalProperties": {
               "anyOf": [
@@ -2334,7 +2339,8 @@
           "revision",
           "saved_at",
           "links",
-          "sections"
+          "sections",
+          "following"
         ],
         "title": "PageRead",
         "type": "object"
@@ -2385,6 +2391,36 @@
       "PageVersionSummary": {
         "description": "One version of a page in its history, without its text.",
         "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the account that saved it; null when `author_id` is.",
+            "title": "Author"
+          },
+          "author_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Account that saved it; null for versions saved before authors were recorded, or once the account is deleted.",
+            "title": "Author Id"
+          },
+          "author_known": {
+            "description": "False for versions saved before authors were recorded; a null author with this true is a deleted account.",
+            "title": "Author Known",
+            "type": "boolean"
+          },
           "created_at": {
             "description": "When it was written.",
             "format": "date-time",
@@ -2428,7 +2464,10 @@
           "id",
           "created_at",
           "edit_started_at",
-          "edit_ended_at"
+          "edit_ended_at",
+          "author_id",
+          "author",
+          "author_known"
         ],
         "title": "PageVersionSummary",
         "type": "object"
@@ -2550,6 +2589,18 @@
             "title": "Language",
             "type": "string"
           },
+          "notify_followed": {
+            "default": false,
+            "description": "Gets the daily digest of the pages it follows.",
+            "title": "Notify Followed",
+            "type": "boolean"
+          },
+          "notify_invites": {
+            "default": true,
+            "description": "Gets the emails of invites accepted and access changes.",
+            "title": "Notify Invites",
+            "type": "boolean"
+          },
           "page_width": {
             "default": "default",
             "description": "default (720 px) or wide (1040 px).",
@@ -2579,6 +2630,12 @@
               "system"
             ],
             "title": "Theme",
+            "type": "string"
+          },
+          "timezone": {
+            "default": "America/Sao_Paulo",
+            "description": "IANA name; the digest goes out at 8:00 there.",
+            "title": "Timezone",
             "type": "string"
           }
         },
@@ -3049,6 +3106,18 @@
             "minLength": 10,
             "title": "Password",
             "type": "string"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The browser's IANA time zone; unknown or missing is America/Sao_Paulo.",
+            "title": "Timezone"
           }
         },
         "required": [
@@ -3397,6 +3466,67 @@
   "openapi": "3.1.0",
   "paths": {
     "/v1/account": {
+      "delete": {
+        "description": "Deletes the account, its Pessoal and the organizations where it is the only Owner, whose members are told;\npages it wrote in other bases stay. 403 `reauthentication_required` without a recent sign-in.",
+        "operationId": "delete_account_v1_account_delete",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Account",
+        "tags": [
+          "account"
+        ]
+      },
       "get": {
         "operationId": "get_account_v1_account_get",
         "parameters": [
@@ -4266,7 +4396,7 @@
     },
     "/v1/auth/google/start": {
       "get": {
-        "description": "Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.",
+        "description": "Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.\n`timezone` is the browser's IANA time zone, kept by an account Google signs up (unknown: America/Sao_Paulo).",
         "operationId": "google_start_v1_auth_google_start_get",
         "parameters": [
           {
@@ -4283,6 +4413,22 @@
                 }
               ],
               "title": "Next"
+            }
+          },
+          {
+            "in": "query",
+            "name": "timezone",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timezone"
             }
           }
         ],
@@ -4501,6 +4647,52 @@
           }
         },
         "summary": "Confirm Reset",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/resubscribe/{token}": {
+      "post": {
+        "description": "Turns the toggle of the same link back on.",
+        "operationId": "resubscribe_v1_auth_resubscribe__token__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Resubscribe",
         "tags": [
           "auth"
         ]
@@ -4839,6 +5031,52 @@
           }
         },
         "summary": "Resend Two Factor",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/unsubscribe/{token}": {
+      "post": {
+        "description": "Parar de receber: turns off the toggle the emailed link carries, without signing in; any body, so the\nRFC 8058 one-click POST works too. 404 `not_found` for a bad link or a deleted account.",
+        "operationId": "unsubscribe_v1_auth_unsubscribe__token__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Unsubscribe",
         "tags": [
           "auth"
         ]
@@ -9153,6 +9391,87 @@
       }
     },
     "/v1/organizations/{organization_id}": {
+      "delete": {
+        "description": "Owners only, with a recent sign-in (403 `reauthentication_required`); a Pessoal goes only with its account\n(403 `personal_org`). Its bases go with every page, file and version, never through the trash; every other\nmember is told by email.",
+        "operationId": "delete_organization_v1_organizations__organization_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Organization",
+        "tags": [
+          "organizations"
+        ]
+      },
       "get": {
         "operationId": "get_organization_v1_organizations__organization_id__get",
         "parameters": [
@@ -10828,6 +11147,169 @@
         "summary": "Raw Attachment",
         "tags": [
           "attachments"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/follow": {
+      "delete": {
+        "operationId": "unfollow_page_v1_pages__node_id__follow_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Unfollow Page",
+        "tags": [
+          "pages"
+        ]
+      },
+      "put": {
+        "description": "The person follows the page, for the daily digest; following it again changes nothing.",
+        "operationId": "follow_page_v1_pages__node_id__follow_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Follow Page",
+        "tags": [
+          "pages"
         ]
       }
     },

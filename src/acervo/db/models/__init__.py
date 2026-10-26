@@ -12,6 +12,7 @@ from acervo.db.models.node import Node
 from acervo.db.models.organization import Organization
 from acervo.db.models.page_attachment import PageAttachment
 from acervo.db.models.page_draft import PageDraft
+from acervo.db.models.page_follow import PageFollow
 from acervo.db.models.page_link import PageLink
 from acervo.db.models.page_version import PageVersion
 from acervo.db.models.passkey import Passkey
@@ -35,6 +36,7 @@ __all__ = [
     "Organization",
     "PageAttachment",
     "PageDraft",
+    "PageFollow",
     "PageLink",
     "PageVersion",
     "Passkey",

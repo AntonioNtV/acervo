@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import CheckConstraint, Index, Text, event, exists, text
+from sqlalchemy import CheckConstraint, Index, Text, event, exists, false, text, true
 from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from acervo.db.base import Base, TimestampMixin, UUIDPkMixin
@@ -38,6 +38,13 @@ class Account(UUIDPkMixin, TimestampMixin, Base):
     # The WhatsApp number, E.164; confirmed by a code before it receives sign-in codes.
     phone: Mapped[str | None] = mapped_column(Text)
     phone_verified_at: Mapped[datetime | None]
+    # Which emails that can be turned off it gets: invites and access changes, and the daily digest.
+    notify_invites: Mapped[bool] = mapped_column(server_default=true(), default=True)
+    notify_followed: Mapped[bool] = mapped_column(server_default=false(), default=False)
+    # IANA name; the digest goes out at 8:00 there.
+    timezone: Mapped[str] = mapped_column(Text, server_default="America/Sao_Paulo")
+    # The local day of the last digest, so a second run that day sends none.
+    digest_sent_on: Mapped[date | None]
 
 
 # After the class, the expression needs Account.id. Kept through a flush, which would leave it to a lazy load async

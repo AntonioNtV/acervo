@@ -31,9 +31,12 @@ Service = Annotated[GoogleAuthService, Depends(get_google_auth_service)]
 
 
 @router.get("/start", response_class=RedirectResponse, status_code=302)
-async def google_start(service: Service, settings: AppSettings, next: str | None = None) -> RedirectResponse:
-    """Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`."""
-    url, state = service.start(next)
+async def google_start(
+    service: Service, settings: AppSettings, next: str | None = None, timezone: str | None = None
+) -> RedirectResponse:
+    """Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.
+    `timezone` is the browser's IANA time zone, kept by an account Google signs up (unknown: America/Sao_Paulo)."""
+    url, state = service.start(next, timezone)
     response = RedirectResponse(url, status_code=302)
     response.set_cookie(
         STATE_COOKIE,

@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     # The authentication template, created and approved at Meta, and the code of its language there.
     whatsapp_template: str = "acervo_codigo"
     whatsapp_language: str = "pt_BR"
+    # The Temporal server the digest schedule runs on.
+    temporal_address: str = "localhost:7233"
+    temporal_namespace: str = "default"
+    temporal_task_queue: str = "acervo"
 
     @property
     def whatsapp_enabled(self) -> bool:

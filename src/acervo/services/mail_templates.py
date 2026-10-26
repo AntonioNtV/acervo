@@ -5,6 +5,7 @@ from html import escape
 from typing import NotRequired, TypedDict
 
 from acervo.schemas.account import Language
+from acervo.schemas.notification import Notification
 from acervo.services.mailer import MailTemplate
 
 
@@ -337,6 +338,95 @@ COPY |= {
         },
     },
 }
+# Copy from the Design System, "Comunicação · Notificações e exclusão"; the English is ours.
+COPY |= {
+    MailTemplate.DIGEST: {
+        "pt-BR": {
+            "subject": "{pages} que você segue {changed}",
+            "pre": "{titles}.",
+            "title": "{pages} {changed} ontem",
+            "body": [],
+            "button": "Abrir o Acervo",
+            "after": [],
+        },
+        "en": {
+            "subject": "{pages} you follow changed",
+            "pre": "{titles}.",
+            "title": "{pages} changed yesterday",
+            "body": [],
+            "button": "Open Acervo",
+            "after": [],
+        },
+    },
+    MailTemplate.ACCOUNT_DELETED: {
+        "pt-BR": {
+            "subject": "Sua conta do Acervo foi excluída",
+            "pre": "Esta é a última mensagem.",
+            "title": "Sua conta foi excluída",
+            "body": [
+                "Excluímos sua conta, seu espaço Pessoal e {bases} dele, como você pediu em {date}.",
+                'O que você escreveu em bases de outras pessoas ficou lá, com o autor "Conta excluída".',
+            ],
+            "after": ["Esta é a última mensagem que enviamos para este email."],
+        },
+        "en": {
+            "subject": "Your Acervo account was deleted",
+            "pre": "This is the last message.",
+            "title": "Your account was deleted",
+            "body": [
+                "We deleted your account, your Personal space and {bases}, as you asked on {date}.",
+                'What you wrote in other people\'s bases stays there, with the author "Deleted account".',
+            ],
+            "after": ["This is the last message we send to this email."],
+        },
+    },
+    MailTemplate.ORG_DELETED: {
+        "pt-BR": {
+            "subject": "A {organization} foi excluída",
+            "pre": "{bases_left} do Acervo.",
+            "title": "A {organization} foi excluída",
+            "body": [
+                "{actor} excluiu a organização {organization} e {bases} dela em {date}.",
+                "Seu espaço Pessoal e as outras organizações não mudam.",
+            ],
+            "after": [],
+        },
+        "en": {
+            "subject": "{organization} was deleted",
+            "pre": "{bases_left} Acervo.",
+            "title": "{organization} was deleted",
+            "body": [
+                "{actor} deleted the organization {organization} and {bases} on {date}.",
+                "Your Personal space and your other organizations do not change.",
+            ],
+            "after": [],
+        },
+    },
+}
+# The words after a count (`count` for `digest`, `bases` for the others), by template, language and one or many.
+PLURAL: dict[MailTemplate, dict[Language, dict[bool, dict[str, str]]]] = {
+    MailTemplate.DIGEST: {
+        "pt-BR": {
+            False: {"pages": "1 página", "changed": "mudou"},
+            True: {"pages": "{n} páginas", "changed": "mudaram"},
+        },
+        "en": {False: {"pages": "1 page"}, True: {"pages": "{n} pages"}},
+    },
+    MailTemplate.ACCOUNT_DELETED: {
+        "pt-BR": {False: {"bases": "a base"}, True: {"bases": "as {n} bases"}},
+        "en": {False: {"bases": "its base"}, True: {"bases": "its {n} bases"}},
+    },
+    MailTemplate.ORG_DELETED: {
+        "pt-BR": {
+            False: {"bases": "a base", "bases_left": "A base dela saiu"},
+            True: {"bases": "as {n} bases", "bases_left": "As {n} bases dela saíram"},
+        },
+        "en": {
+            False: {"bases": "its base", "bases_left": "Its base left"},
+            True: {"bases": "its {n} bases", "bases_left": "Its {n} bases left"},
+        },
+    },
+}
 # `new_sign_in` by `method`; the design only words a passkey one.
 METHODS: dict[Language, dict[str, str]] = {
     "pt-BR": {
@@ -510,7 +600,11 @@ CAN: dict[MailTemplate, dict[Language, dict[str, dict[str, str]]]] = {
 AND = {"pt-BR": "e", "en": "and"}
 NO_BASES = {"pt-BR": "nenhuma base por enquanto", "en": "no bases yet"}
 # Where each button goes; `link` is a token for these, and the app path for any other template with a button.
-BUTTON_PATH = {MailTemplate.RESET_LINK: "/redefinir-senha/{link}", MailTemplate.ORG_INVITE: "/convite/{link}"}
+BUTTON_PATH = {
+    MailTemplate.RESET_LINK: "/redefinir-senha/{link}",
+    MailTemplate.ORG_INVITE: "/convite/{link}",
+    MailTemplate.DIGEST: "/",
+}
 
 CODE_TEMPLATES = (MailTemplate.VERIFY_CODE, MailTemplate.CHANGE_EMAIL_CODE, MailTemplate.LOGIN_CODE)
 
@@ -521,6 +615,22 @@ FOOTER = {
     "pt-BR": "Emails da sua conta, como este, não se desligam.",
     "en": "Account emails like this one cannot be turned off.",
 }
+# The emails a toggle in Conta › Notificações turns off, and the toggle's label there.
+TOGGLE = {
+    MailTemplate.DIGEST: Notification.FOLLOWED,
+    MailTemplate.INVITE_ACCEPTED: Notification.INVITES,
+    MailTemplate.BASE_SHARED: Notification.INVITES,
+    MailTemplate.ROLE_CHANGED: Notification.INVITES,
+}
+TOGGLE_LABEL = {
+    "pt-BR": {Notification.INVITES: "Convites e acessos", Notification.FOLLOWED: "Mudanças nas páginas que você segue"},
+    "en": {Notification.INVITES: "Invites and access", Notification.FOLLOWED: "Changes to pages you follow"},
+}
+WHY = {
+    "pt-BR": 'Você recebe porque "{toggle}" está ligado em Notificações.',
+    "en": 'You get this because "{toggle}" is on in Notifications.',
+}
+STOP = {"pt-BR": "Parar de receber", "en": "Unsubscribe"}
 MONTHS = [
     "janeiro", "fevereiro", "março", "abril", "maio", "junho",
     "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
@@ -544,13 +654,17 @@ def _when(now: datetime, language: Language) -> dict[str, str]:
     return {"date": f"{now.day} de {MONTHS[now.month - 1]}", "time": f"{now:%H:%M}"}
 
 
+def join_names(items: list[str], language: Language) -> str:
+    """ "A, B e C"."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} {AND[language]} {items[-1]}"
+
+
 def _bases(names: str, language: Language) -> str:
     """ "3 bases: A, B e C" from one name per line."""
     listed = [name for name in names.split("\n") if name]
     if not listed:
         return NO_BASES[language]
-    joined = listed[0] if len(listed) == 1 else f"{', '.join(listed[:-1])} {AND[language]} {listed[-1]}"
-    return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {joined}"
+    return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {join_names(listed, language)}"
 
 
 def _device(browser: str, system: str, language: Language) -> str:
@@ -567,8 +681,10 @@ def render(
     values: Mapping[str, str],
     public_url: str,
     now: datetime,
+    unsubscribe_link: str | None = None,
 ) -> RenderedMail:
-    """Fills one template; a value the template needs and `values` lacks raises KeyError."""
+    """Fills one template; a value the template needs and `values` lacks raises KeyError. With `unsubscribe_link`,
+    the footer names the template's toggle and links to turning it off."""
     copy = COPY[template][language]
     fill = {**values, "email": to, "first": values.get("name", "").split(" ")[0], **_when(now, language)}
     for key in ("role", "old_role"):
@@ -576,8 +692,16 @@ def render(
             fill[key] = ROLES[language][values[key]]
     if template in CAN:
         fill |= CAN[template][language][values["role"]]
-    if "bases" in values:
+    if template in PLURAL:
+        n = values["count" if template is MailTemplate.DIGEST else "bases"]
+        fill |= {key: words.format(n=n) for key, words in PLURAL[template][language][n != "1"].items()}
+    elif "bases" in values:
         fill["bases"] = _bases(values["bases"], language)
+    # One page per line: title, authors and base; the list the digest shows.
+    pages = [line.split("\t") for line in values.get("pages", "").split("\n") if line]
+    if pages:
+        fill["titles"] = join_names([title for title, _, _ in pages], language)
+    listed = [(title, " · ".join(x for x in (authors, base) if x)) for title, authors, base in pages]
     if "expires_at" in values:
         fill["until"] = _when(datetime.fromisoformat(values["expires_at"]), language)["date"]
     if "browser" in values:
@@ -592,61 +716,94 @@ def render(
     code = values["code"] if template in CODE_TEMPLATES else None
     details = [(label, value.format(**fill)) for label, value in copy.get("details", [])]
     button = copy["button"].format(**fill) if "button" in copy else None
-    path = BUTTON_PATH.get(template, "{link}").format(link=values["link"]) if button else ""
+    path = BUTTON_PATH.get(template, "{link}").format_map(values) if button else ""
     link = f"{public_url.rstrip('/')}{path}" if button else None
+    why = FOOTER[language]
+    if unsubscribe_link:
+        why = WHY[language].format(toggle=TOGGLE_LABEL[language][TOGGLE[template]])
 
     text = [title, "", *body, ""]
+    if listed:
+        text += [*(f"{name}: {who}" if who else name for name, who in listed), ""]
     if code:
         text += [code, ""]
     if details:
         text += [*(f"{label}: {value}" for label, value in details), ""]
     if button:
         text += [f"{button}: {link}", ""]
-    text += [*after, "", "--", FOOTER[language], "Acervo · por Segura"]
+    text += [*after, "", "--", why]
+    if unsubscribe_link:
+        text.append(f"{STOP[language]}: {unsubscribe_link}")
+    text.append("Acervo · por Segura")
 
+    # Carta: a white card on grey, then why the email came and the wordmark under it.
     p = f"margin:0 0 12px;font:400 15px/24px {SANS};color:#5c5c58"
-    small = f"margin:0 0 12px;font:400 13px/20px {SANS};color:#72726d"
+    small = f"margin:0 0 8px;font:400 13px/20px {SANS};color:#72726d"
+    line = "border-bottom:1px solid #ededeb"
     html = [
         f'<!doctype html><html lang="{language}"><head><meta charset="utf-8"><title>{escape(subject)}</title></head>',
-        f'<body style="margin:0;padding:24px 0;background:#ffffff;font-family:{SANS}">',
+        f'<body style="margin:0;padding:40px 16px 28px;background:#f5f5f4;font-family:{SANS}">',
         f'<div style="display:none;max-height:0;overflow:hidden">{escape(pre)}</div>',
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">',
-        '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">',
-        '<tr><td style="padding:40px 48px 32px">',
-        f'<p style="margin:0 0 32px;font:500 15px/20px {SANS};color:#0a0a0a">acervo '
-        '<span style="font-weight:400;color:#959590">por segura</span></p>',
-        f'<h1 style="margin:0 0 20px;font:500 20px/28px {SANS};letter-spacing:-.01em;color:#0a0a0a">'
+        '<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;width:100%;'
+        'background:#ffffff;border:1px solid #ededeb;border-radius:12px">',
+        '<tr><td style="padding:36px 40px">',
+        '<p style="margin:0 0 20px"><span style="display:inline-block;width:32px;height:32px;border-radius:8px;'
+        f'background:#002311;color:#ffffff;font:600 16px/32px {SANS};letter-spacing:-.03em;text-align:center">a</span>'
+        "</p>",
+        f'<h1 style="margin:0 0 20px;font:500 22px/30px {SANS};letter-spacing:-.015em;color:#0a0a0a">'
         f"{escape(title)}</h1>",
         *(f'<p style="{p}">{escape(x)}</p>' for x in body),
     ]
+    if listed:
+        html += [
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:0 0 20px;border-top:1px solid #ededeb">',
+            *(
+                f'<tr><td style="padding:12px 0;{line}">'
+                f'<span style="display:block;font:500 15px/22px {SANS};color:#0a0a0a">{escape(name)}</span>'
+                f'<span style="display:block;font:400 13px/20px {SANS};color:#72726d">{escape(who)}</span></td></tr>'
+                for name, who in listed
+            ),
+            "</table>",
+        ]
     if code:
         html.append(
-            '<p style="margin:8px 0 20px"><span style="display:inline-block;padding:16px 24px;border-radius:8px;'
-            f'background:#f5f5f4;font:500 28px/36px {MONO};letter-spacing:.2em;color:#0a0a0a">{escape(code)}</span></p>'
+            '<p style="margin:8px 0 20px"><span style="display:inline-block;padding:14px 24px;border-radius:8px;'
+            f'background:#f5f5f4;font:500 28px/36px {MONO};letter-spacing:.24em;color:#0a0a0a">{escape(code)}'
+            "</span></p>"
         )
-    if details:
-        cell = f"padding:2px 16px 2px 0;font:400 13px/20px {SANS}"
+    if button and link:
         html += [
-            '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px">',
+            f'<p style="margin:8px 0 8px"><a href="{escape(link)}" style="display:inline-block;padding:12px 20px;'
+            f'border-radius:8px;background:#002311;color:#ffffff;font:500 15px/20px {SANS};text-decoration:none">'
+            f"{escape(button)}</a></p>",
+            f'<p style="margin:0 0 20px;font:400 12px/18px {SANS};color:#959590">{OR_OPEN[language]}: '
+            f'<a href="{escape(link)}" style="color:#72726d">{escape(link)}</a></p>',
+        ]
+    if details:
+        cell = f"padding:8px 16px 8px 0;font:400 13px/20px {SANS};{line}"
+        html += [
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'style="margin:0 0 20px;border-top:1px solid #ededeb">',
             *(
-                f'<tr><td style="{cell};color:#959590">{escape(label)}</td>'
+                f'<tr><td width="140" style="{cell};color:#72726d">{escape(label)}</td>'
                 f'<td style="{cell};color:#0a0a0a">{escape(value)}</td></tr>'
                 for label, value in details
             ),
             "</table>",
         ]
-    if button and link:
-        html += [
-            f'<p style="margin:8px 0 8px"><a href="{escape(link)}" style="display:inline-block;padding:10px 18px;'
-            f'border-radius:7px;background:#002311;color:#ffffff;font:500 14px/20px {SANS};text-decoration:none">'
-            f"{escape(button)}</a></p>",
-            f'<p style="margin:0 0 20px;font:400 12px/18px {SANS};color:#959590">{OR_OPEN[language]}: '
-            f'<a href="{escape(link)}" style="color:#72726d">{escape(link)}</a></p>',
-        ]
+    stop = (
+        f' <a href="{escape(unsubscribe_link)}" style="color:#959590;text-decoration:underline">{STOP[language]}</a>'
+        if unsubscribe_link
+        else ""
+    )
     html += [
         *(f'<p style="{small}">{escape(x)}</p>' for x in after),
-        f'<p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #ededeb;font:400 12px/18px {SANS};'
-        f'color:#959590">{FOOTER[language]}<br>Acervo · por Segura</p>',
-        "</td></tr></table></td></tr></table></body></html>",
+        "</td></tr></table>",
+        f'<p style="margin:20px 0 0;font:400 12px/20px {SANS};color:#959590;text-align:center">{escape(why)}{stop}<br>'
+        f'<b style="font:600 16px/20px {SANS};letter-spacing:-.02em;color:#72726d">acervo</b> '
+        f'<span style="font:400 11px/16px {SANS};color:#959590">por segura</span></p>',
+        "</td></tr></table></body></html>",
     ]
     return RenderedMail(subject, "\n".join(text), "".join(html))

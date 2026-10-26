@@ -13,7 +13,15 @@ export function signedIn(overrides: Partial<Account> = {}): Account {
     has_passkey: false,
     two_factor: "none",
     photo_url: null,
-    preferences: { theme: "light", page_width: "default", language: "pt-BR", start_page: "last" },
+    preferences: {
+      theme: "light",
+      page_width: "default",
+      language: "pt-BR",
+      start_page: "last",
+      notify_invites: true,
+      notify_followed: false,
+      timezone: "America/Sao_Paulo",
+    },
     ...overrides,
   };
   respond("GET", "/v1/auth/me", { body: account });

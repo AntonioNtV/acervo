@@ -1,0 +1,38 @@
+export const ptBR = {
+  noTrash: "Não há Lixeira para isto.",
+  confirm: "Digite {text} para confirmar",
+  cancel: "Cancelar",
+  account: "Excluir conta",
+  "account.desc": "Exclui seu Pessoal e tira você das organizações. O que você escreveu em bases de outras pessoas fica.",
+  "account.title": "Excluir sua conta",
+  "account.personal": "Seu Pessoal e as bases dele são excluídos.",
+  "account.sole":
+    "Você é o único Owner de {name}: a organização é excluída com as bases dela, e os membros recebem um aviso.",
+  "account.stays": "O que você escreveu nas bases de outras pessoas fica, com o autor \"Conta excluída\".",
+  "account.leaves": "Você sai de {name}.",
+  org: "Excluir organização",
+  "org.desc": "Exclui as bases, com páginas, arquivos e versões. Só o Owner pode.",
+  "org.title": "Excluir {name}",
+  "org.bases": "As bases de {name}, com páginas, arquivos e versões, são excluídas.",
+  "org.members": "Os membros perdem o acesso e recebem um aviso.",
+  "org.final": "Não dá para desfazer.",
+};
+
+export const en: Record<keyof typeof ptBR, string> = {
+  noTrash: "There is no Trash for this.",
+  confirm: "Type {text} to confirm",
+  cancel: "Cancel",
+  account: "Delete account",
+  "account.desc": "Deletes your Personal space and takes you out of your organizations. What you wrote in other people's bases stays.",
+  "account.title": "Delete your account",
+  "account.personal": "Your Personal space and its bases are deleted.",
+  "account.sole": "You are the only Owner of {name}: the organization is deleted with its bases, and its members are told.",
+  "account.stays": "What you wrote in other people's bases stays, with the author \"Deleted account\".",
+  "account.leaves": "You leave {name}.",
+  org: "Delete organization",
+  "org.desc": "Deletes the bases, with pages, files and versions. Only the Owner can.",
+  "org.title": "Delete {name}",
+  "org.bases": "The bases of {name}, with pages, files and versions, are deleted.",
+  "org.members": "Members lose access and are told.",
+  "org.final": "This cannot be undone.",
+};

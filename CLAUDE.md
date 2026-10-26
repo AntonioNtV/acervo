@@ -8,8 +8,8 @@ original files, with their own versions. Search finds any page, folder or file b
 
 ## Non-negotiables
 
-1. Dependencies go one way: `api` → `services` → `repositories` → `db`, and `services` → `pipeline` (pure
-   computation, such as reading a PDF). `domain`, `schemas` and `core` are leaves every layer may import. Checked by
+1. Dependencies go one way: `api` and `worker` (the Temporal jobs) → `services` → `repositories` → `db`, and
+   `services` → `pipeline` (pure computation, such as reading a PDF). `domain`, `schemas` and `core` are leaves every layer may import. Checked by
    `tests/unit/test_layering.py`. (skill `repo-structure`)
 2. Pydantic for every type that crosses a boundary. ORM objects never leave `repositories/`; repositories never
    commit, services do. (skill `repositories`)

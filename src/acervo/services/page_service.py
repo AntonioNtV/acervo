@@ -7,6 +7,7 @@ from acervo.domain import links
 from acervo.domain.diff import line_diff
 from acervo.domain.sections import sections
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.follow import FollowCreate
 from acervo.schemas.node import NodeRead, NodeWithPath
 from acervo.schemas.page import (
     Mention,
@@ -45,6 +46,8 @@ class PageService:
             saved_at=version.created_at if text is None else text.updated_at,
             links=links.resolve(wanted, await self._uow.page_links.candidates(node.kb_id, wanted), node.parent_id),
             sections=[Section(anchor=s.anchor, heading=s.heading) for s in sections(markdown)],
+            following=self._uow.account_id is not None
+            and await self._uow.follows.get_by(account_id=self._uow.account_id, node_id=node.id) is not None,
         )
 
     async def put_text(self, node_id: UUID, data: PageTextPut, idle_seconds: int) -> PageTextSaved:
@@ -100,6 +103,14 @@ class PageService:
         await self._settle(node, version.markdown, latest, await self._uow.page_drafts.get_by(node_id=node.id))
         await self._uow.commit()
         return await self.read(node.id)
+
+    async def follow(self, account_id: UUID, node_id: UUID) -> None:
+        await self._uow.follows.follow(FollowCreate(account_id=account_id, node_id=(await self._page(node_id)).id))
+        await self._uow.commit()
+
+    async def unfollow(self, account_id: UUID, node_id: UUID) -> None:
+        await self._uow.follows.unfollow(FollowCreate(account_id=account_id, node_id=(await self._page(node_id)).id))
+        await self._uow.commit()
 
     async def mentions(self, node_id: UUID) -> list[Mention]:
         """Each live page of the base whose link opens this page, once, with the first line holding the link,
@@ -192,7 +203,11 @@ class PageService:
     async def _cut(self, node: NodeRead, text: PageDraftRead, latest: PageVersionRead) -> PageVersionRead:
         if text.markdown == latest.markdown:
             return latest
-        return await self._add(node, text.markdown, text.started_at, text.updated_at)
+        # shortcut: the draft keeps only who typed last; when two people take turns in one session, the version is
+        # the last one's. Upgrade to a per-session author list if shared editing becomes common.
+        return await self._add(
+            node, text.markdown, text.started_at, text.updated_at, text.author_id, text.author_id is not None
+        )
 
     async def _settle(
         self, node: NodeRead, markdown: str, latest: PageVersionRead, text: PageDraftRead | None
@@ -205,15 +220,35 @@ class PageService:
 
     async def _store(self, node: NodeRead, markdown: str, revision: int, started_at: datetime) -> PageDraftRead:
         """The working text and its links; the links follow what the person sees, so a rename finds them."""
-        data = PageDraftCreate(node_id=node.id, markdown=markdown, revision=revision, started_at=started_at)
+        data = PageDraftCreate(
+            node_id=node.id,
+            markdown=markdown,
+            revision=revision,
+            started_at=started_at,
+            author_id=self._uow.account_id,
+        )
         text = await self._uow.page_drafts.put(data)
         await self._uow.page_links.replace(node.kb_id, node.id, links.targets(markdown))
         return text
 
     async def _add(
-        self, node: NodeRead, markdown: str, started_at: datetime | None = None, ended_at: datetime | None = None
+        self,
+        node: NodeRead,
+        markdown: str,
+        started_at: datetime | None = None,
+        ended_at: datetime | None = None,
+        author_id: UUID | None = None,
+        author_known: bool = True,
     ) -> PageVersionRead:
-        data = PageVersionCreate(node_id=node.id, markdown=markdown, edit_started_at=started_at, edit_ended_at=ended_at)
+        """A version by `author_id`, the account of the request when not given."""
+        data = PageVersionCreate(
+            node_id=node.id,
+            markdown=markdown,
+            edit_started_at=started_at,
+            edit_ended_at=ended_at,
+            author_id=author_id if author_id is not None or not author_known else self._uow.account_id,
+            author_known=author_known,
+        )
         return await self._uow.page_versions.add(data)
 
     async def _page(self, node_id: UUID) -> NodeRead:

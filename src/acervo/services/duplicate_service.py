@@ -49,7 +49,9 @@ class DuplicateService:
         )
         text = await self._uow.page_drafts.get_by(node_id=page.id)
         markdown = (await self._uow.page_versions.current(page.id)).markdown if text is None else text.markdown
-        await self._uow.page_versions.add(PageVersionCreate(node_id=copy.id, markdown=markdown))
+        await self._uow.page_versions.add(
+            PageVersionCreate(node_id=copy.id, markdown=markdown, author_id=self._uow.account_id)
+        )
         await self._uow.page_links.replace(copy.kb_id, copy.id, links.targets(markdown))
         # Same bytes in the bucket: only the rows are copied, so `arquivos/…` in the copy's text still opens.
         attachments = await self._uow.page_attachments.of_page(page.id)

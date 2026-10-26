@@ -7,6 +7,7 @@ from uuid import UUID
 
 from acervo.core.errors import ForbiddenError, LastOwner, NotFoundError, ValidationError
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.notification import Notification
 from acervo.schemas.organization import (
     MemberRead,
     MembershipCreate,
@@ -22,7 +23,7 @@ from acervo.schemas.organization import (
 from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import AccessService
 from acervo.services.account_service import _square_png
-from acervo.services.mailer import Mailer, MailTemplate
+from acervo.services.mailer import Mailer, MailTemplate, Unsubscribe
 from acervo.services.security_log import SecurityLog
 from acervo.services.storage import Storage
 
@@ -149,7 +150,7 @@ class OrganizationService:
                 data={"member": account.email, "role": role, "old_role": membership.role},
             )
         await self._uow.commit()
-        if role != membership.role:
+        if role != membership.role and account.notify_invites:
             actor = await self._uow.accounts.get(actor_id)
             values = {
                 "actor": actor.name,
@@ -159,7 +160,10 @@ class OrganizationService:
                 # The organization is not in the URL; the rail switches to it from the bases.
                 "link": "/bases",
             }
-            await self._mailer.send(account.email, MailTemplate.ROLE_CHANGED, account.language, values)
+            unsubscribe = Unsubscribe(account.id, Notification.INVITES)
+            await self._mailer.send(
+                account.email, MailTemplate.ROLE_CHANGED, account.language, values, unsubscribe=unsubscribe
+            )
         return MemberRead.of(account, role)
 
     async def remove(self, actor_id: UUID, organization_id: UUID, account_id: UUID) -> None:

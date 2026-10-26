@@ -9,12 +9,16 @@ import {
   useUpdateOrganization,
   type Organization,
 } from "../../data/orgSettings";
+import { useDeleteOrganization } from "../../data/deletion";
+import { needsReauth } from "../../data/security";
 import { locale, useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
 import { PhotoField } from "../../ui/PhotoField";
 import { AuthError, AuthField } from "../auth/AuthCard";
+import { DeleteDialog } from "./DeleteDialog";
+import { useReauth } from "./ReauthDialog";
 import { SettingsPage, SettingsSection, useOrganization } from "./SettingsFrame";
 
 // The API refuses a bigger logo too; checked here so a large file is not sent only to be refused.
@@ -127,7 +131,51 @@ function Leave({ organization }: { organization: Organization }) {
   );
 }
 
-/** `/organizacao/geral`: the organization's logo and name, which only its Owners and Admins change, and Sair. */
+/** Excluir organização, for an Owner, after a recent sign-in; the person is back on the Pessoal's bases. */
+function Delete({ organization }: { organization: Organization }) {
+  const { t } = useI18n();
+  const errorText = useErrorText();
+  const navigate = useNavigate();
+  const remove = useDeleteOrganization(organization.id);
+  const reauth = useReauth();
+  const [confirming, setConfirming] = useState(false);
+  // The promise, not onSuccess: switching to the Pessoal unmounts this page.
+  const go = () =>
+    void remove.mutateAsync().then(
+      () => navigate("/bases"),
+      (error: unknown) => reauth.ask(error, go),
+    );
+  return (
+    <SettingsSection
+      title={t("deletion.org")}
+      desc={t("deletion.org.desc")}
+      action={{ label: t("deletion.org"), onClick: () => setConfirming(true) }}
+    >
+      {confirming && (
+        <DeleteDialog
+          title={t("deletion.org.title", { name: organization.name })}
+          items={[
+            t("deletion.org.bases", { name: organization.name }),
+            t("deletion.org.members"),
+            t("deletion.org.final"),
+          ]}
+          match={organization.name}
+          action={t("deletion.org")}
+          pending={remove.isPending}
+          error={remove.isError && !needsReauth(remove.error) ? errorText(remove.error) : undefined}
+          onDelete={go}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+      {reauth.dialog}
+    </SettingsSection>
+  );
+}
+
+/**
+ * `/organizacao/geral`: the organization's logo and name, which only its Owners and Admins change, Sair, and Excluir
+ * for its Owners.
+ */
 export function OrgGeneral() {
   const { t } = useI18n();
   const organization = useOrganization();
@@ -145,6 +193,7 @@ export function OrgGeneral() {
         </div>
       </SettingsSection>
       <Leave organization={organization} />
+      {organization.my_role === "owner" && !organization.personal && <Delete organization={organization} />}
     </SettingsPage>
   );
 }

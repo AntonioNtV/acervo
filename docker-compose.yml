@@ -12,6 +12,7 @@ x-acervo: &acervo
     S3_ENDPOINT: http://minio:9000
     SMTP_HOST: mailpit
     SMTP_PORT: 1025
+    TEMPORAL_ADDRESS: temporal:7233
 
 services:
   postgres:
@@ -64,6 +65,27 @@ services:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
 
+  # Temporal server for the digest schedule, keeping its own databases in the same Postgres.
+  temporal:
+    image: temporalio/auto-setup:1.27.2
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: acervo
+      POSTGRES_PWD: acervo
+      POSTGRES_SEEDS: postgres
+    ports:
+      - "127.0.0.1:7233:7233"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Healthy once auto-setup has created the default namespace the worker uses.
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "namespace", "describe", "-n", "default", "--address", "temporal:7233"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
   migrate:
     <<: *acervo
     command: ["alembic", "upgrade", "head"]
@@ -86,6 +108,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  worker:
+    <<: *acervo
+    command: ["python", "-m", "acervo.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      temporal:
+        condition: service_healthy
 
 volumes:
   postgres:

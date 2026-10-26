@@ -26,6 +26,7 @@ export function pageNode(page: Partial<NonNullable<NodeDetail["page"]>> = {}): N
       saved_at: "2026-10-14T16:10:00Z",
       links: {},
       sections: [],
+      following: false,
       ...page,
     },
     file: null,
@@ -39,8 +40,19 @@ export const versions: PageVersion[] = [
     created_at: "2026-10-14T16:10:00Z",
     edit_started_at: "2026-10-14T15:58:00Z",
     edit_ended_at: "2026-10-14T16:10:00Z",
+    author_id: "account-2",
+    author: "Bruno Lima",
+    author_known: true,
   },
-  { id: "v1", created_at: "2026-10-14T11:03:00Z", edit_started_at: null, edit_ended_at: null },
+  {
+    id: "v1",
+    created_at: "2026-10-14T11:03:00Z",
+    edit_started_at: null,
+    edit_ended_at: null,
+    author_id: null,
+    author: null,
+    author_known: false,
+  },
 ];
 
 export function renderPage() {

@@ -3,6 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calls, resetApi, respond } from "../../api/testing";
 import { fakeBases, summary } from "../bases/testing";
+import { signedIn } from "../settings/testing";
 import { pageNode, renderPage, typeInPage } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
@@ -44,6 +45,38 @@ describe("PageMenu", () => {
     await waitFor(() =>
       expect(calls.some((call) => call.method === "DELETE" && call.path === "/v1/nodes/page-1/favorite")).toBe(true),
     );
+  });
+
+  it("follows the page and says a digest comes once a day, and unfollows it", async () => {
+    signedIn({ preferences: { ...signedIn().preferences, notify_followed: true } });
+    let following = false;
+    const read = () => ({ body: pageNode({ following }) });
+    respond("GET", "/v1/nodes/page-1", read);
+    respond("PUT", "/v1/pages/page-1/follow", () => ((following = true), { status: 204, body: undefined }));
+    respond("DELETE", "/v1/pages/page-1/follow", () => ((following = false), { status: 204, body: undefined }));
+    renderPage();
+
+    await choose("Seguir");
+    expect(await screen.findByRole("status")).toHaveTextContent("Seguindo. Um resumo por dia, se ela mudar.");
+
+    await choose("Deixar de seguir");
+    await waitFor(() =>
+      expect(calls.some((call) => call.method === "DELETE" && call.path === "/v1/pages/page-1/follow")).toBe(true),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: "Mais opções da página" }));
+    expect(await screen.findByRole("menuitem", { name: "Seguir" })).toBeInTheDocument();
+  });
+
+  it("following with the digest off points to Notificações", async () => {
+    signedIn();
+    respond("PUT", "/v1/pages/page-1/follow", { status: 204, body: undefined });
+    renderPage();
+
+    await choose("Seguir");
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("Seguindo. O resumo diário está desligado em Notificações.");
+    expect(within(notice).getByRole("link", { name: "Notificações" })).toHaveAttribute("href", "/conta/notificacoes");
   });
 
   it("duplicating opens the copy", async () => {

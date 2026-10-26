@@ -15,6 +15,8 @@ class PageVersionCreate(BaseModel):
     markdown: str = Field(description="The page's whole text.")
     edit_started_at: datetime | None = Field(default=None, description="First change of the editing session it ends.")
     edit_ended_at: datetime | None = Field(default=None, description="Last change of the editing session it ends.")
+    author_id: UUID | None = Field(default=None, description="Account that saved it; null when none is known.")
+    author_known: bool = Field(default=True, description="False when who wrote it cannot be told.")
 
 
 class PageVersionSummary(BaseModel):
@@ -30,13 +32,36 @@ class PageVersionSummary(BaseModel):
     edit_ended_at: datetime | None = Field(
         description="Last change of the editing session it came from; null when it did not come from one."
     )
+    author_id: UUID | None = Field(
+        description="Account that saved it; null for versions saved before authors were recorded, or once the "
+        "account is deleted."
+    )
+    author: str | None = Field(description="Name of the account that saved it; null when `author_id` is.")
+    author_known: bool = Field(
+        description="False for versions saved before authors were recorded; a null author with this true is a "
+        "deleted account."
+    )
 
 
-class PageVersionRead(PageVersionSummary):
+class PageVersionRead(BaseModel):
     """A stored version of a page, with its text."""
 
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID = Field(description="Version ID.")
+    created_at: datetime = Field(description="When it was written.")
+    edit_started_at: datetime | None = Field(
+        description="First change of the editing session it came from; null when it did not come from one."
+    )
+    edit_ended_at: datetime | None = Field(
+        description="Last change of the editing session it came from; null when it did not come from one."
+    )
     node_id: UUID = Field(description="Page the version belongs to.")
     markdown: str = Field(description="The page's whole text.")
+    author_id: UUID | None = Field(
+        description="Account that saved it; null for versions saved before authors were recorded, or once the "
+        "account is deleted."
+    )
 
 
 class PageDraftCreate(BaseModel):
@@ -46,6 +71,7 @@ class PageDraftCreate(BaseModel):
     markdown: str = Field(description="The page's whole text.")
     revision: int = Field(description="Bumped on every save; a save from an older revision is refused.")
     started_at: datetime = Field(description="First change of the editing session not yet cut as a version.")
+    author_id: UUID | None = Field(default=None, description="Account that typed it last; null when unknown.")
 
 
 class PageDraftRead(PageDraftCreate):
@@ -91,6 +117,7 @@ class PageRead(BaseModel):
         "page it opens, or why it shows in gray."
     )
     sections: list[Section] = Field(description="The page's `##` headings, in order.")
+    following: bool = Field(description="Whether the asking account follows the page.")
 
 
 class PageTextPut(BaseModel):

@@ -6,12 +6,14 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from acervo.core import signing
 from acervo.core.errors import (
     CodeInvalid,
     ConflictError,
     EmailNotVerified,
     EmailTaken,
     InvalidCredentials,
+    NotFoundError,
     TooManyAttempts,
 )
 from acervo.core.passwords import hash_password, needs_rehash, verify_password
@@ -30,7 +32,9 @@ from acervo.schemas.account import (
     ResetConfirm,
     SignIn,
     SignUp,
+    timezone_or_default,
 )
+from acervo.schemas.notification import Notification
 from acervo.schemas.security import (
     PendingSignIn,
     PendingSignInCreate,
@@ -138,10 +142,14 @@ class AuthService:
         if await self._uow.accounts.by_email(data.email) is not None:
             raise EmailTaken("email already has an account")
         password_hash = await asyncio.to_thread(hash_password, data.password)
+        created = AccountCreate(
+            email=data.email,
+            name=data.name.strip(),
+            password_hash=password_hash,
+            timezone=timezone_or_default(data.timezone),
+        )
         try:
-            account = await self._uow.accounts.create(
-                AccountCreate(email=data.email, name=data.name.strip(), password_hash=password_hash), created_at=now
-            )
+            account = await self._uow.accounts.create(created, created_at=now)
         except ConflictError as exc:
             raise EmailTaken("email already has an account") from exc
         await self._uow.organizations.create_personal(account.id)
@@ -291,6 +299,18 @@ class AuthService:
         )
         await self._sessions.end_all(account.id)
         return AccountRead.of(account), await self._sessions.create(account.id, user_agent, "reset")
+
+    async def set_notification(self, secret: str, token: str, on: bool) -> None:
+        """Turns the toggle of an unsubscribe link off, or back on, without signing in; any number of times."""
+        sealed = signing.unseal(secret, "unsubscribe", token, self._now().timestamp())
+        if sealed is None:
+            raise NotFoundError("unsubscribe link not valid")
+        if Notification(sealed["notification"]) == Notification.INVITES:
+            change = AccountUpdate(notify_invites=on)
+        else:
+            change = AccountUpdate(notify_followed=on)
+        await self._uow.accounts.update(UUID(sealed["account"]), change)
+        await self._uow.commit()
 
     async def _claim_invites(self, account_id: UUID) -> None:
         """An invited email that just got a confirmed account joins what it was invited to (spec §3)."""

@@ -27,7 +27,8 @@ export function SignUp() {
   );
 
   function submit() {
-    const body = { name: name.trim(), email: email.trim(), password };
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const body = { name: name.trim(), email: email.trim(), password, timezone };
     signUp.mutate(body, {
       onSuccess: () => navigate(`/confirmar-email?next=${encodeURIComponent(next)}`, { state: { email: body.email } }),
     });

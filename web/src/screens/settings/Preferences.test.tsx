@@ -36,4 +36,28 @@ describe("Preferences", () => {
     expect(document.documentElement).toHaveClass("dark");
     expect(screen.getByRole("button", { name: "Tema" })).toHaveTextContent("Escuro");
   });
+
+  it("a time zone saves on the account with every other preference", async () => {
+    const account = signedIn();
+    respond("PUT", "/v1/account/preferences", (_url, body) => ({ body: { ...account, preferences: body } }));
+    renderWithApi(
+      <ThemeProvider>
+        <Preferences />
+      </ThemeProvider>,
+    );
+
+    const row = await screen.findByRole("button", { name: "Fuso horário" });
+    expect(row).toHaveTextContent("Sao Paulo (GMT-3)");
+    await userEvent.click(row);
+    // The menu opens on the chosen zone, not on the first of some 400.
+    await waitFor(() => expect(screen.getByRole("menuitemradio", { name: "Sao Paulo (GMT-3)" })).toHaveFocus());
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Tokyo (GMT+9)" }));
+
+    await waitFor(() =>
+      expect(calls.find((call) => call.method === "PUT")?.body).toEqual({
+        ...account.preferences,
+        timezone: "Asia/Tokyo",
+      }),
+    );
+  });
 });

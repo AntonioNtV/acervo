@@ -102,6 +102,19 @@ async def me(account: CurrentAccount) -> AccountRead:
     return account
 
 
+@router.post("/unsubscribe/{token}", status_code=204, responses={404: ERROR})
+async def unsubscribe(token: str, service: Service, settings: AppSettings) -> None:
+    """Parar de receber: turns off the toggle the emailed link carries, without signing in; any body, so the
+    RFC 8058 one-click POST works too. 404 `not_found` for a bad link or a deleted account."""
+    await service.set_notification(settings.session_secret.get_secret_value(), token, False)
+
+
+@router.post("/resubscribe/{token}", status_code=204, responses={404: ERROR})
+async def resubscribe(token: str, service: Service, settings: AppSettings) -> None:
+    """Turns the toggle of the same link back on."""
+    await service.set_notification(settings.session_secret.get_secret_value(), token, True)
+
+
 @router.post("/reset", status_code=204)
 async def request_reset(body: ResetRequest, service: Service) -> None:
     """A single-use link valid for an hour goes to the email; 204 also when the email has no account."""

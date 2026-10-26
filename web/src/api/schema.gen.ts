@@ -15,7 +15,12 @@ export interface paths {
         get: operations["get_account_v1_account_get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Account
+         * @description Deletes the account, its Pessoal and the organizations where it is the only Owner, whose members are told;
+         *     pages it wrote in other bases stay. 403 `reauthentication_required` without a recent sign-in.
+         */
+        delete: operations["delete_account_v1_account_delete"];
         options?: never;
         head?: never;
         /** Rename Account */
@@ -206,6 +211,7 @@ export interface paths {
         /**
          * Google Start
          * @description Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.
+         *     `timezone` is the browser's IANA time zone, kept by an account Google signs up (unknown: America/Sao_Paulo).
          */
         get: operations["google_start_v1_auth_google_start_get"];
         put?: never;
@@ -287,6 +293,26 @@ export interface paths {
          * @description Sets the password, ends every session of the account and signs in.
          */
         post: operations["confirm_reset_v1_auth_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/resubscribe/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resubscribe
+         * @description Turns the toggle of the same link back on.
+         */
+        post: operations["resubscribe_v1_auth_resubscribe__token__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -385,6 +411,27 @@ export interface paths {
          * @description A new code for the pending sign-in, at most once a minute; `channel: email` sends it by email.
          */
         post: operations["resend_two_factor_v1_auth_two_factor_resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/unsubscribe/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Unsubscribe
+         * @description Parar de receber: turns off the toggle the emailed link carries, without signing in; any body, so the
+         *     RFC 8058 one-click POST works too. 404 `not_found` for a bad link or a deleted account.
+         */
+        post: operations["unsubscribe_v1_auth_unsubscribe__token__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1138,7 +1185,13 @@ export interface paths {
         get: operations["get_organization_v1_organizations__organization_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Organization
+         * @description Owners only, with a recent sign-in (403 `reauthentication_required`); a Pessoal goes only with its account
+         *     (403 `personal_org`). Its bases go with every page, file and version, never through the trash; every other
+         *     member is told by email.
+         */
+        delete: operations["delete_organization_v1_organizations__organization_id__delete"];
         options?: never;
         head?: never;
         /**
@@ -1377,6 +1430,27 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pages/{node_id}/follow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Follow Page
+         * @description The person follows the page, for the daily digest; following it again changes nothing.
+         */
+        put: operations["follow_page_v1_pages__node_id__follow_put"];
+        post?: never;
+        /** Unfollow Page */
+        delete: operations["unfollow_page_v1_pages__node_id__follow_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3093,6 +3167,11 @@ export interface components {
          */
         PageRead: {
             /**
+             * Following
+             * @description Whether the asking account follows the page.
+             */
+            following: boolean;
+            /**
              * Links
              * @description Each `[[…]]` target, keyed with its whitespace collapsed to single spaces and lowercased: the page it opens, or why it shows in gray.
              */
@@ -3165,6 +3244,21 @@ export interface components {
          * @description One version of a page in its history, without its text.
          */
         PageVersionSummary: {
+            /**
+             * Author
+             * @description Name of the account that saved it; null when `author_id` is.
+             */
+            author: string | null;
+            /**
+             * Author Id
+             * @description Account that saved it; null for versions saved before authors were recorded, or once the account is deleted.
+             */
+            author_id: string | null;
+            /**
+             * Author Known
+             * @description False for versions saved before authors were recorded; a null author with this true is a deleted account.
+             */
+            author_known: boolean;
             /**
              * Created At
              * Format: date-time
@@ -3267,6 +3361,18 @@ export interface components {
              */
             language: "pt-BR" | "en";
             /**
+             * Notify Followed
+             * @description Gets the daily digest of the pages it follows.
+             * @default false
+             */
+            notify_followed: boolean;
+            /**
+             * Notify Invites
+             * @description Gets the emails of invites accepted and access changes.
+             * @default true
+             */
+            notify_invites: boolean;
+            /**
              * Page Width
              * @description default (720 px) or wide (1040 px).
              * @default default
@@ -3287,6 +3393,12 @@ export interface components {
              * @enum {string}
              */
             theme: "light" | "dark" | "system";
+            /**
+             * Timezone
+             * @description IANA name; the digest goes out at 8:00 there.
+             * @default America/Sao_Paulo
+             */
+            timezone: string;
         };
         /** ProfileUpdate */
         ProfileUpdate: {
@@ -3554,6 +3666,11 @@ export interface components {
             name: string;
             /** Password */
             password: string;
+            /**
+             * Timezone
+             * @description The browser's IANA time zone; unknown or missing is America/Sao_Paulo.
+             */
+            timezone?: string | null;
         };
         /**
          * TreeNode
@@ -3761,6 +3878,53 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_account_v1_account_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4322,6 +4486,7 @@ export interface operations {
         parameters: {
             query?: {
                 next?: string | null;
+                timezone?: string | null;
             };
             header?: never;
             path?: never;
@@ -4480,6 +4645,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resubscribe_v1_auth_resubscribe__token__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Unprocessable Entity */
@@ -4698,6 +4901,44 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    unsubscribe_v1_auth_unsubscribe__token__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7473,6 +7714,64 @@ export interface operations {
             };
         };
     };
+    delete_organization_v1_organizations__organization_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     update_organization_v1_organizations__organization_id__patch: {
         parameters: {
             query?: never;
@@ -8472,6 +8771,122 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    follow_page_v1_pages__node_id__follow_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    unfollow_page_v1_pages__node_id__follow_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                node_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description Unprocessable Entity */
             422: {

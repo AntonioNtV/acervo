@@ -106,5 +106,11 @@ class TwoFactorRequired(ForbiddenError):
     code = "two_factor_required"
 
 
+class PersonalOrg(ForbiddenError):
+    """A Pessoal goes only with its account."""
+
+    code = "personal_org"
+
+
 class TooManyAttempts(AcervoError):
     code = "too_many_attempts"

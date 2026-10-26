@@ -55,12 +55,13 @@ export function useRemoveLogo(organizationId: string) {
 }
 
 /** Only its Owners and Admins may list them. */
+export const membersQuery = (organizationId: string) => ({
+  queryKey: ["members", organizationId],
+  queryFn: () => call(api.GET("/v1/organizations/{organization_id}/members", path(organizationId))),
+});
+
 export function useMembers(organizationId: string, enabled = true) {
-  return useQuery({
-    queryKey: ["members", organizationId],
-    enabled,
-    queryFn: () => call(api.GET("/v1/organizations/{organization_id}/members", path(organizationId))),
-  });
+  return useQuery({ ...membersQuery(organizationId), enabled });
 }
 
 /** Refused with `last_owner` when it would leave the organization without an Owner. */

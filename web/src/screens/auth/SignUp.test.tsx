@@ -23,6 +23,16 @@ async function signUp(email: string) {
 }
 
 describe("SignUp", () => {
+  it("Google takes the browser's time zone, for the account it signs up", () => {
+    renderAuth("/criar-conta");
+
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    expect(screen.getByRole("link", { name: "Continuar com Google" })).toHaveAttribute(
+      "href",
+      `/v1/auth/google/start?next=%2Fbases&timezone=${encodeURIComponent(zone)}`,
+    );
+  });
+
   it("says the email already has an account, with a link to Entrar", async () => {
     respond("POST", "/v1/auth/sign-up", { status: 409, body: { error: "email_taken", message: "taken" } });
     renderAuth("/criar-conta");

@@ -2,6 +2,7 @@ import type { RouteObject } from "react-router-dom";
 import { Invite } from "../screens/auth/Invite";
 import { LinkGoogle } from "../screens/auth/LinkGoogle";
 import { NewPassword, ResetRequest } from "../screens/auth/Reset";
+import { Unsubscribe } from "../screens/auth/Unsubscribe";
 import { SignIn } from "../screens/auth/SignIn";
 import { SignUp } from "../screens/auth/SignUp";
 import { TwoFactor } from "../screens/auth/TwoFactor";
@@ -13,6 +14,7 @@ import { OrgAccess } from "../screens/settings/OrgAccess";
 import OrgAudit from "../screens/settings/OrgAudit";
 import { OrgBases } from "../screens/settings/OrgBases";
 import { OrgGeneral } from "../screens/settings/OrgGeneral";
+import { Notifications } from "../screens/settings/Notifications";
 import { OrgMembers } from "../screens/settings/OrgMembers";
 import { Preferences } from "../screens/settings/Preferences";
 import { Profile } from "../screens/settings/Profile";
@@ -35,6 +37,7 @@ export const routes: RouteObject[] = [
   { path: "/redefinir-senha", element: <ResetRequest /> },
   { path: "/redefinir-senha/:token", element: <NewPassword /> },
   { path: "/convite/:token", element: <Invite /> },
+  { path: "/descadastro/:token", element: <Unsubscribe /> },
   {
     element: <RequireAccount />,
     children: [
@@ -56,6 +59,7 @@ export const routes: RouteObject[] = [
             children: [
               { path: "/conta/perfil", element: <Profile /> },
               { path: "/conta/preferencias", element: <Preferences /> },
+              { path: "/conta/notificacoes", element: <Notifications /> },
               { path: "/conta/seguranca", element: <Security /> },
               { path: "/conta/sessoes", element: <Sessions /> },
               { path: "/conta/atividade", element: <Activity /> },
