@@ -19,6 +19,11 @@
             "title": "Has Google",
             "type": "boolean"
           },
+          "has_passkey": {
+            "description": "Whether the account has a passkey.",
+            "title": "Has Passkey",
+            "type": "boolean"
+          },
           "has_password": {
             "description": "False for an account that only signs in with Google.",
             "title": "Has Password",
@@ -49,6 +54,16 @@
           },
           "preferences": {
             "$ref": "#/components/schemas/Preferences"
+          },
+          "two_factor": {
+            "description": "How a password sign-in gets its second step; none when it has none.",
+            "enum": [
+              "none",
+              "email",
+              "whatsapp"
+            ],
+            "title": "Two Factor",
+            "type": "string"
           }
         },
         "required": [
@@ -58,6 +73,8 @@
           "has_password",
           "has_google",
           "email_verified",
+          "two_factor",
+          "has_passkey",
           "photo_url",
           "preferences"
         ],
@@ -2100,6 +2117,11 @@
             "description": "Whether this is the person's Pessoal.",
             "title": "Personal",
             "type": "boolean"
+          },
+          "require_two_factor": {
+            "description": "Whether members need a passkey or two-step verification.",
+            "title": "Require Two Factor",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2108,7 +2130,8 @@
           "logo_url",
           "personal",
           "my_role",
-          "new_base_access"
+          "new_base_access",
+          "require_two_factor"
         ],
         "title": "OrganizationRead",
         "type": "object"
@@ -2145,6 +2168,18 @@
             ],
             "description": "The general access a new base starts with (Acesso de bases novas).",
             "title": "New Base Access"
+          },
+          "require_two_factor": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Whether members need a passkey or two-step verification to reach its bases.",
+            "title": "Require Two Factor"
           }
         },
         "title": "OrganizationUpdate",

@@ -1,7 +1,7 @@
 """security: passkey, pending_sign_in and security_event; two-step verification on account and organization
 
-Revision ID: 0011
-Revises: 0010
+Revision ID: 0012
+Revises: 0011
 Create Date: 2026-10-27 00:00:00.000000
 """
 
