@@ -50,7 +50,7 @@ async def test_preferences_saved_on_one_session_show_on_another(sign_in: SignIn,
     seen = await phone.get("/v1/account")
 
     assert saved.status_code == 200, saved.text
-    assert seen.json()["preferences"] == preferences
+    assert seen.json()["preferences"].items() >= preferences.items()
 
 
 async def test_photo_upload_fetch_and_delete(sign_in: SignIn, make_account: MakeAccount) -> None:

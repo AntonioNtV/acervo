@@ -16,7 +16,7 @@ from acervo.core.errors import AcervoError, CodeInvalid, InvalidCredentials, Las
 from acervo.core.passwords import verify_password
 from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.account import AccountCreate, AccountRead, AccountRecord, AccountUpdate
+from acervo.schemas.account import AccountCreate, AccountRead, AccountRecord, AccountUpdate, timezone_or_default
 from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import AccessService
 from acervo.services.auth_service import UNVERIFIED_KEPT
@@ -71,11 +71,19 @@ class GoogleAuthService:
         self._redirect_uri = redirect_uri
         self._now = now
 
-    def start(self, next: str | None) -> tuple[str, str]:
-        """Google's URL to send the browser to, and the value of the short-lived cookie the callback checks."""
+    def start(self, next: str | None, timezone: str | None = None) -> tuple[str, str]:
+        """Google's URL to send the browser to, and the value of the short-lived cookie the callback checks;
+        `timezone` is the browser's, for an account Google signs up."""
         state, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         challenge = _b64(hashlib.sha256(verifier.encode()).digest())
-        cookie = self._seal("google_state", STATE_SECONDS, state=state, verifier=verifier, next=_same_origin_path(next))
+        cookie = self._seal(
+            "google_state",
+            STATE_SECONDS,
+            state=state,
+            verifier=verifier,
+            next=_same_origin_path(next),
+            timezone=timezone or "",
+        )
         return self._google.authorize_url(state, challenge, self._redirect_uri), cookie
 
     async def finish(self, code: str | None, state: str | None, cookie: str | None, user_agent: str | None) -> Landing:
@@ -91,7 +99,8 @@ class GoogleAuthService:
             return Landing(FAILED)
         try:
             person = await self._google.identity(code, started["verifier"], self._redirect_uri)
-            return await self._land(person, started["next"], user_agent)
+            # A state cookie sealed before time zones existed carries none.
+            return await self._land(person, started["next"], started.get("timezone"), user_agent)
         except AcervoError:
             return Landing(FAILED)
 
@@ -132,7 +141,7 @@ class GoogleAuthService:
         await self._tell(unlinked, SecurityEventKind.GOOGLE_UNLINKED, session.user_agent)
         return AccountRead.of(unlinked)
 
-    async def _land(self, person: GoogleIdentity, next: str, user_agent: str | None) -> Landing:
+    async def _land(self, person: GoogleIdentity, next: str, timezone: str | None, user_agent: str | None) -> Landing:
         if not person.email_verified:
             return Landing(FAILED)
         account = await self._uow.accounts.get_by(google_sub=person.sub)
@@ -148,7 +157,13 @@ class GoogleAuthService:
                 account = await self._uow.accounts.update(account.id, AccountUpdate(google_sub=person.sub))
                 return Landing(next, await self._sign_in_linked(account, user_agent))
             name = person.name or person.email.split("@")[0]
-            created = AccountCreate(email=person.email, name=name, google_sub=person.sub, email_verified_at=self._utc())
+            created = AccountCreate(
+                email=person.email,
+                name=name,
+                google_sub=person.sub,
+                email_verified_at=self._utc(),
+                timezone=timezone_or_default(timezone),
+            )
             account = await self._uow.accounts.create(created)
             await self._uow.organizations.create_personal(account.id)
             await self._claim_invites(account.id)

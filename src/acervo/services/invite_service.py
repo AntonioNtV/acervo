@@ -16,6 +16,7 @@ from acervo.core.errors import (
 )
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRecord
+from acervo.schemas.notification import Notification
 from acervo.schemas.organization import (
     BaseMemberCreate,
     BaseMemberUpdate,
@@ -30,7 +31,7 @@ from acervo.schemas.organization import (
 )
 from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import BASE_RANK, AccessService
-from acervo.services.mailer import Mailer, MailTemplate
+from acervo.services.mailer import Mailer, MailTemplate, Unsubscribe
 from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import token_hash
 
@@ -117,8 +118,13 @@ class InviteService:
         await self._uow.commit()
         inviter = await self._uow.accounts.get(account_id)
         for person in added:
+            if not person.notify_invites:
+                continue
             values = {"inviter": inviter.name, "base": kb.name, "role": data.role, "link": f"/kbs/{kb_id}"}
-            await self._mailer.send(person.email, MailTemplate.BASE_SHARED, person.language, values)
+            unsubscribe = Unsubscribe(person.id, Notification.INVITES)
+            await self._mailer.send(
+                person.email, MailTemplate.BASE_SHARED, person.language, values, unsubscribe=unsubscribe
+            )
         for invite, token in issued:
             if token is not None:
                 await self._send_invite(invite, token)
@@ -297,6 +303,8 @@ class InviteService:
 
     async def _send_accepted(self, invite: InviteRecord, member: AccountRecord) -> None:
         inviter = await self._uow.accounts.get(invite.invited_by)
+        if not inviter.notify_invites:
+            return
         values = {
             "name": member.name,
             "member_email": member.email,
@@ -305,7 +313,10 @@ class InviteService:
             # The organization rides along: the settings show the one this browser has open, maybe another.
             "link": f"{MEMBERS_PATH}?org={invite.organization_id}" if invite.kb_id is None else f"/kbs/{invite.kb_id}",
         }
-        await self._mailer.send(inviter.email, MailTemplate.INVITE_ACCEPTED, inviter.language, values)
+        unsubscribe = Unsubscribe(inviter.id, Notification.INVITES)
+        await self._mailer.send(
+            inviter.email, MailTemplate.INVITE_ACCEPTED, inviter.language, values, unsubscribe=unsubscribe
+        )
 
     async def _preview(self, invite: InviteRecord) -> InvitePreview:
         organization = await self._uow.organizations.get(invite.organization_id)
