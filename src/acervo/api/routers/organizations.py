@@ -8,7 +8,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Response, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import SIGNED_IN, CurrentAccount, get_organization_service, get_security_log
+from acervo.api.deps import (
+    SIGNED_IN,
+    CurrentAccount,
+    RecentSignIn,
+    get_deletion_service,
+    get_organization_service,
+    get_security_log,
+)
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.organization import (
     MemberRead,
@@ -18,6 +25,7 @@ from acervo.schemas.organization import (
     RoleChange,
 )
 from acervo.schemas.security import AuditEventRead
+from acervo.services.deletion_service import DeletionService
 from acervo.services.organization_service import OrganizationService
 from acervo.services.security_log import SecurityLog
 
@@ -30,7 +38,9 @@ router = APIRouter(
     responses={401: ERROR, 422: ERROR},
 )
 
+
 Service = Annotated[OrganizationService, Depends(get_organization_service)]
+Deletion = Annotated[DeletionService, Depends(get_deletion_service)]
 Log = Annotated[SecurityLog, Depends(get_security_log)]
 # A cell starting like a formula runs as one in a spreadsheet; names and emails are typed by anyone.
 FORMULA_STARTS = ("=", "+", "-", "@", "\t", "\r")
@@ -65,6 +75,16 @@ async def update_organization(
     """Owners and Admins; a Pessoal keeps its name and requires nothing. Turning `require_two_factor` on emails the
     members who sign in with a password only; `password_only` says how many remain."""
     return await service.update(account.id, organization_id, body)
+
+
+@router.delete("/{organization_id}", status_code=204, responses={403: ERROR, 404: ERROR})
+async def delete_organization(
+    organization_id: UUID, account: CurrentAccount, _: RecentSignIn, service: Deletion
+) -> None:
+    """Owners only, with a recent sign-in (403 `reauthentication_required`); a Pessoal goes only with its account
+    (403 `personal_org`). Its bases go with every page, file and version, never through the trash; every other
+    member is told by email."""
+    await service.delete_organization(account.id, organization_id)
 
 
 @router.put("/{organization_id}/logo", response_model=OrganizationRead, responses={403: ERROR, 404: ERROR})

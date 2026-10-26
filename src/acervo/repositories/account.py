@@ -1,12 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import delete, func
-from sqlalchemy.orm import undefer
+from sqlalchemy import delete, func, select
+from sqlalchemy.orm import aliased, undefer
 from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.db.models.account import Account
 from acervo.db.models.membership import Membership
+from acervo.db.models.organization import Organization
 from acervo.repositories.base import BaseRepository
 from acervo.schemas.account import AccountCreate, AccountRecord, AccountUpdate
 
@@ -37,8 +38,27 @@ class AccountRepository(BaseRepository[Account, AccountRecord, AccountCreate, Ac
         )
         return [self._to_read(account) for account in await self._session.scalars(query)]
 
+    async def sole_owned(self, account_id: UUID) -> list[UUID]:
+        """The teams, not the Pessoal, where the account is the only Owner."""
+        other = aliased(Membership)
+        others = select(other.id).where(
+            other.organization_id == Membership.organization_id, other.role == "owner", other.account_id != account_id
+        )
+        query = (
+            select(Membership.organization_id)
+            .join(Organization, Organization.id == Membership.organization_id)
+            .where(
+                Membership.account_id == account_id,
+                Membership.role == "owner",
+                Organization.personal_of.is_(None),
+                ~others.exists(),
+            )
+            .order_by(Membership.organization_id)
+        )
+        return list(await self._session.scalars(query))
+
     async def delete(self, account_id: UUID) -> None:
-        """Removes the account with its sessions, codes, reset links and favorites."""
+        """Removes the account with its sessions, codes, reset links, favorites, follows and memberships."""
         await self._session.execute(delete(Account).where(Account.id == account_id))
 
     async def free_if_stale(self, email: str, created_before: datetime) -> None:

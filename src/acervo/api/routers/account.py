@@ -2,14 +2,24 @@ from pathlib import PurePosixPath
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, Response, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from acervo.api.deps import CurrentAccount, RecentSignIn, current_account, get_account_service
+from acervo.api.cookies import clear_session_cookie
+from acervo.api.deps import (
+    CurrentAccount,
+    RecentSignIn,
+    current_account,
+    get_account_service,
+    get_deletion_service,
+    get_settings,
+)
+from acervo.core.settings import Settings
 from acervo.schemas.account import PASSWORD_MIN, AccountRead, CodeIn, EmailChange, Preferences, ProfileUpdate
 from acervo.schemas.common import ErrorResponse
 from acervo.services.account_service import AccountService
+from acervo.services.deletion_service import DeletionService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
@@ -18,6 +28,7 @@ router = APIRouter(prefix="/v1", tags=["account"], responses={401: ERROR, 422: E
 
 
 Service = Annotated[AccountService, Depends(get_account_service)]
+Deletion = Annotated[DeletionService, Depends(get_deletion_service)]
 
 
 class PasswordSet(BaseModel):
@@ -32,6 +43,20 @@ async def get_account(account: CurrentAccount, service: Service) -> AccountRead:
 @router.patch("/account", response_model=AccountRead)
 async def rename_account(body: ProfileUpdate, account: CurrentAccount, service: Service) -> AccountRead:
     return await service.rename(account.id, body)
+
+
+@router.delete("/account", status_code=204, responses={403: ERROR})
+async def delete_account(
+    response: Response,
+    account: CurrentAccount,
+    _: RecentSignIn,
+    service: Deletion,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> None:
+    """Deletes the account, its Pessoal and the organizations where it is the only Owner, whose members are told;
+    pages it wrote in other bases stay. 403 `reauthentication_required` without a recent sign-in."""
+    await service.delete_account(account.id)
+    clear_session_cookie(response, settings)
 
 
 @router.put("/account/preferences", response_model=AccountRead)
