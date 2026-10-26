@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import type { NodeDetail, TreeNode } from "../../api/client";
 import { useErrorText } from "../../app/errors";
+import { useAccess } from "../../data/access";
 import { useFavorite } from "../../data/favorites";
 import { useKbs } from "../../data/kbs";
 import { useChildren, useDescribeNode, useRenameNode } from "../../data/tree";
@@ -33,6 +34,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const kb = useKbs().data?.find((summary) => summary.id === kbId);
+  const { canEdit } = useAccess(kbId);
   const folderId = folder?.id ?? null;
   const title = folder ? folder.title : (kb?.name ?? "");
   const description = folder ? folder.description : (kb?.description ?? "");
@@ -58,17 +60,18 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
   return (
     <>
       <TopBar kbId={kbId} nodeId={folderId ?? undefined} menu={folder && <FolderMenu folder={folder} />} />
-      {folder && <Cover node={folder} />}
+      {folder && <Cover node={folder} editable={canEdit} />}
       <FileDropZone
         kbId={kbId}
         parentId={folderId}
         name={title}
+        disabled={!canEdit}
         className="mx-auto box-border min-h-[calc(100%-44px)] w-full max-w-[720px] px-8 pt-10 pb-30"
       >
         <div className="group/header">
-          {folder && <HeaderDecor node={folder} />}
-          {folder ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
-          {folder ? (
+          {folder && <HeaderDecor node={folder} editable={canEdit} />}
+          {folder && canEdit ? <Title node={folder} /> : <h1 className={titleClass}>{title}</h1>}
+          {folder && canEdit ? (
             <Description node={folder} />
           ) : (
             description && <p className="m-0 mt-1.5 text-15 leading-6 text-text-2">{description}</p>
@@ -82,7 +85,7 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
             </li>
           ))}
         </ul>
-        {children.isSuccess && all.length === 0 && (
+        {canEdit && children.isSuccess && all.length === 0 && (
           <div className="mt-6">
             <UploadArea
               kind="file"
@@ -95,27 +98,29 @@ function Folder({ kbId, folder }: { kbId: string; folder: NodeDetail | null }) {
           </div>
         )}
 
-        <div className="mt-3 -ml-1.5 flex flex-wrap gap-1">
-          <button type="button" disabled={untitled.isPending} onClick={newPage} className={quietClass}>
-            <Icon name="plus" size={14} />
-            {t("folder.new.page")}
-          </button>
-          <button type="button" onClick={() => input.current?.click()} className={quietClass}>
-            <UploadGlyph />
-            {t("folder.upload")}
-          </button>
-          <input
-            ref={input}
-            type="file"
-            multiple
-            hidden
-            aria-label={t("folder.upload")}
-            onChange={(event) => {
-              startUpload(Array.from(event.target.files ?? []), folderId);
-              event.target.value = "";
-            }}
-          />
-        </div>
+        {canEdit && (
+          <div className="mt-3 -ml-1.5 flex flex-wrap gap-1">
+            <button type="button" disabled={untitled.isPending} onClick={newPage} className={quietClass}>
+              <Icon name="plus" size={14} />
+              {t("folder.new.page")}
+            </button>
+            <button type="button" onClick={() => input.current?.click()} className={quietClass}>
+              <UploadGlyph />
+              {t("folder.upload")}
+            </button>
+            <input
+              ref={input}
+              type="file"
+              multiple
+              hidden
+              aria-label={t("folder.upload")}
+              onChange={(event) => {
+                startUpload(Array.from(event.target.files ?? []), folderId);
+                event.target.value = "";
+              }}
+            />
+          </div>
+        )}
         {untitled.error && <p className="m-0 mt-1 text-12 text-err">{errorText(untitled.error)}</p>}
       </FileDropZone>
     </>

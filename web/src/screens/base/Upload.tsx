@@ -124,7 +124,15 @@ export function UploadGlyph() {
   );
 }
 
-type DropZoneProps = { kbId: string; parentId: string | null; name: string; className?: string; children: ReactNode };
+type DropZoneProps = {
+  kbId: string;
+  parentId: string | null;
+  name: string;
+  className?: string;
+  /** Takes nothing, for a Leitor. */
+  disabled?: boolean;
+  children: ReactNode;
+};
 
 /**
  * The whole area takes files dropped on it into `parentId`, and only shows itself while files are dragged over it.
@@ -133,7 +141,7 @@ type DropZoneProps = { kbId: string; parentId: string | null; name: string; clas
 // A file dropped on a page's text is the editor's: it becomes an attachment of the page, not a node of the tree.
 const inEditor = (target: EventTarget) => target instanceof Element && target.closest(".block-editor") !== null;
 
-export function FileDropZone({ kbId, parentId, name, className, children }: DropZoneProps) {
+export function FileDropZone({ kbId, parentId, name, className, disabled, children }: DropZoneProps) {
   const { t } = useI18n();
   const startUpload = useStartUpload(kbId);
   const [over, setOver] = useState(false);
@@ -141,7 +149,7 @@ export function FileDropZone({ kbId, parentId, name, className, children }: Drop
     <div
       className={cx("relative", className, over && "rounded-[8px] bg-accent-soft outline-1 outline-ink outline-dashed")}
       onDragOver={(event) => {
-        if (!event.dataTransfer.types.includes("Files") || inEditor(event.target)) return;
+        if (disabled || !event.dataTransfer.types.includes("Files") || inEditor(event.target)) return;
         event.preventDefault();
         setOver(true);
       }}
@@ -149,7 +157,7 @@ export function FileDropZone({ kbId, parentId, name, className, children }: Drop
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOver(false);
       }}
       onDropCapture={(event) => {
-        if (!event.dataTransfer.files.length || inEditor(event.target)) return;
+        if (disabled || !event.dataTransfer.files.length || inEditor(event.target)) return;
         event.preventDefault();
         event.stopPropagation();
         setOver(false);

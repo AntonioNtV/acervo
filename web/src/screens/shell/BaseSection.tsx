@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { KbSummary } from "../../api/client";
 import { forgetBase } from "../../app/lastPage";
+import { useAccess } from "../../data/access";
 import { useKbIcon, useTrashKb } from "../../data/kbs";
 import { useI18n } from "../../i18n";
 import { EmojiPicker } from "../../ui/EmojiPicker";
@@ -11,6 +12,7 @@ import { Menu, MenuItem, MenuSeparator } from "../../ui/Menu";
 import { NodeIcon } from "../../ui/NodeIcon";
 import type { BaseEdit } from "../bases/BaseDialog";
 import { UploadList } from "../base/Upload";
+import { ShareDialog } from "./ShareDialog";
 import { useCurrent } from "./shell";
 import { TreeRows, type Draft } from "./TreeRows";
 
@@ -43,6 +45,8 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
   const [draft, setDraft] = useState<Draft | null>(null);
   const trash = useTrashKb();
   const icon = useKbIcon(kb);
+  const { canEdit, canManage } = useAccess(kb.id);
+  const [sharing, setSharing] = useState(false);
 
   const setOpen = (next: boolean) => {
     setOpenState(next);
@@ -72,40 +76,54 @@ export function BaseSection({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: Base
           <span className="truncate">{kb.name}</span>
         </button>
         {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
-        <span className="flex opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
-          <Menu
-            trigger={
-              <IconButton size="sm" aria-label={t("shell.base.actions", { name: kb.name })}>
-                <Icon name="more" size={14} />
-              </IconButton>
-            }
-          >
-            <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
-            <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
-            <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
-            <MenuItem onSelect={() => startDraft({ parentId: null, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
-            <MenuSeparator />
-            <MenuItem
-              onSelect={() =>
-                trash.mutate(kb.id, {
-                  onSuccess: () => {
-                    forgetBase(kb.id);
-                    if (here) navigate("/");
-                  },
-                })
+        {sharing && <ShareDialog kb={kb} onClose={() => setSharing(false)} />}
+        {canEdit && (
+          <span className="flex opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-state=open]]:opacity-100">
+            <Menu
+              trigger={
+                <IconButton size="sm" aria-label={t("shell.base.actions", { name: kb.name })}>
+                  <Icon name="more" size={14} />
+                </IconButton>
               }
             >
-              {t("bases.trash")}
-            </MenuItem>
-          </Menu>
-          <IconButton
-            size="sm"
-            aria-label={t("shell.base.newPage", { name: kb.name })}
-            onClick={() => startDraft({ parentId: null, kind: "page" })}
-          >
-            <Icon name="plus" size={14} />
-          </IconButton>
-        </span>
+              {kb.my_role === "admin" && <MenuItem onSelect={() => setSharing(true)}>{t("sharing.share")}</MenuItem>}
+              {canManage && (
+                <>
+                  <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
+                  <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
+                  <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
+                </>
+              )}
+              <MenuItem onSelect={() => startDraft({ parentId: null, kind: "folder" })}>
+                {t("base.new.folder")}
+              </MenuItem>
+              {canManage && (
+                <>
+                  <MenuSeparator />
+                  <MenuItem
+                    onSelect={() =>
+                      trash.mutate(kb.id, {
+                        onSuccess: () => {
+                          forgetBase(kb.id);
+                          if (here) navigate("/");
+                        },
+                      })
+                    }
+                  >
+                    {t("bases.trash")}
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
+            <IconButton
+              size="sm"
+              aria-label={t("shell.base.newPage", { name: kb.name })}
+              onClick={() => startDraft({ parentId: null, kind: "page" })}
+            >
+              <Icon name="plus" size={14} />
+            </IconButton>
+          </span>
+        )}
       </div>
       {open && (
         <>
