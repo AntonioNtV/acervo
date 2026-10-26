@@ -75,4 +75,11 @@ describe("OrgGeneral", () => {
     expect(await screen.findByText(/Você é o único Owner/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sair" })).toBeDisabled();
   });
+
+  it("an Admin does not see Excluir organização", async () => {
+    renderOrg("admin", "/organizacao/geral");
+
+    expect(await screen.findByLabelText("Nome")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Excluir organização" })).not.toBeInTheDocument();
+  });
 });
