@@ -39,10 +39,10 @@ class ExportService:
         self._uow = uow
         self._storage = storage
 
-    async def link(self, node_id: UUID, secret: str, raw_url: str) -> FileLink:
-        """`raw_url` signed for the node's export, so it opens without the key for a short while."""
+    async def link(self, node_id: UUID, secret: str, session_id: UUID, raw_url: str) -> FileLink:
+        """`raw_url` signed for the node's export, so it opens without the cookie for a short while."""
         await self._root(node_id)
-        return signed_link(secret, "export", node_id, None, raw_url)
+        return signed_link(secret, "export", node_id, None, session_id, raw_url)
 
     async def open(self, node_id: UUID) -> Export:
         """The zip of the node's live subtree: a page as `<título>.md` with its children in `<título>/`, a folder as a

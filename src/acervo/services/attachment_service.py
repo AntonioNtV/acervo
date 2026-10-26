@@ -68,10 +68,10 @@ class AttachmentService:
         await self._uow.commit()
         return Attachment.model_validate(attachment)
 
-    async def link(self, page_id: UUID, name: str, secret: str, raw_url: str) -> FileLink:
-        """`raw_url` signed for this attachment, so it opens without the key for a short while."""
+    async def link(self, page_id: UUID, name: str, secret: str, session_id: UUID, raw_url: str) -> FileLink:
+        """`raw_url` signed for this attachment, so it opens without the cookie for a short while."""
         attachment = await self._attachment(page_id, name)
-        return signed_link(secret, "attachment", page_id, attachment.id, raw_url)
+        return signed_link(secret, "attachment", page_id, attachment.id, session_id, raw_url)
 
     async def download(self, page_id: UUID, name: str, signed_id: UUID | None, range_header: str | None) -> Download:
         """The attachment byte for byte, or the one `Range` of bytes asked for (seeking in a video or audio)."""

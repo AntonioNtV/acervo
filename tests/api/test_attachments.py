@@ -19,7 +19,7 @@ async def _open(client: httpx.AsyncClient, page: str, name: str = "foto.jpg") ->
     link = await client.post(f"/v1/pages/{page}/attachments/{name}/link")
     if link.status_code != 200:
         return link
-    return await client.get(link.json()["url"], headers={"X-API-Key": ""})
+    return await client.get(link.json()["url"], headers={"Cookie": ""})
 
 
 async def test_upload_link_raw_and_range(client: httpx.AsyncClient, make_tree: MakeTree) -> None:
@@ -30,7 +30,7 @@ async def test_upload_link_raw_and_range(client: httpx.AsyncClient, make_tree: M
     second = await _upload(client, page, PHOTO, "../fotos/foto.jpg")
     raw = await _open(client, page)
     link = (await client.post(f"/v1/pages/{page}/attachments/foto.jpg/link")).json()["url"]
-    other = await client.get(link.replace("foto.jpg", "foto-2.jpg"), headers={"X-API-Key": ""})
+    other = await client.get(link.replace("foto.jpg", "foto-2.jpg"), headers={"Cookie": ""})
     ranged = await client.get(f"/v1/pages/{page}/attachments/foto-2.jpg/raw", headers={"Range": "bytes=4-7"})
 
     assert first.json() == {"name": "foto.jpg", "mime": "image/jpeg", "size": len(PHOTO)}

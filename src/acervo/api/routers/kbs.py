@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_base_service, require_api_key
+from acervo.api.deps import current_account, get_base_service
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.kb import KbCreate, KbEdit, KbRead, KbSummary
 from acervo.services.base_service import BaseService
@@ -13,7 +13,7 @@ ERROR: dict[str, Any] = {"model": ErrorResponse}
 router = APIRouter(
     prefix="/v1/kbs",
     tags=["kbs"],
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(current_account)],
     responses={401: ERROR, 422: ERROR},
 )
 

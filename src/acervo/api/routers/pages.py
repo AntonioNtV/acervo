@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import get_page_service, get_settings, require_api_key
+from acervo.api.deps import current_account, get_page_service, get_settings
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.page import Mention, PageDiff, PageRead, PageTextPut, PageTextSaved, PageVersionSummary
@@ -14,7 +14,7 @@ ERROR: dict[str, Any] = {"model": ErrorResponse}
 router = APIRouter(
     prefix="/v1/pages",
     tags=["pages"],
-    dependencies=[Depends(require_api_key)],
+    dependencies=[Depends(current_account)],
     responses={401: ERROR, 422: ERROR},
 )
 

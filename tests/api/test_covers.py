@@ -25,8 +25,7 @@ async def test_upload_and_open_by_link(client: httpx.AsyncClient, make_tree: Mak
 
     uploaded = await _upload(client, page, PHOTO.read_bytes())
     link = await client.post(f"/v1/nodes/{page}/cover/link")
-    del client.headers["X-API-Key"]
-    raw = await client.get(link.json()["url"])
+    raw = await client.get(link.json()["url"], headers={"Cookie": ""})
 
     assert uploaded.status_code == 200, uploaded.text
     assert uploaded.json()["cover"] == f"image:{hashlib.sha256(PHOTO.read_bytes()).hexdigest()}"
