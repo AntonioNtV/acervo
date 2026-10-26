@@ -40,14 +40,14 @@ export function DeleteDialog({
           <DialogClose asChild>
             <Button>{t("deletion.cancel")}</Button>
           </DialogClose>
-          <Button className="text-err" disabled={!items || typed.trim() !== match || pending} onClick={onDelete}>
+          <Button className="text-err!" disabled={!items || typed.trim() !== match || pending} onClick={onDelete}>
             {action}
           </Button>
         </>
       }
     >
       {items && (
-        <ul className="m-0 flex flex-col gap-1.5 pl-[18px] text-13 text-text-2 marker:text-ghost">
+        <ul className="m-0 flex list-disc flex-col gap-1.5 pl-[18px] text-13 text-text-2 marker:text-ghost">
           {items.map((item) => (
             <li key={item}>{item}</li>
           ))}
