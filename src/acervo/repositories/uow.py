@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, SessionTransaction
 
 from acervo.repositories.account import AccountRepository
 from acervo.repositories.base_member import BaseMemberRepository
+from acervo.repositories.digest import DigestRepository
 from acervo.repositories.email_code import EmailCodeRepository
 from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
@@ -63,6 +64,7 @@ class UnitOfWork:
     page_attachments: PageAttachmentRepository
     favorites: FavoriteRepository
     follows: FollowRepository
+    digests: DigestRepository
     accounts: AccountRepository
     sessions: SessionRepository
     email_codes: EmailCodeRepository
@@ -96,6 +98,7 @@ class UnitOfWork:
         self.page_attachments = PageAttachmentRepository(self._session)
         self.favorites = FavoriteRepository(self._session)
         self.follows = FollowRepository(self._session)
+        self.digests = DigestRepository(self._session)
         self.accounts = AccountRepository(self._session)
         self.sessions = SessionRepository(self._session)
         self.email_codes = EmailCodeRepository(self._session)
