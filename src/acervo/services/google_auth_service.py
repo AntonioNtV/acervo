@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -15,6 +16,7 @@ from acervo.core.errors import AcervoError, CodeInvalid, InvalidCredentials
 from acervo.core.passwords import verify_password
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from acervo.services.auth_service import UNVERIFIED_KEPT
 from acervo.services.google_client import GoogleClient, GoogleIdentity
 from acervo.services.session_service import SessionService
 
@@ -93,7 +95,9 @@ class GoogleAuthService:
         account = await self._uow.accounts.get(UUID(pending["account"]))
         if account.google_sub is not None:
             raise CodeInvalid("The link expired or is not valid.")
-        if account.password_hash is None or not verify_password(password, account.password_hash):
+        if account.password_hash is None or not await asyncio.to_thread(
+            verify_password, password, account.password_hash
+        ):
             raise InvalidCredentials("Wrong email or password.")
         # Google confirmed the email, so the account no longer waits for its code.
         update = AccountUpdate(google_sub=pending["sub"], email_verified_at=account.email_verified_at or self._utc())
@@ -105,6 +109,7 @@ class GoogleAuthService:
             return Landing(FAILED)
         account = await self._uow.accounts.get_by(google_sub=person.sub)
         if account is None:
+            await self._uow.accounts.free_if_stale(person.email, self._utc() - UNVERIFIED_KEPT)
             account = await self._uow.accounts.by_email(person.email)
             if account is not None and account.google_sub is not None:
                 return Landing(FAILED)

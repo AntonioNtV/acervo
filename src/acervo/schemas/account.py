@@ -189,6 +189,7 @@ class PasswordResetRecord(PasswordResetCreate):
 
     id: UUID
     used_at: datetime | None
+    created_at: datetime
 
 
 class LoginFailureCreate(BaseModel):

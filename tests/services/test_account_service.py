@@ -1,15 +1,16 @@
 import io
 import os
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from PIL import Image
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from acervo.core.errors import CodeInvalid, ValidationError
+from acervo.core.errors import CodeInvalid, TooManyAttempts, ValidationError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.account import AccountRead
+from acervo.schemas.account import AccountRead, AccountUpdate, PasswordResetCreate
 from acervo.services.account_service import AccountService
 from acervo.services.mailer import FakeMailer, MailTemplate
 from acervo.services.storage import Storage
@@ -69,7 +70,7 @@ async def test_email_changes_only_after_the_code_and_the_old_address_is_told(
 ) -> None:
     ana = await make_account(email="ana@example.com")
 
-    await service.request_email_change(ana.id, "ana@novo.com")
+    await service.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
     sent = fake_mailer.sent[-1]
     wrong = f"{(int(sent.values['code']) + 1) % 10**6:06d}"
     with pytest.raises(CodeInvalid):
@@ -86,3 +87,53 @@ async def test_email_changes_only_after_the_code_and_the_old_address_is_told(
         MailTemplate.EMAIL_CHANGED,
         "ana@novo.com",
     )
+
+
+async def test_an_image_over_25_megapixels_is_refused(service: AccountService, make_account: MakeAccount) -> None:
+    ana = await make_account()
+    # One bit per pixel: 30 megapixels in a few kilobytes of PNG.
+    huge = _encode(Image.new("1", (6000, 5000)), "PNG")
+
+    with pytest.raises(ValidationError, match="25 megapixels"):
+        await service.set_photo(ana.id, huge)
+
+
+async def test_a_new_email_code_waits_a_minute_and_a_google_only_account_needs_no_password(
+    service: AccountService, uow: UnitOfWork, make_account: MakeAccount
+) -> None:
+    ana = await make_account()
+    await uow.accounts.update(ana.id, AccountUpdate(password_hash=None, google_sub="google-1"))
+
+    await service.request_email_change(ana.id, "ana@novo.com", None)
+    with pytest.raises(TooManyAttempts):
+        await service.request_email_change(ana.id, "ana@outro.com", None)
+
+
+async def test_a_new_email_ends_the_reset_links_sent_to_the_old_one(
+    service: AccountService, uow: UnitOfWork, make_account: MakeAccount, fake_mailer: FakeMailer
+) -> None:
+    ana = await make_account()
+    in_a_hour = datetime.now(UTC) + timedelta(hours=1)
+    reset = await uow.password_resets.create(
+        PasswordResetCreate(token_hash="h", account_id=ana.id, expires_at=in_a_hour)
+    )
+
+    await service.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
+    await service.confirm_email_change(ana.id, fake_mailer.sent[-1].values["code"])
+
+    assert (await uow.password_resets.get(reset.id)).used_at is not None
+
+
+async def test_a_new_email_held_by_a_stale_unconfirmed_account_is_free(
+    uow: UnitOfWork, storage: Settings, fake_mailer: FakeMailer, make_account: MakeAccount
+) -> None:
+    ana = await make_account()
+    stale = await make_account(email="ana@novo.com", verified=False)
+    in_8_days = AccountService(
+        uow, Storage(storage), fake_mailer, storage.photo_max_bytes, lambda: datetime.now(UTC) + timedelta(days=8)
+    )
+
+    async with uow:
+        await in_8_days.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
+        assert await uow.accounts.get_by(id=stale.id) is None
+    assert fake_mailer.sent[-1].to == "ana@novo.com"

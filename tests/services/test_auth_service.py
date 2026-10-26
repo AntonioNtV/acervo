@@ -1,13 +1,18 @@
+import asyncio
+import threading
+import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from acervo.core.errors import CodeInvalid, EmailTaken, InvalidCredentials, TooManyAttempts
+from acervo.core.errors import CodeInvalid, EmailNotVerified, EmailTaken, InvalidCredentials, TooManyAttempts
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead, EmailCodeIn, ResetConfirm, SignIn, SignUp
-from acervo.services.auth_service import AuthService
+from acervo.services import auth_service
+from acervo.services.auth_service import CODE_TRIES, AuthService
 from acervo.services.mailer import FakeMailer
 from acervo.services.session_service import SessionService
 
@@ -127,3 +132,130 @@ async def test_an_unconfirmed_account_frees_its_email_after_7_days(
     account = await auth.sign_up(data)
 
     assert (account.id != stale.id, account.email, account.email_verified) == (True, "Ana@example.com", False)
+
+
+async def test_spaced_wrong_passwords_lock_until_15_minutes_after_the_fifth(
+    auth: AuthService, uow: UnitOfWork, make_account: MakeAccount, clock: Clock
+) -> None:
+    await make_account(email="ana@example.com", password=PASSWORD)
+    wrong = SignIn(email="ana@example.com", password="errada-errada")
+    right = SignIn(email="ana@example.com", password=PASSWORD)
+    with pytest.raises(InvalidCredentials):
+        await auth.sign_in(wrong, None)
+    clock.advance(timedelta(minutes=20))
+    for _ in range(5):
+        with pytest.raises(InvalidCredentials):
+            await auth.sign_in(wrong, None)
+        clock.advance(timedelta(minutes=3))
+    # The fifth was 3 minutes ago: locked until 12 minutes from now, a refused try not extending it.
+    clock.advance(timedelta(minutes=6))
+    with pytest.raises(TooManyAttempts):
+        await auth.sign_in(wrong, None)
+    clock.advance(timedelta(minutes=5))
+    with pytest.raises(TooManyAttempts):
+        await auth.sign_in(right, None)
+    clock.advance(timedelta(minutes=2))
+
+    account, _ = await auth.sign_in(right, None)
+    assert account.email == "ana@example.com"
+    # The failure 20 minutes before the others left the table with the next one.
+    assert await uow.login_failures.count({"email_lower": "ana@example.com"}) == 5
+
+
+async def test_parallel_wrong_tries_never_pass_the_limits(engine: AsyncEngine, fake_mailer: FakeMailer) -> None:
+    # Separate connections that commit: on the test's one connection the tries could not race.
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+    email = f"{uuid.uuid4().hex}@example.com"
+
+    async def attempt(call: Callable[[AuthService], Awaitable[Any]]) -> Any:
+        async with UnitOfWork(factory) as uow:
+            return await call(AuthService(uow, SessionService(uow, 30), fake_mailer))
+
+    async def in_parallel(call: Callable[[AuthService], Awaitable[Any]]) -> list[str]:
+        # 20 at once: NullPool opens a connection per try, and the server is shared with other worktrees.
+        results = await asyncio.gather(*(attempt(call) for _ in range(20)), return_exceptions=True)
+        return sorted(type(result).__name__ for result in results)
+
+    await attempt(lambda auth: auth.sign_up(SignUp(name="Ana", email=email, password=PASSWORD)))
+    code = fake_mailer.sent[-1].values["code"]
+    wrong = f"{(int(code) + 1) % 1_000_000:06d}"
+    try:
+        codes = await in_parallel(lambda auth: auth.verify_email(EmailCodeIn(email=email, code=wrong), None))
+        passwords = await in_parallel(lambda auth: auth.sign_in(SignIn(email=email, password="errada-errada"), None))
+        right = await asyncio.gather(
+            attempt(lambda auth: auth.verify_email(EmailCodeIn(email=email, code=code), None)), return_exceptions=True
+        )
+        async with UnitOfWork(factory) as uow:
+            account = await uow.accounts.by_email(email)
+            assert account is not None
+            live = await uow.email_codes.live(account.id, "verify_email")
+    finally:
+        async with UnitOfWork(factory) as uow:
+            if (stored := await uow.accounts.by_email(email)) is not None:
+                await uow.accounts.delete(stored.id)
+            await uow.login_failures.clear(email)
+            await uow.commit()
+
+    assert codes == ["CodeInvalid"] * 20
+    assert (live is not None and live.attempts, [type(r).__name__ for r in right]) == (CODE_TRIES, ["CodeInvalid"])
+    assert passwords == ["InvalidCredentials"] * 5 + ["TooManyAttempts"] * 15
+
+
+async def test_passwords_are_hashed_off_the_event_loop(auth: AuthService, monkeypatch: pytest.MonkeyPatch) -> None:
+    threads: list[int] = []
+
+    def spy(real: Callable[..., Any]) -> Callable[..., Any]:
+        def call(*args: str) -> Any:
+            threads.append(threading.get_ident())
+            return real(*args)
+
+        return call
+
+    for name in ("hash_password", "verify_password"):
+        monkeypatch.setattr(auth_service, name, spy(getattr(auth_service, name)))
+
+    await auth.sign_up(SignUp(name="Ana", email="ana@example.com", password=PASSWORD))
+    with pytest.raises(EmailNotVerified):
+        await auth.sign_in(SignIn(email="ana@example.com", password=PASSWORD), None)
+
+    assert len(threads) == 2
+    assert threading.get_ident() not in threads
+
+
+async def test_a_second_reset_within_a_minute_sends_nothing(
+    auth: AuthService, make_account: MakeAccount, fake_mailer: FakeMailer, clock: Clock
+) -> None:
+    await make_account(email="ana@example.com", password=PASSWORD)
+
+    await auth.request_reset("ana@example.com")
+    clock.advance(timedelta(seconds=59))
+    await auth.request_reset("ana@example.com")
+    clock.advance(timedelta(seconds=2))
+    await auth.request_reset("ana@example.com")
+
+    assert len(fake_mailer.sent) == 2
+
+
+async def test_a_new_password_ends_every_other_reset_link(
+    auth: AuthService, make_account: MakeAccount, fake_mailer: FakeMailer, clock: Clock
+) -> None:
+    await make_account(email="ana@example.com", password=PASSWORD)
+    await auth.request_reset("ana@example.com")
+    older = fake_mailer.sent[-1].values["link"]
+    clock.advance(timedelta(minutes=2))
+    await auth.request_reset("ana@example.com")
+
+    await auth.confirm_reset(ResetConfirm(token=fake_mailer.sent[-1].values["link"], password="nova-senha-longa"), None)
+    with pytest.raises(CodeInvalid):
+        await auth.confirm_reset(ResetConfirm(token=older, password="outra-senha-longa"), None)
+
+
+async def test_signing_in_to_a_stale_unconfirmed_account_frees_its_email(
+    auth: AuthService, uow: UnitOfWork, make_account: MakeAccount, clock: Clock
+) -> None:
+    await make_account(email="ana@example.com", password=PASSWORD, verified=False)
+    clock.advance(timedelta(days=8))
+
+    with pytest.raises(InvalidCredentials):
+        await auth.sign_in(SignIn(email="ana@example.com", password=PASSWORD), None)
+    assert await uow.accounts.by_email("ana@example.com") is None

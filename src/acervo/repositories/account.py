@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func
@@ -19,3 +20,13 @@ class AccountRepository(BaseRepository[Account, AccountRecord, AccountCreate, Ac
     async def delete(self, account_id: UUID) -> None:
         """Removes the account with its sessions, codes, reset links and favorites."""
         await self._session.execute(delete(Account).where(Account.id == account_id))
+
+    async def free_if_stale(self, email: str, created_before: datetime) -> None:
+        """Deletes the account of `email` when it was never confirmed and was created before `created_before`."""
+        await self._session.execute(
+            delete(Account).where(
+                func.lower(Account.email) == email.lower(),
+                Account.email_verified_at.is_(None),
+                Account.created_at < created_before,
+            )
+        )
