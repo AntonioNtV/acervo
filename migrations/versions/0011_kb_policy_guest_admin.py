@@ -39,6 +39,23 @@ def upgrade() -> None:
         """
     )
     _kb_policy(f"{IN_MY_ORGANIZATION} or acervo.admins_kb(id)")
+    # The check above cannot see the old row, so a base Admin could otherwise move a base into another organization.
+    op.execute(
+        """
+        create function acervo.kb_keeps_organization() returns trigger language plpgsql as $$
+        begin
+            if new.organization_id is distinct from old.organization_id then
+                raise exception 'a base never changes organization' using errcode = 'check_violation';
+            end if;
+            return new;
+        end
+        $$
+        """
+    )
+    op.execute(
+        "create trigger kb_keeps_organization before update of organization_id on acervo.kb "
+        "for each row execute function acervo.kb_keeps_organization()"
+    )
     # Starts from the account's rows through their indexes, instead of judging every base.
     op.execute(
         """
@@ -56,6 +73,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("drop trigger kb_keeps_organization on acervo.kb")
+    op.execute("drop function acervo.kb_keeps_organization()")
     op.execute(
         """
         create or replace function acervo.visible_kb_ids() returns setof uuid language sql stable security definer

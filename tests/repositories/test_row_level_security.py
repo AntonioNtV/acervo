@@ -2,15 +2,16 @@ from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import text, update
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from acervo.db.models import Kb
 from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
 from acervo.schemas.node import NodeCreate
-from acervo.schemas.organization import BaseMemberCreate
+from acervo.schemas.organization import BaseMemberCreate, OrganizationRecord
 from tests.conftest import Tree
 
 
@@ -68,3 +69,19 @@ async def test_a_base_shared_from_another_pessoal_is_visible(
         await uow.base_members.create(BaseMemberCreate(kb_id=bia_tree.kb.id, account_id=ana.id, role="reader"))
         uow.act_as(ana.id)
         assert await _node_kbs(uow) == {ana_tree.kb.id, bia_tree.kb.id}
+
+
+async def test_a_base_never_changes_organization(
+    session: AsyncSession,
+    make_account: Callable[..., Awaitable[AccountRead]],
+    make_organization: Callable[..., Awaitable[OrganizationRecord]],
+) -> None:
+    ana = await make_account(email="ana.trigger@example.com")
+    first = await make_organization(ana.id, "Primeira")
+    second = await make_organization(ana.id, "Segunda")
+    kb = Kb(name="Fixa", organization_id=first.id)
+    session.add(kb)
+    await session.flush()
+    with pytest.raises(DBAPIError, match="never changes organization"):
+        async with session.begin_nested():
+            await session.execute(update(Kb).where(Kb.id == kb.id).values(organization_id=second.id))
