@@ -2,12 +2,20 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Cookie, Depends, Header, Response
 
-from acervo.api.cookies import SESSION_COOKIE, clear_session_cookie, set_session_cookie
+from acervo.api.cookies import (
+    PENDING_COOKIE,
+    SESSION_COOKIE,
+    clear_pending_cookie,
+    clear_session_cookie,
+    set_pending_cookie,
+    set_session_cookie,
+)
 from acervo.api.deps import CurrentAccount, get_auth_service, get_settings
 from acervo.core.settings import Settings
 from acervo.schemas.account import AccountRead, EmailCodeIn, ResetConfirm, ResetRequest, SignIn, SignUp
 from acervo.schemas.common import ErrorResponse
-from acervo.services.auth_service import AuthService
+from acervo.schemas.security import PendingSignIn, TwoFactorConfirm, TwoFactorResend
+from acervo.services.auth_service import CODE_TTL, AuthService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
@@ -16,6 +24,7 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"], responses={422: ERROR})
 Service = Annotated[AuthService, Depends(get_auth_service)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
 UserAgent = Annotated[str | None, Header()]
+PendingToken = Annotated[str | None, Cookie(alias=PENDING_COOKIE)]
 
 
 @router.post("/sign-up", status_code=201, response_model=AccountRead, responses={409: ERROR})
@@ -40,13 +49,40 @@ async def resend_code(body: ResetRequest, service: Service) -> None:
     await service.resend_code(body.email)
 
 
-@router.post("/sign-in", response_model=AccountRead, responses={401: ERROR, 429: ERROR})
+@router.post("/sign-in", response_model=AccountRead | PendingSignIn, responses={401: ERROR, 429: ERROR})
 async def sign_in(
     body: SignIn, response: Response, service: Service, settings: AppSettings, user_agent: UserAgent = None
+) -> AccountRead | PendingSignIn:
+    """Signs in; with two-step verification on, sends the code and answers `PendingSignIn` instead, with a pending
+    cookie for `POST /v1/auth/two-factor`."""
+    signed, token = await service.sign_in(body, user_agent)
+    if isinstance(signed, PendingSignIn):
+        set_pending_cookie(response, token, int(CODE_TTL.total_seconds()), settings)
+    else:
+        set_session_cookie(response, token, settings)
+    return signed
+
+
+@router.post("/two-factor", response_model=AccountRead, responses={429: ERROR})
+async def finish_two_factor(
+    body: TwoFactorConfirm,
+    response: Response,
+    service: Service,
+    settings: AppSettings,
+    token: PendingToken = None,
+    user_agent: UserAgent = None,
 ) -> AccountRead:
-    account, token = await service.sign_in(body, user_agent)
-    set_session_cookie(response, token, settings)
+    """The code of the pending sign-in signs in; `code_invalid` once wrong, expired or out of tries."""
+    account, session = await service.finish_two_factor(token, body.code, user_agent)
+    clear_pending_cookie(response, settings)
+    set_session_cookie(response, session, settings)
     return account
+
+
+@router.post("/two-factor/resend", response_model=PendingSignIn, responses={429: ERROR})
+async def resend_two_factor(body: TwoFactorResend, service: Service, token: PendingToken = None) -> PendingSignIn:
+    """A new code for the pending sign-in, at most once a minute; `channel: email` sends it by email."""
+    return await service.resend_two_factor(token, body.channel == "email")
 
 
 @router.post("/sign-out", status_code=204)

@@ -15,6 +15,7 @@ from acervo.services import auth_service
 from acervo.services.auth_service import CODE_TRIES, AuthService
 from acervo.services.mailer import FakeMailer
 from acervo.services.session_service import SessionService
+from acervo.services.whatsapp import FakeWhatsApp
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 PASSWORD = "senha-de-teste"
@@ -43,7 +44,7 @@ async def auth(
 ) -> AsyncIterator[AuthService]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
-        yield AuthService(uow, SessionService(uow, 30, clock), fake_mailer, clock)
+        yield AuthService(uow, SessionService(uow, 30, clock), fake_mailer, FakeWhatsApp(), "pt_BR", clock)
 
 
 async def test_five_wrong_passwords_lock_the_email_for_15_minutes(
@@ -169,7 +170,7 @@ async def test_parallel_wrong_tries_never_pass_the_limits(engine: AsyncEngine, f
 
     async def attempt(call: Callable[[AuthService], Awaitable[Any]]) -> Any:
         async with UnitOfWork(factory) as uow:
-            return await call(AuthService(uow, SessionService(uow, 30), fake_mailer))
+            return await call(AuthService(uow, SessionService(uow, 30), fake_mailer, FakeWhatsApp(), "pt_BR"))
 
     async def in_parallel(call: Callable[[AuthService], Awaitable[Any]]) -> list[str]:
         # 20 at once: NullPool opens a connection per try, and the server is shared with other worktrees.

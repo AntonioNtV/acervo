@@ -34,6 +34,7 @@ from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import SessionService, token_hash
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
+from acervo.services.two_factor_service import TwoFactorService
 from acervo.services.whatsapp import WhatsAppSender
 
 # How long a sign-in, or asking the password or a passkey again, lets the session make sensitive changes.
@@ -127,8 +128,19 @@ def get_auth_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     sessions: Annotated[SessionService, Depends(get_session_service)],
     mailer: Annotated[Mailer, Depends(get_mailer)],
+    whatsapp: Annotated[WhatsAppSender, Depends(get_whatsapp)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthService:
-    return AuthService(uow, sessions, mailer)
+    return AuthService(uow, sessions, mailer, whatsapp, settings.whatsapp_language)
+
+
+def get_two_factor_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    whatsapp: Annotated[WhatsAppSender, Depends(get_whatsapp)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> TwoFactorService:
+    return TwoFactorService(uow, mailer, whatsapp, settings.whatsapp_language)
 
 
 def get_account_service(
