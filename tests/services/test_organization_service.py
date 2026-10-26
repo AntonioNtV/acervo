@@ -92,6 +92,7 @@ async def test_a_pessoal_has_no_members_to_list_and_cannot_be_left(
 
 async def test_leaving_drops_the_membership_and_the_base_roles_in_it(
     service: OrganizationService,
+    uow: UnitOfWork,
     session: AsyncSession,
     make_tree: MakeTree,
     team: OrganizationRecord,
@@ -101,6 +102,7 @@ async def test_leaving_drops_the_membership_and_the_base_roles_in_it(
     kb_id = (await make_tree(None, organization=team.id)).kb.id
     await BaseMemberRepository(session).create(BaseMemberCreate(kb_id=kb_id, account_id=caio, role="editor"))
 
+    uow.act_as(caio)
     await service.leave(caio, team.id)
 
     assert [o.personal for o in await service.mine(caio)] == [True]
