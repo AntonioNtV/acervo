@@ -9,6 +9,10 @@ import { blockExtensions, PageLink, Toggle } from "./extensions";
 import { bindSource, parseMarkdown, serializeMarkdown, type Source } from "./markdown";
 import { createMenus, MarkdownPaste, type MenuBridge, type MenuState } from "./menus";
 import { MenuPopover, type MenuItem } from "./MenuPopover";
+import { Emoji } from "./nodes/emoji";
+import { SelectionToolbar } from "./nodes/SelectionToolbar";
+import { SyncedBlockWithView } from "./nodes/synced";
+import { ToggleHeading } from "./nodes/toggleHeading";
 import { PageLinkView, ResolveLink, type LinkTarget } from "./PageLinkView";
 import "./editor.css";
 
@@ -78,13 +82,18 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
       ...blockExtensions.map((extension) =>
         extension.name === "pageLink"
           ? PageLinkWithView
-          : extension.name === "details"
-            ? Toggle.configure({
-                renderToggleButton: ({ element, isOpen }) =>
-                  element.setAttribute("aria-label", t(isOpen ? "editor.toggle.close" : "editor.toggle.open")),
-              })
-            : extension,
+          : extension.name === "syncedBlock"
+            ? SyncedBlockWithView
+            : extension.name === "toggleHeading"
+              ? ToggleHeading.configure({ t })
+              : extension.name === "details"
+                ? Toggle.configure({
+                    renderToggleButton: ({ element, isOpen }) =>
+                      element.setAttribute("aria-label", t(isOpen ? "editor.toggle.close" : "editor.toggle.open")),
+                  })
+                : extension,
       ),
+      Emoji,
       Placeholder.configure({ placeholder: t("editor.placeholder") }),
       createMenus(bridge),
       MarkdownPaste,
@@ -161,6 +170,11 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     if (id === "table") return chain.insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
     if (id === "divider") return chain.setHorizontalRule().run();
     if (id === "pageLink") return chain.insertContent("[[").run();
+    if (id === "synced") return chain.insertSyncedBlock().run();
+    if (id === "inlineEquation") return chain.insertInlineMath().run();
+    if (id === "footnote") return chain.insertFootnote().run();
+    if (id === "toc") return chain.insertContent({ type: "tableOfContents" }).run();
+    if (id === "breadcrumb") return chain.insertContent({ type: "breadcrumb" }).run();
     chain.run();
     latest.current.onCreateSubPage().then(
       (title) => {
@@ -190,6 +204,7 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
         {editor && block && <BlockHandle key={block.pos} editor={editor} block={block} onClose={() => setBlock(null)} />}
         <EditorContent editor={editor} />
       </div>
+      {editor && <SelectionToolbar editor={editor} />}
       {menu && <MenuPopover items={items} active={active} rect={menu.rect} onPick={pick} onHover={setActive} />}
     </ResolveLink.Provider>
   );

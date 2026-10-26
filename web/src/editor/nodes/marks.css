@@ -1,0 +1,5 @@
+.ProseMirror mark {
+  background: var(--mark);
+  color: inherit;
+  border-radius: 2px;
+}

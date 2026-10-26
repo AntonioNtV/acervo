@@ -1,0 +1,24 @@
+.inline-math {
+  position: relative;
+}
+
+.inline-math-source {
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  padding: 0 1px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.inline-math-source:hover {
+  background: var(--subtle);
+}
+
+.inline-math-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+}

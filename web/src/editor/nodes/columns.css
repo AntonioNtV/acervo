@@ -1,0 +1,23 @@
+/* Equal columns 32 px apart; on a narrow screen they stack. */
+.block-editor .columns {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: 32px;
+}
+
+.block-editor .columns > [data-column] > * {
+  margin: 0;
+  padding: 3px 2px;
+}
+
+.block-editor .columns > [data-column] > :first-child {
+  margin-top: 0;
+}
+
+@media (max-width: 639px) {
+  .block-editor .columns {
+    grid-auto-flow: row;
+    gap: 16px;
+  }
+}

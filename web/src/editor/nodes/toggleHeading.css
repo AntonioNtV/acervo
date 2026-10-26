@@ -1,0 +1,74 @@
+.block-editor .toggle-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: var(--toggle-heading-space, 0);
+}
+
+.block-editor > .toggle-heading:first-child {
+  margin-top: 0;
+}
+
+/* The heading's space above moves to the block, so the caret centres on the heading's line. */
+.block-editor .toggle-heading:has(> div > h1:first-child) {
+  --toggle-heading-space: 28px;
+  --toggle-heading-line: 32px;
+}
+
+.block-editor .toggle-heading:has(> div > h2:first-child) {
+  --toggle-heading-space: 22px;
+  --toggle-heading-line: 28px;
+}
+
+.block-editor .toggle-heading:has(> div > h3:first-child) {
+  --toggle-heading-space: 16px;
+  --toggle-heading-line: 26px;
+}
+
+.block-editor .toggle-heading > div > :first-child {
+  margin-top: 0;
+}
+
+.block-editor .toggle-heading > button {
+  flex: none;
+  width: 18px;
+  height: var(--toggle-heading-line, 28px);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.block-editor .toggle-heading > button::before {
+  content: "";
+  display: block;
+  width: 14px;
+  height: 14px;
+  margin: auto;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m10 7 5 5-5 5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: transform 0.12s;
+}
+
+.block-editor .toggle-heading.is-open > button::before {
+  transform: rotate(90deg);
+}
+
+.block-editor .toggle-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.block-editor .toggle-heading:not(.is-open) > div > :not(:first-child) {
+  display: none;
+}
+
+.block-editor .toggle-heading:not(.is-open) > div > :first-child::after {
+  content: var(--toggle-heading-count);
+  margin-left: 8px;
+  color: var(--ghost);
+  font-size: 13px;
+  font-weight: 400;
+}

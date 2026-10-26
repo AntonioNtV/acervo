@@ -5,6 +5,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 _LINK = re.compile(r"\[\[([^\[\]]+)\]\]")
+_EMBED_OR_LINK = re.compile(r"!?\[\[([^\[\]]+)\]\]")
 
 Resolved = UUID | Literal["missing", "ambiguous"]
 
@@ -23,8 +24,8 @@ def normalize(title: str) -> str:
 
 
 def targets(markdown: str) -> set[str]:
-    """The normalized titles inside the page's `[[…]]` links."""
-    return {normalize(match) for match in _LINK.findall(markdown)} - {""}
+    """The normalized titles inside the page's `[[…]]` links; `[[X#Section]]` and `![[X#Section]]` target X."""
+    return {normalize(match.split("#", 1)[0]) for match in _LINK.findall(markdown)} - {""}
 
 
 def resolve(wanted: Iterable[str], candidates: Iterable[Page], parent_id: UUID | None) -> dict[str, Resolved]:
@@ -46,11 +47,12 @@ def resolve(wanted: Iterable[str], candidates: Iterable[Page], parent_id: UUID |
 
 
 def rewrite(markdown: str, old_title: str, new_title: str) -> str:
-    """Every `[[…]]` link to `old_title`, whatever its case and spacing, pointed at `new_title`."""
-    pattern = re.compile(r"\[\[\s*" + r"\s+".join(map(re.escape, old_title.split())) + r"\s*\]\]", re.IGNORECASE)
-    return pattern.sub(lambda _: f"[[{new_title}]]", markdown)
+    """Every `[[…]]` link to `old_title`, whatever its case and spacing, pointed at `new_title`, keeping its `#…`."""
+    title = r"\s+".join(map(re.escape, old_title.split()))
+    pattern = re.compile(r"\[\[\s*" + title + r"\s*(#[^\[\]]*)?\]\]", re.IGNORECASE)
+    return pattern.sub(lambda m: f"[[{new_title}{m[1] or ''}]]", markdown)
 
 
 def unlink(markdown: str, wanted: set[str]) -> str:
-    """Every `[[…]]` link whose normalized target is in `wanted` turned into its text, as the person wrote it."""
-    return _LINK.sub(lambda m: m[1].strip() if normalize(m[1]) in wanted else m[0], markdown)
+    """Every `[[…]]` or `![[…]]` link whose target is in `wanted` turned into its text, as the person wrote it."""
+    return _EMBED_OR_LINK.sub(lambda m: m[1].strip() if normalize(m[1].split("#", 1)[0]) in wanted else m[0], markdown)

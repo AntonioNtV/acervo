@@ -4,6 +4,14 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Table, TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
+import { Columns } from "./nodes/columns";
+import { footnoteExtensions } from "./nodes/footnote";
+import { generatedExtensions } from "./nodes/generated";
+import { markExtensions } from "./nodes/marks";
+import { InlineMath } from "./nodes/math";
+import { SyncedBlock } from "./nodes/synced";
+import { ToggleHeading } from "./nodes/toggleHeading";
+import { startBefore } from "./tokenize";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -78,19 +86,6 @@ export const RawInline = Node.create({
   parseMarkdown: (token, h) => h.createNode("rawInline", { markdown: token.raw }),
   renderMarkdown: (node) => node.attrs?.markdown ?? "",
 });
-
-/**
- * A block tokenizer's `start`: where `pattern` (one line) first matches before the next blank line, else that blank
- * line. marked asks it before each paragraph to stop the paragraph there, and no paragraph runs past a blank line;
- * searching the whole rest of the page each time made opening a long page quadratic. Answering the blank line, not
- * -1, keeps the paragraph marked as cut, which is how a line the tokenizers then reject is joined back to it.
- */
-const startBefore = (pattern: RegExp) => (src: string) => {
-  const blank = src.indexOf("\n\n");
-  if (blank < 0) return src.search(pattern);
-  const found = src.slice(0, blank).search(pattern);
-  return found < 0 ? blank + 1 : found;
-};
 
 // Link reference and footnote definitions: marked would otherwise take them out of the token stream.
 const DEFINITION = /^ {0,3}\[[^\]\n]+\]:[^\n]*(?:\n(?: {4}|\t)[^\n]*)*(?:\n|$)/;
@@ -170,7 +165,7 @@ export const Callout = Node.create({
 
 /** Where the `</details>` closing the one opened before `from` starts, or -1. */
 function closingDetails(src: string, from: number): number {
-  const tags = /<(\/?)details>/g;
+  const tags = /<(\/?)details(?: open)?>/g;
   tags.lastIndex = from;
   let depth = 1;
   for (let match = tags.exec(src); match; match = tags.exec(src)) {
@@ -287,7 +282,10 @@ const BoundedTable = Table.extend({
   },
 });
 
-/** The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. */
+/**
+ * The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. marked tries
+ * the tokenizer registered last first, so what must win over `RawInline` and `RawBlock` comes after them.
+ */
 export const blockExtensions: AnyExtension[] = [
   TextParagraph,
   StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
@@ -295,11 +293,18 @@ export const blockExtensions: AnyExtension[] = [
   TodoItem.configure({ nested: true }),
   TableKit.configure({ table: false }),
   BoundedTable.configure({ resizable: false }),
+  ToggleHeading,
   Toggle,
   DetailsSummary.extend(noMarkdown),
   DetailsContent.extend(noMarkdown),
   Callout,
+  Columns,
+  InlineMath,
   PageLink,
   RawInline,
   RawBlock,
+  SyncedBlock,
+  ...markExtensions,
+  ...footnoteExtensions,
+  ...generatedExtensions,
 ];

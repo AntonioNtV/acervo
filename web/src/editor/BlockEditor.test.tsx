@@ -56,6 +56,37 @@ describe("BlockEditor", () => {
     expect(onChange).toHaveBeenLastCalledWith("> [!NOTE]\n> Prazo de 3 dias\n");
   });
 
+  it('"/" lists the planned blocks', async () => {
+    const { editor } = renderEditor("");
+
+    type(editor, "/");
+    await screen.findByRole("listbox", { name: "Inserir bloco" });
+
+    for (const name of [
+      "Título 4",
+      "Título 5",
+      "Título 6",
+      "Título recolhível",
+      "Colunas",
+      "Sumário",
+      "Trilha de navegação",
+      "Nota de rodapé",
+      "Equação na linha",
+      "Bloco sincronizado",
+    ]) {
+      expect(screen.getByRole("option", { name: new RegExp(name) })).toBeInTheDocument();
+    }
+  });
+
+  it("#### makes a heading 4", () => {
+    const { editor, onChange } = renderEditor("");
+
+    type(editor, "#### Emissão");
+
+    expect(screen.getByRole("heading", { level: 4, name: "Emissão" })).toBeInTheDocument();
+    expect(onChange).toHaveBeenLastCalledWith("#### Emissão\n");
+  });
+
   it("- [ ] makes a to-do", () => {
     const { editor, onChange } = renderEditor("");
 

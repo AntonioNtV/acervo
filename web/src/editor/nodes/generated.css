@@ -1,0 +1,37 @@
+.block-editor .toc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 8px 0;
+}
+
+.block-editor .toc-link {
+  padding: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--text-2);
+  text-align: left;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.block-editor .toc-link:hover,
+.block-editor .toc-link[aria-current] {
+  color: var(--text);
+}
+
+.block-editor .toc-h3 {
+  padding-left: 16px;
+}
+
+.block-editor .toc-empty {
+  margin: 0;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ghost);
+}
+
+.block-editor .breadcrumb-block {
+  margin: 8px 0;
+}

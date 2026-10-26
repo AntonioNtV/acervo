@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
+import { PageContext } from "../../editor/nodes/generated";
+import { SyncedSource, type SyncedTarget } from "../../editor/nodes/synced";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
 import { useChildren, useRenameNode, useSearch } from "../../data/tree";
@@ -91,14 +93,21 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const href = (id: string) => `/kbs/${kbId}/n/${id}`;
 
   // A sub-page just created is a child before the next save resolves its link.
-  const resolveLink = (title: string): LinkTarget => {
-    const key = normalizeLinkTarget(title);
+  const linkedId = (title: string) => {
+    // `[[X#Section]]` leads to X, as the server resolves it.
+    const key = normalizeLinkTarget(title.split("#")[0]!);
     const linked = page.links[key];
     const resolved =
       linked && linked !== "missing" ? linked : childPages.find((child) => normalizeLinkTarget(child.title) === key)?.id;
-    if (!resolved) return "missing";
-    if (resolved === "ambiguous") return resolved;
-    return { href: href(resolved) };
+    return resolved ?? "missing";
+  };
+  const resolveLink = (title: string): LinkTarget => {
+    const id = linkedId(title);
+    return id === "missing" || id === "ambiguous" ? id : { href: href(id) };
+  };
+  const syncedSource = (title: string): SyncedTarget => {
+    const id = linkedId(title);
+    return id === "missing" || id === "ambiguous" ? id : { nodeId: id, href: href(id) };
   };
 
   // The picker offers every page of the base whose title holds what is typed; with nothing typed, the sub-pages.
@@ -212,15 +221,19 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
               </div>
             )}
             <div hidden={selected !== null} className="mt-5">
-              <BlockEditor
-                key={autosave.opened.key}
-                markdown={autosave.opened.markdown}
-                onChange={change}
-                resolveLink={resolveLink}
-                onCreateSubPage={createSubPage}
-                pageTitles={pageTitles}
-                onPageQuery={setPageQuery}
-              />
+              <PageContext.Provider value={{ kbId, nodeId: node.id }}>
+                <SyncedSource.Provider value={syncedSource}>
+                  <BlockEditor
+                    key={autosave.opened.key}
+                    markdown={autosave.opened.markdown}
+                    onChange={change}
+                    resolveLink={resolveLink}
+                    onCreateSubPage={createSubPage}
+                    pageTitles={pageTitles}
+                    onPageQuery={setPageQuery}
+                  />
+                </SyncedSource.Provider>
+              </PageContext.Provider>
               {untitled.error && (
                 <p role="alert" className="m-0 mt-2 text-12 text-err">
                   {errorText(untitled.error)}

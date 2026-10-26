@@ -107,30 +107,38 @@ function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 }
 
+/** The emojis whose pt-BR or English words contain the query, accents and case aside; all of them for none. */
+export function findEmojis(query: string): Array<[string, string, string]> {
+  const folded = fold(query.trim());
+  return folded ? EMOJIS.filter(([, pt, en]) => fold(`${pt} ${en}`).includes(folded)) : EMOJIS;
+}
+
 const WIDTH = 320;
 const GAP = 4;
 
 /**
  * The emoji picker as a small panel under its anchor: the caller renders it while open, inside the box that also holds
- * the button opening it. A click outside that box or Escape closes it; Enter picks the first match.
+ * the button opening it. A click outside that box or Escape closes it; Enter picks the first match. Given a `query`,
+ * the caller types (the editor after ":") and the picker shows no search field of its own.
  */
 export function EmojiPicker({
   onPick,
   onRemove,
   onClose,
+  query,
 }: {
   onPick: (emoji: string) => void;
   /** Given when there is an icon to remove. */
   onRemove?: () => void;
   onClose: () => void;
+  query?: string;
 }) {
   const { t, lang } = useI18n();
-  const [query, setQuery] = useState("");
+  const [typed, setTyped] = useState("");
   const panel = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
-  const folded = fold(query.trim());
-  const shown = folded ? EMOJIS.filter(([, pt, en]) => fold(`${pt} ${en}`).includes(folded)) : EMOJIS;
+  const shown = findEmojis(query ?? typed);
 
   // Fixed under the anchor, so the sidebar's or a card's overflow never clips it.
   useLayoutEffect(() => {
@@ -167,24 +175,26 @@ export function EmojiPicker({
       style={{ width: WIDTH, ...place }}
       className="fixed z-30 rounded-[8px] border border-line-2 bg-bg p-2"
     >
-      <div className="flex items-center gap-1.5">
-        <Input
-          ref={search}
-          type="search"
-          aria-label={t("page.icon.search")}
-          placeholder={t("page.icon.search")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && shown[0]) onPick(shown[0][0]);
-          }}
-        />
-        {onRemove && (
-          <Button variant="quiet" size="sm" onClick={onRemove}>
-            {t("page.icon.remove")}
-          </Button>
-        )}
-      </div>
+      {query === undefined && (
+        <div className="flex items-center gap-1.5">
+          <Input
+            ref={search}
+            type="search"
+            aria-label={t("page.icon.search")}
+            placeholder={t("page.icon.search")}
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && shown[0]) onPick(shown[0][0]);
+            }}
+          />
+          {onRemove && (
+            <Button variant="quiet" size="sm" onClick={onRemove}>
+              {t("page.icon.remove")}
+            </Button>
+          )}
+        </div>
+      )}
       {shown.length === 0 ? (
         <p className="m-0 px-1 pt-2 text-13 text-text-3">{t("page.icon.none")}</p>
       ) : (
