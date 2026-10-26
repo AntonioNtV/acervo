@@ -5,7 +5,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from acervo.api.errors import register_error_handlers
-from acervo.api.routers import attachments, covers, exports, favorites, files, health, kbs, nodes, pages, trash
+from acervo.api.routers import (
+    attachments,
+    covers,
+    exports,
+    favorites,
+    files,
+    health,
+    kbs,
+    link_previews,
+    nodes,
+    pages,
+    trash,
+)
 from acervo.core.settings import Settings, get_settings
 from acervo.db.session import create_engine, create_session_factory
 from acervo.services.storage import Storage
@@ -34,7 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=["Content-Range", "Accept-Ranges", "Content-Disposition"],
     )
     register_error_handlers(app)
-    for module in (health, kbs, nodes, trash, files, pages, favorites, covers, attachments, exports):
+    for module in (health, kbs, nodes, trash, files, pages, favorites, covers, attachments, exports, link_previews):
         app.include_router(module.router)
     return app
 

@@ -293,6 +293,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/link-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Link Preview
+         * @description The site's title, description and image, read by the server within 5 seconds and 1 MB.
+         *
+         *     A site that fails or is too slow gives only `url` and `domain`. A URL that is not http(s), or whose host or any
+         *     redirect points to a loopback, private, link-local, multicast or reserved address, is 422 `link_not_allowed`.
+         */
+        get: operations["link_preview_v1_link_preview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/nodes/{node_id}": {
         parameters: {
             query?: never;
@@ -1152,6 +1175,37 @@ export interface components {
              * @description When the base last changed.
              */
             updated_at: string;
+        };
+        /**
+         * LinkPreview
+         * @description What a site says about itself, for the card of a link; only `url` and `domain` when it did not answer.
+         */
+        LinkPreview: {
+            /**
+             * Description
+             * @description The page's og:description, else its meta description.
+             */
+            description?: string | null;
+            /**
+             * Domain
+             * @description Its host.
+             */
+            domain: string;
+            /**
+             * Image
+             * @description The page's og:image as an absolute http(s) URL, on the site.
+             */
+            image?: string | null;
+            /**
+             * Title
+             * @description The page's og:title, else its <title>.
+             */
+            title?: string | null;
+            /**
+             * Url
+             * @description The URL asked for.
+             */
+            url: string;
         };
         /**
          * Mention
@@ -2646,6 +2700,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NodeWithPath"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    link_preview_v1_link_preview_get: {
+        parameters: {
+            query: {
+                url: string;
+            };
+            header?: {
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkPreview"];
                 };
             };
             /** @description Unauthorized */

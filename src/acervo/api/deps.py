@@ -17,6 +17,7 @@ from acervo.services.duplicate_service import DuplicateService
 from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
+from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.page_service import PageService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
@@ -119,3 +120,7 @@ def get_attachment_service(
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AttachmentService:
     return AttachmentService(uow, storage, settings.attachment_max_bytes)
+
+
+def get_link_preview_service(settings: Annotated[Settings, Depends(get_settings)]) -> LinkPreviewService:
+    return LinkPreviewService(settings.link_preview_timeout_seconds, settings.link_preview_max_bytes)
