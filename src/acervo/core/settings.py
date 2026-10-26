@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # A save after this long without a change to the working text starts a new editing session, cutting a version.
     version_idle_seconds: int = 300
     cover_max_bytes: int = 10 * 1024 * 1024
+    attachment_max_bytes: int = 100 * 1024 * 1024
 
     @field_validator("api_key")
     @classmethod

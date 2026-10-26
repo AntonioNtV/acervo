@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.attachment import AttachmentCreate
 from acervo.schemas.node import NodeAdd
 from acervo.schemas.page import PageTextPut
 from acervo.services.duplicate_service import DuplicateService
@@ -91,3 +92,17 @@ async def test_copy_sits_after_the_original(services: Services, make_tree: MakeT
 
     children = await services.tree.children(tree.kb.id, tree["Bradesco"].id)
     assert [c.title for c in children] == ["A", "Emissão", "Emissão (cópia)", "B"]
+
+
+async def test_the_copy_has_the_attachments(services: Services, make_tree: MakeTree, uow: UnitOfWork) -> None:
+    tree = await make_tree({"Bradesco": ["Vistoria.md"]})
+    page = tree["Bradesco/Vistoria.md"].id
+    attachment = AttachmentCreate(page_id=page, name="foto.jpg", sha256="abc", mime="image/jpeg", size=3)
+    await uow.page_attachments.create(attachment)
+
+    copy = await services.duplicate.duplicate(page)
+
+    copied = await uow.page_attachments.of_page(copy.id)
+    assert [a.model_dump(exclude={"id", "created_at"}) for a in copied] == [
+        attachment.model_copy(update={"page_id": copy.id}).model_dump()
+    ]
