@@ -12,7 +12,7 @@ export function useMe() {
 }
 
 /** A change whose answer is the account as it is now. */
-function useAccountChange<T>(request: (input: T) => Promise<Account>) {
+export function useAccountChange<T>(request: (input: T) => Promise<Account>) {
   const queryClient = useQueryClient();
   return useMutation({ mutationFn: request, onSuccess: (account) => queryClient.setQueryData(["me"], account) });
 }
@@ -41,13 +41,10 @@ export function useRemovePhoto() {
   return useAccountChange(() => call(api.DELETE("/v1/account/photo")));
 }
 
-/**
- * Sends a code to the new address, once the current password is right when the account has one; the email changes
- * only once that code is confirmed.
- */
+/** Sends a code to the new address, after a recent sign-in; the email changes only once that code is confirmed. */
 export function useRequestEmailChange() {
   return useMutation({
-    mutationFn: (body: { new_email: string; password?: string }) => call(api.POST("/v1/account/email", { body })),
+    mutationFn: (new_email: string) => call(api.POST("/v1/account/email", { body: { new_email } })),
   });
 }
 

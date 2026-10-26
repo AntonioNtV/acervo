@@ -1,15 +1,22 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
 import { useForgetAccount } from "../../app/lastPage";
 import { useSignIn } from "../../data/account";
+import { isPending, passkeySignIn, usePasskeySignIn } from "../../data/security";
 import { ApiError } from "../../data/request";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { PasswordField } from "../../ui/PasswordField";
+import { PasskeyLogo, ProviderButton } from "../../ui/ProviderButton";
+import { autofillAvailable, cancelled } from "../../webauthn";
+import { usePasskeyError } from "../settings/ReauthDialog";
 import { AuthCard, AuthError, AuthField, authLink, GoogleFirst, useNext } from "./AuthCard";
 
-/** `/entrar`: Google, or email and password; a wrong one of the two is never told apart. */
+/**
+ * `/entrar`: Google, a passkey (its button, or the browser's autofill on the email field), or email and password; a
+ * wrong one of the two is never told apart. With two-step verification on, the password leads to the code.
+ */
 export function SignIn() {
   const { t } = useI18n();
   const errorText = useErrorText();
@@ -20,16 +27,49 @@ export function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const signIn = useSignIn();
+  const passkey = usePasskeySignIn();
+  const passkeyError = usePasskeyError();
+  const [autofillError, setAutofillError] = useState<unknown>(null);
+  const autofill = useRef<AbortController | null>(null);
   const code = signIn.error instanceof ApiError ? signIn.error.code : "";
   const locked = code === "too_many_attempts";
+  const failedPasskey = passkeyError(passkey.error ?? autofillError);
+
+  function signedIn() {
+    forget();
+    navigate(next, { replace: true });
+  }
+  // Read by the autofill, which starts once and outlives renders.
+  const signedInRef = useRef(signedIn);
+  signedInRef.current = signedIn;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    autofill.current = controller;
+    (async () => {
+      if (!(await autofillAvailable())) return;
+      await passkeySignIn(controller.signal);
+      signedInRef.current();
+    })().catch((error: unknown) => {
+      if (!cancelled(error)) setAutofillError(error);
+    });
+    return () => controller.abort();
+  }, []);
+
+  function withPasskey() {
+    // The browser runs one prompt at a time: the autofill's gives way to the button's.
+    autofill.current?.abort();
+    setAutofillError(null);
+    passkey.mutate(undefined, { onSuccess: signedIn });
+  }
 
   function submit() {
     signIn.mutate(
       { email: email.trim(), password },
       {
-        onSuccess: () => {
-          forget();
-          navigate(next, { replace: true });
+        onSuccess: (answer) => {
+          if (isPending(answer)) navigate(`/entrar/codigo?next=${encodeURIComponent(next)}`, { state: answer });
+          else signedIn();
         },
         onError: (error) => {
           // The API sent a new code: the account only needs its email confirmed.
@@ -55,12 +95,19 @@ export function SignIn() {
         </>
       }
     >
-      {!locked && <GoogleFirst next={next} />}
+      {!locked && (
+        <GoogleFirst next={next}>
+          <ProviderButton onClick={withPasskey} disabled={passkey.isPending} logo={<PasskeyLogo />}>
+            {passkey.isPending ? t("security.waiting") : t("security.passkey.signIn")}
+          </ProviderButton>
+          {failedPasskey && <AuthError>{failedPasskey}</AuthError>}
+        </GoogleFirst>
+      )}
       {params.get("erro") === "google" && !signIn.isError && <AuthError>{t("auth.google.failed")}</AuthError>}
       <AuthField
         label={t("auth.email")}
         type="email"
-        autoComplete="email"
+        autoComplete="username webauthn"
         required
         autoFocus
         placeholder={t("auth.email.placeholder")}
