@@ -19,8 +19,16 @@ function useOrganizationChange<T>(request: (input: T) => Promise<Organization>) 
   return useMutation({ mutationFn: request, onSuccess: () => invalidate(queryClient, ["organizations"]) });
 }
 
+/** The organization with `password_only`, which the list leaves out; refreshed with it. */
+export function useOrganizationDetail(organizationId: string) {
+  return useQuery({
+    queryKey: ["organizations", organizationId],
+    queryFn: () => call(api.GET("/v1/organizations/{organization_id}", path(organizationId))),
+  });
+}
+
 export function useUpdateOrganization(organizationId: string) {
-  return useOrganizationChange((body: { name?: string; new_base_access?: BaseAccess }) =>
+  return useOrganizationChange((body: { name?: string; new_base_access?: BaseAccess; require_two_factor?: boolean }) =>
     call(api.PATCH("/v1/organizations/{organization_id}", { ...path(organizationId), body })),
   );
 }
