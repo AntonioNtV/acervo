@@ -10,6 +10,7 @@ from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
+from acervo.services.attachment_service import AttachmentService
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
@@ -110,3 +111,11 @@ def get_export_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], storage: Annotated[Storage, Depends(get_storage)]
 ) -> ExportService:
     return ExportService(uow, storage)
+
+
+def get_attachment_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AttachmentService:
+    return AttachmentService(uow, storage, settings.attachment_max_bytes)

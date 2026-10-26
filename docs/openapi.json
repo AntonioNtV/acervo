@@ -1,6 +1,33 @@
 {
   "components": {
     "schemas": {
+      "Attachment": {
+        "description": "A file put in a page, which its Markdown reaches as `arquivos/<name>`.",
+        "properties": {
+          "mime": {
+            "description": "The media type; application/octet-stream when unknown.",
+            "title": "Mime",
+            "type": "string"
+          },
+          "name": {
+            "description": "Unique in the page; the uploaded file's name made safe, with -2, -3\u2026 on a clash.",
+            "title": "Name",
+            "type": "string"
+          },
+          "size": {
+            "description": "In bytes.",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "mime",
+          "size"
+        ],
+        "title": "Attachment",
+        "type": "object"
+      },
       "Body_replace_file_v1_nodes__node_id__file_post": {
         "properties": {
           "file": {
@@ -13,6 +40,20 @@
           "file"
         ],
         "title": "Body_replace_file_v1_nodes__node_id__file_post",
+        "type": "object"
+      },
+      "Body_upload_attachment_v1_pages__node_id__attachments_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_attachment_v1_pages__node_id__attachments_post",
         "type": "object"
       },
       "Body_upload_cover_v1_nodes__node_id__cover_post": {
@@ -4558,6 +4599,327 @@
         "summary": "Get Page",
         "tags": [
           "pages"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/attachments": {
+      "post": {
+        "description": "Any file of at most 100 MB put in the page, outside the tree; over it is 422 `attachment_too_large`.",
+        "operationId": "upload_attachment_v1_pages__node_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_attachment_v1_pages__node_id__attachments_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Upload Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/attachments/{name}/link": {
+      "post": {
+        "description": "A link to the attachment's bytes that opens without the key for 60 seconds.",
+        "operationId": "attachment_link_v1_pages__node_id__attachments__name__link_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileLink"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Attachment Link",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/pages/{node_id}/attachments/{name}/raw": {
+      "get": {
+        "description": "The attachment byte for byte; one `Range` of bytes is honored.\n\nTakes the X-API-Key header or the `expires` and `signature` of a link from\n`POST /v1/pages/{node_id}/attachments/{name}/link`.",
+        "operationId": "raw_attachment_v1_pages__node_id__attachments__name__raw_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "node_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Node Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "expires",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Expires"
+            }
+          },
+          {
+            "in": "query",
+            "name": "signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Signature"
+            }
+          },
+          {
+            "in": "header",
+            "name": "range",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Range"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "The bytes as uploaded."
+          },
+          "206": {
+            "content": {
+              "application/octet-stream": {}
+            },
+            "description": "A range of them."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "416": {
+            "description": "The range is outside the file."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Raw Attachment",
+        "tags": [
+          "attachments"
         ]
       }
     },

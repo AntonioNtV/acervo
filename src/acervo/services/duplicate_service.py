@@ -4,6 +4,7 @@ from acervo.core.errors import ValidationError
 from acervo.domain import links
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.attachment import AttachmentCreate
 from acervo.schemas.node import NodeCreate, NodeRead
 from acervo.schemas.page import PageVersionCreate
 
@@ -50,6 +51,14 @@ class DuplicateService:
         markdown = (await self._uow.page_versions.current(page.id)).markdown if text is None else text.markdown
         await self._uow.page_versions.add(PageVersionCreate(node_id=copy.id, markdown=markdown))
         await self._uow.page_links.replace(copy.kb_id, copy.id, links.targets(markdown))
+        # Same bytes in the bucket: only the rows are copied, so `arquivos/…` in the copy's text still opens.
+        attachments = await self._uow.page_attachments.of_page(page.id)
+        await self._uow.page_attachments.create_many(
+            [
+                AttachmentCreate(page_id=copy.id, name=a.name, sha256=a.sha256, mime=a.mime, size=a.size)
+                for a in attachments
+            ]
+        )
         # Sub-pages are renamed too, so a `[[link]]` to an original still resolves to that one page.
         for child in await self._uow.nodes.children(page.kb_id, page.id):
             if child.kind == "page":

@@ -6,7 +6,7 @@ from uuid import UUID
 LINK_SECONDS = 60
 
 # Signed into the message, so a link made for one kind of download cannot open another.
-Purpose = Literal["file", "cover", "export"]
+Purpose = Literal["file", "cover", "export", "attachment"]
 
 
 def sign(secret: str, purpose: Purpose, node_id: UUID, version_id: UUID | None, expires: int) -> str:
