@@ -5,17 +5,10 @@ import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import { MemoryRouter } from "react-router-dom";
 import { node, renderWithApi, resetApi, respond } from "../../api/testing";
 import { fakeBases, summary } from "../../screens/bases/testing";
-import { blockExtensions } from "../extensions";
+import { blockExtensions, RawBlock } from "../extensions";
 import { bindSource, parseMarkdown, serializeMarkdown, type Source } from "../markdown";
 import { generatedExtensions, PageContext } from "./generated";
 
-// markdown.ts builds its one manager from `blockExtensions`: here they are the page's with the generated blocks last,
-// since marked tries the tokenizer registered last first.
-vi.mock("../extensions", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../extensions")>();
-  const { generatedExtensions: generated } = await import("./generated");
-  return { ...original, blockExtensions: [...original.blockExtensions, ...generated] };
-});
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
 const NO_SOURCE: Source = { lead: "", chunks: [], nodes: [] };
@@ -41,7 +34,7 @@ function renderPage(markdown: string, onEditor?: (editor: Editor) => void) {
 }
 
 const links = () =>
-  within(screen.getByRole("navigation", { name: "editor.block.toc" }))
+  within(screen.getByRole("navigation", { name: "Sumário" }))
     .queryAllByRole("button")
     .map((button) => `${button.classList.contains("toc-h3") ? "  " : ""}${button.textContent}`);
 
@@ -54,7 +47,7 @@ beforeEach(() => {
 
 describe("generated blocks", () => {
   it("are registered after the raw nodes", () => {
-    expect(blockExtensions.slice(-2)).toEqual(generatedExtensions);
+    expect(blockExtensions.indexOf(generatedExtensions[0]!)).toBeGreaterThan(blockExtensions.indexOf(RawBlock));
   });
 
   it("read the comments alone on their line as blocks, keep other comments raw, and save byte for byte", () => {
@@ -85,7 +78,7 @@ describe("generated blocks", () => {
 
   it("show one ghost line on a page without headings", async () => {
     renderPage("<!-- toc -->\n\nSó texto.\n");
-    expect(await screen.findByText("editor.toc.empty")).toHaveClass("toc-empty");
+    expect(await screen.findByText("Sem títulos ainda")).toHaveClass("toc-empty");
   });
 
   it("show the path to the page from the page it is on", async () => {
