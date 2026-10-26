@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import current_account, get_page_service, get_settings, on_node
+from acervo.api.deps import CurrentAccount, current_account, get_page_service, get_settings, on_node
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.page import Mention, PageDiff, PageRead, PageTextPut, PageTextSaved, PageVersionSummary
@@ -40,6 +40,17 @@ async def put_page_text(node_id: UUID, body: PageTextPut, service: Service, sett
 async def leave_page(node_id: UUID, service: Service) -> None:
     """The person left the page: the working text becomes a version, unless it already is one."""
     await service.cut(node_id)
+
+
+@router.put("/{node_id}/follow", status_code=204, responses={404: ERROR}, dependencies=READER)
+async def follow_page(node_id: UUID, account: CurrentAccount, service: Service) -> None:
+    """The person follows the page, for the daily digest; following it again changes nothing."""
+    await service.follow(account.id, node_id)
+
+
+@router.delete("/{node_id}/follow", status_code=204, responses={404: ERROR}, dependencies=READER)
+async def unfollow_page(node_id: UUID, account: CurrentAccount, service: Service) -> None:
+    await service.unfollow(account.id, node_id)
 
 
 @router.get("/{node_id}/mentions", response_model=list[Mention], responses={404: ERROR}, dependencies=READER)
