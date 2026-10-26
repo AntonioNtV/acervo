@@ -14,3 +14,5 @@ class PageVersion(UUIDPkMixin, TimestampMixin, Base):
     markdown: Mapped[str] = mapped_column(Text)
     edit_started_at: Mapped[datetime | None]
     edit_ended_at: Mapped[datetime | None]
+    # Null for versions saved before authors were recorded, and once the author's account is deleted.
+    author_id: Mapped[UUID | None] = mapped_column(ForeignKey("account.id", ondelete="SET NULL"))

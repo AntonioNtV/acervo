@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session, SessionTransaction
 from acervo.repositories.account import AccountRepository
 from acervo.repositories.base_member import BaseMemberRepository
 from acervo.repositories.email_code import EmailCodeRepository
+from acervo.repositories.email_copy import EmailCopyRepository
 from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
+from acervo.repositories.follow import FollowRepository
 from acervo.repositories.invite import InviteRepository
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.login_failure import LoginFailureRepository
@@ -61,6 +63,7 @@ class UnitOfWork:
     page_links: PageLinkRepository
     page_attachments: PageAttachmentRepository
     favorites: FavoriteRepository
+    follows: FollowRepository
     accounts: AccountRepository
     sessions: SessionRepository
     email_codes: EmailCodeRepository
@@ -73,6 +76,7 @@ class UnitOfWork:
     passkeys: PasskeyRepository
     pending_sign_ins: PendingSignInRepository
     security_events: SecurityEventRepository
+    email_copies: EmailCopyRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -93,6 +97,7 @@ class UnitOfWork:
         self.page_links = PageLinkRepository(self._session)
         self.page_attachments = PageAttachmentRepository(self._session)
         self.favorites = FavoriteRepository(self._session)
+        self.follows = FollowRepository(self._session)
         self.accounts = AccountRepository(self._session)
         self.sessions = SessionRepository(self._session)
         self.email_codes = EmailCodeRepository(self._session)
@@ -105,6 +110,7 @@ class UnitOfWork:
         self.passkeys = PasskeyRepository(self._session)
         self.pending_sign_ins = PendingSignInRepository(self._session)
         self.security_events = SecurityEventRepository(self._session)
+        self.email_copies = EmailCopyRepository(self._session)
         return self
 
     async def __aexit__(
