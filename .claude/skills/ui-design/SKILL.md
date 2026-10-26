@@ -16,6 +16,15 @@ blocks the editor does not have yet, marked "Planejado", with their Markdown for
 (`--cite`, `--page`); they are the target design, not part of the app. The components they are built from (pickers,
 media, database views and controls) are in the app, in `web/src/ui/`, with `--mark` and `--tc-*`.
 
+The note (`.nota`, planned) is a whiteboard for everyday notes, after Apple Notes and Notability: typed text and
+handwriting anywhere on a board without edges. Its components (group "Nota") and screen ("Nota", under Telas) are on
+the design system page; the clickable prototype and the feature board are on the canvas
+https://claude.ai/artifact/Jjq3r6SPUZ9E4jUG7WtqGR, page "Notas · desenho". Its stroke is Excalidraw's freedraw
+(perfect-freehand: size = width × 4.25, thinning .6, smoothing .5, streamline .5, sine easing) with widths 0.5 · 1 · 2,
+half of Excalidraw's. Drawing colors are the person's content, stored as hex on each stroke, and the drawing is
+inverted on screen in dark mode; everything around it uses the tokens below. Floating parts (palette, popovers,
+menus) take a 1 px `--line-2` border, no shadow.
+
 ## The rules
 
 1. Type before boxes: hierarchy from size and gray. No card inside a card, no tinted icon tiles, no button shadow.
@@ -60,6 +69,7 @@ media, database views and controls) are in the app, in `web/src/ui/`, with `--ma
 | history | panel 320 px at the right of the page, versions by day; the selected version shows its diff in the page |
 | search (⌘K) | a palette over the screen: recent pages of the base, then title results with their path, and "Criar página" |
 | trash (`/lixeira`) | one column, max 720 px: trashed bases, then a section per base with its trashed items and where they were |
+| note (planned) | sidebar closed · top bar · a 48 px note bar (Aa, checklist, attach, background, audio, search) · the board on dots every 24 px · the tool palette floating 16 px above the bottom, zoom at the bottom left |
 
 The shell:
 
