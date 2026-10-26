@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 
 from acervo.db.models.base_member import BaseMember
 from acervo.db.models.kb import Kb
@@ -25,3 +25,10 @@ class BaseMemberRepository(BaseRepository[BaseMember, BaseMemberRecord, BaseMemb
         if organization_id is not None:
             query = query.where(Kb.organization_id == organization_id)
         return set(await self._session.scalars(query))
+
+    async def delete_in_organization(self, account_id: UUID, organization_id: UUID) -> None:
+        """The account's base roles on every base of the organization."""
+        bases = select(Kb.id).where(Kb.organization_id == organization_id)
+        await self._session.execute(
+            delete(BaseMember).where(BaseMember.account_id == account_id, BaseMember.kb_id.in_(bases))
+        )
