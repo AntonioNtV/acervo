@@ -33,6 +33,11 @@ def _known_timezone(name: str) -> str:
 TimeZone = Annotated[str, AfterValidator(_known_timezone)]
 
 
+def timezone_or_default(name: str | None) -> str:
+    """The browser's time zone at sign-up, or São Paulo's when it sent none or one we do not know."""
+    return name if name in known_timezones() else DEFAULT_TIMEZONE
+
+
 class Preferences(BaseModel):
     """How the app looks and opens for the account, on every device."""
 
