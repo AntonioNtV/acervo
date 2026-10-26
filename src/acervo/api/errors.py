@@ -9,6 +9,7 @@ from acervo.core.errors import (
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    ReauthenticationRequired,
     TooManyAttempts,
     ValidationError,
 )
@@ -19,6 +20,8 @@ STATUS_BY_ERROR: dict[type[AcervoError], int] = {
     NotFoundError: 404,
     ConflictError: 409,
     ValidationError: 422,
+    # An AuthError, but 403: the web app signs out on a 401, and this one only asks the password again.
+    ReauthenticationRequired: 403,
     AuthError: 401,
     ForbiddenError: 403,
     TooManyAttempts: 429,

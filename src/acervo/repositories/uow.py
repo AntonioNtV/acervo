@@ -22,7 +22,10 @@ from acervo.repositories.page_attachment import PageAttachmentRepository
 from acervo.repositories.page_draft import PageDraftRepository
 from acervo.repositories.page_link import PageLinkRepository
 from acervo.repositories.page_version import PageVersionRepository
+from acervo.repositories.passkey import PasskeyRepository
 from acervo.repositories.password_reset import PasswordResetRepository
+from acervo.repositories.pending_sign_in import PendingSignInRepository
+from acervo.repositories.security_event import SecurityEventRepository
 from acervo.repositories.session import SessionRepository
 
 APP_ROLE = "acervo_app"
@@ -67,6 +70,9 @@ class UnitOfWork:
     memberships: MembershipRepository
     base_members: BaseMemberRepository
     invites: InviteRepository
+    passkeys: PasskeyRepository
+    pending_sign_ins: PendingSignInRepository
+    security_events: SecurityEventRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -96,6 +102,9 @@ class UnitOfWork:
         self.memberships = MembershipRepository(self._session)
         self.base_members = BaseMemberRepository(self._session)
         self.invites = InviteRepository(self._session)
+        self.passkeys = PasskeyRepository(self._session)
+        self.pending_sign_ins = PendingSignInRepository(self._session)
+        self.security_events = SecurityEventRepository(self._session)
         return self
 
     async def __aexit__(

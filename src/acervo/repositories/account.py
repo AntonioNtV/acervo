@@ -2,6 +2,8 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func
+from sqlalchemy.orm import undefer
+from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.db.models.account import Account
 from acervo.repositories.base import BaseRepository
@@ -11,6 +13,10 @@ from acervo.schemas.account import AccountCreate, AccountRecord, AccountUpdate
 class AccountRepository(BaseRepository[Account, AccountRecord, AccountCreate, AccountUpdate]):
     orm_model = Account
     read_schema = AccountRecord
+
+    def _options(self) -> list[ORMOption]:
+        # Any option reloads a row already in the session, so `has_passkey` follows a passkey added since.
+        return [undefer(Account.has_passkey)]  # type: ignore[attr-defined]
 
     async def by_email(self, email: str) -> AccountRecord | None:
         """The account of `email`, ignoring case."""
