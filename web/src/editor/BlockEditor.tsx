@@ -123,6 +123,9 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     content: opened.doc,
     editorProps: {
       attributes: { class: "block-editor", "aria-label": t("editor.label") },
+      // The page's top bar (44 px) stays over the text: a line scrolled into view lands below it.
+      scrollMargin: { top: 56, bottom: 16, left: 0, right: 0 },
+      scrollThreshold: { top: 56, bottom: 16, left: 0, right: 0 },
       // A file pasted or dropped into the page is uploaded as its attachment, where it lands.
       // Rich text that also carries a picture of itself (cells copied from a spreadsheet) pastes as text.
       handlePaste: (view, event) =>

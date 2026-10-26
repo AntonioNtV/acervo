@@ -1,4 +1,5 @@
 import { Node } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
 import { useState } from "react";
 import { useLinkPreview } from "../../data/linkPreviews";
@@ -57,7 +58,9 @@ export const LinkBlock = Node.create({
           if (node?.type.name !== this.name || !node.attrs.url) return false;
           const { url } = node.attrs;
           const text = state.schema.text(url, [state.schema.marks.link!.create({ href: url })]);
-          dispatch?.(tr.replaceWith(pos, pos + node.nodeSize, state.schema.nodes.paragraph!.create(null, text)));
+          tr.replaceWith(pos, pos + node.nodeSize, state.schema.nodes.paragraph!.create(null, text));
+          // The cursor goes to the link's end, so focusing the editor does not scroll back to the old selection.
+          dispatch?.(tr.setSelection(TextSelection.create(tr.doc, pos + 1 + url.length)).scrollIntoView());
           return true;
         },
     };
