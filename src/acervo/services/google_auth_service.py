@@ -124,6 +124,7 @@ class GoogleAuthService:
                     email=person.email, name=name, google_sub=person.sub, email_verified_at=self._utc()
                 )
                 account = await self._uow.accounts.create(created)
+                await self._uow.organizations.create_personal(account.id)
         return Landing(next, await self._sessions.create(account.id, user_agent))
 
     def _utc(self) -> datetime:

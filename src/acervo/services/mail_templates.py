@@ -107,7 +107,161 @@ COPY: dict[MailTemplate, dict[Language, Copy]] = {
             ],
         },
     },
+    # Copy from the Design System, "Comunicação · Organizações"; the English is ours, the design has none yet.
+    MailTemplate.ORG_INVITE: {
+        "pt-BR": {
+            "subject": "{inviter} convidou você para a {organization}",
+            "pre": "Você vai entrar como {role}.",
+            "title": "{inviter} convidou você para a {organization}",
+            "body": ["Você vai entrar como {role} e terá acesso a {bases}."],
+            "button": "Aceitar convite",
+            "after": [
+                "O convite é para {email} e vale até {until}. Se você não conhece a {organization}, ignore este email."
+            ],
+        },
+        "en": {
+            "subject": "{inviter} invited you to {organization}",
+            "pre": "You will join as {role}.",
+            "title": "{inviter} invited you to {organization}",
+            "body": ["You will join as {role} and have access to {bases}."],
+            "button": "Accept invite",
+            "after": [
+                "The invite is for {email} and is valid until {until}. If you do not know {organization}, "
+                "ignore this email."
+            ],
+        },
+    },
+    MailTemplate.INVITE_ACCEPTED: {
+        "pt-BR": {
+            "subject": "{first} entrou na {organization}",
+            "pre": "Ela já acessa as bases da organização.",
+            "title": "{first} entrou na {organization}",
+            "body": ["{member_email} aceitou seu convite e entrou como {role}."],
+            "button": "Ver membros",
+            "after": [],
+        },
+        "en": {
+            "subject": "{first} joined {organization}",
+            "pre": "They can already reach the organization's bases.",
+            "title": "{first} joined {organization}",
+            "body": ["{member_email} accepted your invite and joined as {role}."],
+            "button": "See members",
+            "after": [],
+        },
+    },
+    MailTemplate.BASE_SHARED: {
+        "pt-BR": {
+            "subject": "{inviter} compartilhou {base} com você",
+            "pre": "{can_pre}",
+            "title": "{inviter} compartilhou {base} com você",
+            "body": ["Você entrou como {role}: {can}"],
+            "button": "Abrir {base}",
+            "after": [],
+        },
+        "en": {
+            "subject": "{inviter} shared {base} with you",
+            "pre": "{can_pre}",
+            "title": "{inviter} shared {base} with you",
+            "body": ["You joined as {role}: {can}"],
+            "button": "Open {base}",
+            "after": [],
+        },
+    },
+    MailTemplate.ROLE_CHANGED: {
+        "pt-BR": {
+            "subject": "Agora você é {role} na {organization}",
+            "pre": "{actor} mudou seu papel.",
+            "title": "Agora você é {role} na {organization}",
+            "body": ["{actor} mudou seu papel de {old_role} para {role}. {can}"],
+            "button": "Abrir a {organization}",
+            "after": [],
+        },
+        "en": {
+            "subject": "You are now {role} at {organization}",
+            "pre": "{actor} changed your role.",
+            "title": "You are now {role} at {organization}",
+            "body": ["{actor} changed your role from {old_role} to {role}. {can}"],
+            "button": "Open {organization}",
+            "after": [],
+        },
+    },
+    MailTemplate.REMOVED: {
+        "pt-BR": {
+            "subject": "Você não faz mais parte da {organization}",
+            "pre": "Suas bases pessoais continuam com você.",
+            "title": "Você saiu da {organization}",
+            "body": [
+                "{actor} tirou seu acesso à {organization}. As páginas que você escreveu lá continuam na organização.",
+                "Seu espaço Pessoal e as outras organizações não mudam.",
+            ],
+            "after": [],
+        },
+        "en": {
+            "subject": "You are no longer part of {organization}",
+            "pre": "Your personal bases stay with you.",
+            "title": "You left {organization}",
+            "body": [
+                "{actor} removed your access to {organization}. The pages you wrote there stay in the organization.",
+                "Your Personal space and your other organizations do not change.",
+            ],
+            "after": [],
+        },
+    },
 }
+
+ROLES: dict[Language, dict[str, str]] = {
+    "pt-BR": {"owner": "Owner", "admin": "Admin", "member": "Membro", "reader": "Leitor", "editor": "Editor"},
+    "en": {"owner": "Owner", "admin": "Admin", "member": "Member", "reader": "Reader", "editor": "Editor"},
+}
+# What the new role allows, by role code: organization roles for `role_changed`, base roles for `base_shared`.
+CAN: dict[MailTemplate, dict[Language, dict[str, dict[str, str]]]] = {
+    MailTemplate.ROLE_CHANGED: {
+        "pt-BR": {
+            "owner": {"can": "Agora você pode fazer tudo o que um Admin faz e também gerenciar os Owners."},
+            "admin": {"can": "Agora você pode convidar pessoas, criar bases e ver todas as bases da organização."},
+            "member": {"can": "Agora você vê as bases que seu acesso permite e pode criar bases."},
+        },
+        "en": {
+            "owner": {"can": "Now you can do everything an Admin does and also manage Owners."},
+            "admin": {"can": "Now you can invite people, create bases and see every base of the organization."},
+            "member": {"can": "Now you see the bases your access allows and can create bases."},
+        },
+    },
+    MailTemplate.BASE_SHARED: {
+        "pt-BR": {
+            "reader": {
+                "can_pre": "Você pode ler.",
+                "can": "pode ler as páginas e os arquivos da base, baixá-los e buscar neles.",
+            },
+            "editor": {
+                "can_pre": "Você pode editar.",
+                "can": "pode criar, editar, mover e restaurar versões das páginas da base.",
+            },
+            "admin": {
+                "can_pre": "Você pode editar e gerenciar o acesso.",
+                "can": "pode editar as páginas da base e gerenciar quem a acessa.",
+            },
+        },
+        "en": {
+            "reader": {
+                "can_pre": "You can read.",
+                "can": "you can read, download and search the base's pages and files.",
+            },
+            "editor": {
+                "can_pre": "You can edit.",
+                "can": "you can create, edit, move and restore versions of the base's pages.",
+            },
+            "admin": {
+                "can_pre": "You can edit and manage access.",
+                "can": "you can edit the base's pages and manage who accesses it.",
+            },
+        },
+    },
+}
+AND = {"pt-BR": "e", "en": "and"}
+NO_BASES = {"pt-BR": "nenhuma base por enquanto", "en": "no bases yet"}
+# Where each button goes; `link` is a token for these, and the app path for any other template with a button.
+BUTTON_PATH = {MailTemplate.RESET_LINK: "/redefinir-senha/{link}", MailTemplate.ORG_INVITE: "/convite/{link}"}
 
 OR_OPEN = {"pt-BR": "Ou abra", "en": "Or open"}
 FOOTER = {
@@ -137,6 +291,15 @@ def _when(now: datetime, language: Language) -> dict[str, str]:
     return {"date": f"{now.day} de {MONTHS[now.month - 1]}", "time": f"{now:%H:%M}"}
 
 
+def _bases(names: str, language: Language) -> str:
+    """ "3 bases: A, B e C" from one name per line."""
+    listed = [name for name in names.split("\n") if name]
+    if not listed:
+        return NO_BASES[language]
+    joined = listed[0] if len(listed) == 1 else f"{', '.join(listed[:-1])} {AND[language]} {listed[-1]}"
+    return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {joined}"
+
+
 def render(
     template: MailTemplate,
     language: Language,
@@ -148,12 +311,22 @@ def render(
     """Fills one template; a value the template needs and `values` lacks raises KeyError."""
     copy = COPY[template][language]
     fill = {**values, "email": to, "first": values.get("name", "").split(" ")[0], **_when(now, language)}
+    for key in ("role", "old_role"):
+        if key in values:
+            fill[key] = ROLES[language][values[key]]
+    if template in CAN:
+        fill |= CAN[template][language][values["role"]]
+    if "bases" in values:
+        fill["bases"] = _bases(values["bases"], language)
+    if "expires_at" in values:
+        fill["until"] = _when(datetime.fromisoformat(values["expires_at"]), language)["date"]
     subject, pre, title = (copy["subject"].format(**fill), copy["pre"].format(**fill), copy["title"].format(**fill))
     body = [p.format(**fill) for p in copy["body"]]
     after = [p.format(**fill) for p in copy["after"]]
     code = values["code"] if template in (MailTemplate.VERIFY_CODE, MailTemplate.CHANGE_EMAIL_CODE) else None
-    button = copy.get("button")
-    link = f"{public_url.rstrip('/')}/redefinir-senha/{values['link']}" if button else None
+    button = copy["button"].format(**fill) if "button" in copy else None
+    path = BUTTON_PATH.get(template, "{link}").format(link=values["link"]) if button else ""
+    link = f"{public_url.rstrip('/')}{path}" if button else None
 
     text = [title, "", *body, ""]
     if code:

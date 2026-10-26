@@ -12,10 +12,11 @@ from sqlalchemy.pool import NullPool
 
 from acervo.core.errors import StalePage
 from acervo.core.settings import Settings
-from acervo.db.models import Kb, Node, PageDraft, PageLink, PageVersion
+from acervo.db.models import Kb, Node, Organization, PageDraft, PageLink, PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
+from acervo.schemas.organization import OrganizationCreate
 from acervo.schemas.page import PageTextPut, PageTextSaved, PageVersionSummary
 from acervo.services.page_service import PageService
 from acervo.services.tree_service import TreeService
@@ -360,7 +361,8 @@ async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_s
     engine = create_async_engine(test_settings.database_url, poolclass=NullPool)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with UnitOfWork(sessions) as uow:
-        kb = await uow.kbs.create(KbCreate(name="Edições em paralelo"))
+        organization = await uow.organizations.create(OrganizationCreate(name="Seguros SA"))
+        kb = await uow.kbs.create(KbCreate(name="Edições em paralelo", organization_id=organization.id))
         await uow.commit()
         page = await TreeService(uow).create(kb.id, NodeAdd(kind="page", title="Prazos"))
     yield sessions, page.id
@@ -371,6 +373,7 @@ async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_s
         await session.execute(delete(PageVersion).where(PageVersion.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
+        await session.execute(delete(Organization).where(Organization.id == organization.id))
         await session.commit()
     await engine.dispose()
 

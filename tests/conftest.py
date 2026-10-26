@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
+from uuid import UUID
 
 import aioboto3
 import pytest
@@ -24,15 +25,19 @@ from acervo.db.models import File, Node, PageVersion
 from acervo.db.session import async_url
 from acervo.repositories.account import AccountRepository
 from acervo.repositories.kb import KbRepository
+from acervo.repositories.membership import MembershipRepository
 from acervo.repositories.node import NodeRepository
+from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountCreate, AccountRead
 from acervo.schemas.kb import KbCreate, KbRead
 from acervo.schemas.node import NodeCreate
+from acervo.schemas.organization import MembershipCreate, OrganizationCreate, OrganizationRecord, OrgRole
 from acervo.services.mailer import FakeMailer
 
 ROOT = Path(__file__).resolve().parents[1]
 SESSION_SECRET = "test-session-secret"
+DEFAULT_EMAIL = "ana@example.com"
 # acervo.api.main builds its app from the environment at import; the tests then build their own with create_app.
 os.environ.setdefault("SESSION_SECRET", SESSION_SECRET)
 
@@ -175,10 +180,14 @@ def _children(spec: TreeSpec) -> list[tuple[str, TreeSpec]]:
 
 
 @pytest.fixture
-def make_tree(session: AsyncSession) -> Callable[..., Awaitable[Tree]]:
+def make_tree(
+    session: AsyncSession, make_account: Callable[..., Awaitable[AccountRead]]
+) -> Callable[..., Awaitable[Tree]]:
     """Builds a base from a dict. `.md` names are pages with one version, other names with an extension are
-    files with fake metadata and no bytes, and names without one are folders."""
+    files with fake metadata and no bytes, and names without one are folders. The base goes to `organization`,
+    else to the Pessoal of the default `make_account` account (the test client's), created when missing."""
     kbs, nodes = KbRepository(session), NodeRepository(session)
+    accounts, organizations = AccountRepository(session), OrganizationRepository(session)
 
     async def add(tree: Tree, parent: Node | None, prefix: str, spec: TreeSpec) -> None:
         for index, (name, children) in enumerate(_children(spec)):
@@ -213,8 +222,13 @@ def make_tree(session: AsyncSession) -> Callable[..., Awaitable[Tree]]:
                 await add(tree, node, f"{path}/", children)
         await session.flush()
 
-    async def make(spec: TreeSpec, name: str = "Seguros · Operação") -> Tree:
-        tree = Tree(await kbs.create(KbCreate(name=name)))
+    async def make(spec: TreeSpec, name: str = "Seguros · Operação", organization: UUID | None = None) -> Tree:
+        if organization is None:
+            account = await accounts.by_email(DEFAULT_EMAIL) or await make_account()
+            personal = await organizations.get_by(personal_of=account.id)
+            assert personal is not None
+            organization = personal.id
+        tree = Tree(await kbs.create(KbCreate(name=name, organization_id=organization)))
         await add(tree, None, "", spec)
         return tree
 
@@ -223,11 +237,11 @@ def make_tree(session: AsyncSession) -> Callable[..., Awaitable[Tree]]:
 
 @pytest.fixture
 def make_account(session: AsyncSession) -> Callable[..., Awaitable[AccountRead]]:
-    """Stores an account with a password, confirmed unless `verified=False`."""
+    """Stores an account with a password and its Pessoal, confirmed unless `verified=False`."""
     accounts = AccountRepository(session)
 
     async def make(
-        email: str = "ana@example.com", password: str = "senha-de-teste", verified: bool = True, name: str = "Ana"
+        email: str = DEFAULT_EMAIL, password: str = "senha-de-teste", verified: bool = True, name: str = "Ana"
     ) -> AccountRead:
         created = await accounts.create(
             AccountCreate(
@@ -237,7 +251,27 @@ def make_account(session: AsyncSession) -> Callable[..., Awaitable[AccountRead]]
                 email_verified_at=datetime.now(UTC) if verified else None,
             )
         )
+        await OrganizationRepository(session).create_personal(created.id)
         return AccountRead.of(created)
+
+    return make
+
+
+@pytest.fixture
+def make_organization(session: AsyncSession) -> Callable[..., Awaitable[OrganizationRecord]]:
+    """Stores a team with the account `owner` as its Owner and the accounts in `members` with their roles."""
+    organizations, memberships = OrganizationRepository(session), MembershipRepository(session)
+
+    async def make(
+        owner: UUID, name: str = "Seguros SA", members: dict[UUID, OrgRole] | None = None
+    ) -> OrganizationRecord:
+        organization = await organizations.create(OrganizationCreate(name=name))
+        roles: dict[UUID, OrgRole] = {owner: "owner", **(members or {})}
+        for account_id, role in roles.items():
+            await memberships.create(
+                MembershipCreate(organization_id=organization.id, account_id=account_id, role=role)
+            )
+        return organization
 
     return make
 
