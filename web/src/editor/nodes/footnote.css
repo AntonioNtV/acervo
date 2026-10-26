@@ -1,0 +1,36 @@
+/* Block "Nota de rodapé": the marker's number comes from the page's order (data-n), not from the file's label. */
+.block-editor .footnote-ref {
+  font-size: 11px;
+  line-height: 0;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.block-editor .footnote-ref::after {
+  content: attr(data-n);
+}
+
+.block-editor .footnote-ref.footnote-ghost {
+  color: var(--ghost);
+}
+
+.block-editor .footnote {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-2);
+}
+
+/* One rule above a run of notes, drawn by its first. */
+.block-editor > :not(.footnote) + .footnote,
+.block-editor > .footnote:first-child {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.block-editor .footnote-number {
+  margin-right: 6px;
+  color: var(--text-3);
+  cursor: pointer;
+  user-select: none;
+}
