@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -24,6 +25,7 @@ from acervo.api.routers import (
 from acervo.core.settings import Settings, get_settings
 from acervo.db.session import create_engine, create_session_factory
 from acervo.services.mailer import FakeMailer
+from acervo.services.smtp_mailer import SmtpMailer
 from acervo.services.storage import Storage
 
 
@@ -32,7 +34,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     engine = create_engine(app.state.settings)
     app.state.session_factory = create_session_factory(engine)
     app.state.storage = Storage(app.state.settings)
-    app.state.mailer = FakeMailer()
+    if app.state.settings.smtp_host:
+        app.state.mailer = SmtpMailer(app.state.settings)
+    else:
+        logging.getLogger(__name__).warning("SMTP_HOST is not set: emails are not sent.")
+        app.state.mailer = FakeMailer()
     try:
         yield
     finally:
