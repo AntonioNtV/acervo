@@ -19,6 +19,7 @@ from acervo.services.attachment_service import AttachmentService
 from acervo.services.auth_service import AuthService
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
+from acervo.services.deletion_service import DeletionService
 from acervo.services.duplicate_service import DuplicateService
 from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
@@ -198,6 +199,15 @@ def get_organization_service(
     access: Annotated[AccessService, Depends(get_access_service)],
 ) -> OrganizationService:
     return OrganizationService(uow, storage, mailer, access)
+
+
+def get_deletion_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    access: Annotated[AccessService, Depends(get_access_service)],
+) -> DeletionService:
+    return DeletionService(uow, storage, mailer, access)
 
 
 def get_invite_service(
