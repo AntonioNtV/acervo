@@ -51,7 +51,7 @@ describe("ShareDialog", () => {
 
     expect(await screen.findByText("Todos de Seguros SA")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Acesso geral" }));
-    await userEvent.click(await screen.findByRole("menuitemradio", { name: "Só as pessoas adicionadas" }));
+    await userEvent.click(await screen.findByRole("menuitemradio", { name: /^Só as pessoas adicionadas/ }));
 
     await waitFor(() =>
       expect(calls.find((call) => call.method === "PUT")).toMatchObject({

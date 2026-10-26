@@ -3,18 +3,25 @@ import { useI18n } from "../i18n";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 
-const ROLES = { org: ["owner", "admin", "member"], base: ["reader", "editor", "admin"] } as const;
+const ROLES = {
+  org: ["owner", "admin", "member"],
+  base: ["reader", "editor", "admin"],
+  general: ["reader", "editor", "none"],
+} as const;
 
 /**
- * A person's role in an organization or a base: the role as text with a caret, opening what each role can do and,
- * with `onRemove`, Remover acesso. `roles` narrows the choice (an Admin cannot make Owners); `disabled` leaves only the
- * text, for who cannot change it or the last Owner. Changes at once.
+ * A person's role in an organization or a base, or a base's general access: the role as text with a caret, opening
+ * what each role can do and, with `onRemove`, Remover acesso. `roles` narrows the choice (an Admin cannot make Owners);
+ * `disabled` leaves only the text, for who cannot change it or the last Owner; without `onChange` the roles only show,
+ * as on a pending invite. `label` names the menu, `shown` replaces the trigger's text. Changes at once.
  */
 export function RoleSelect<S extends keyof typeof ROLES>({
   scope,
   value,
   roles = ROLES[scope],
   disabled = false,
+  label,
+  shown,
   onChange,
   onRemove,
 }: {
@@ -22,7 +29,9 @@ export function RoleSelect<S extends keyof typeof ROLES>({
   value: (typeof ROLES)[S][number];
   roles?: readonly (typeof ROLES)[S][number][];
   disabled?: boolean;
-  onChange: (role: (typeof ROLES)[S][number]) => void;
+  label?: string;
+  shown?: string;
+  onChange?: (role: (typeof ROLES)[S][number]) => void;
   onRemove?: () => void;
 }) {
   const { t } = useI18n();
@@ -31,8 +40,13 @@ export function RoleSelect<S extends keyof typeof ROLES>({
   return (
     <RadixMenu.Root>
       <RadixMenu.Trigger asChild>
-        <Button variant="quiet" size="sm" className="gap-0.5 font-normal" aria-label={`${t("settings.role.label")}: ${name}`}>
-          {name}
+        <Button
+          variant="quiet"
+          size="sm"
+          className="gap-0.5 font-normal"
+          aria-label={label ?? `${t("settings.role.label")}: ${name}`}
+        >
+          {shown ?? name}
           <Icon name="caretDown" size={14} />
         </Button>
       </RadixMenu.Trigger>
@@ -40,15 +54,16 @@ export function RoleSelect<S extends keyof typeof ROLES>({
         <RadixMenu.Content
           align="end"
           sideOffset={4}
-          aria-label={t("settings.role.label")}
+          aria-label={label ?? t("settings.role.label")}
           className="flex w-[260px] flex-col rounded-[8px] border border-line-2 bg-bg p-1"
         >
-          <RadixMenu.RadioGroup value={value} onValueChange={(next) => onChange(next as (typeof ROLES)[S][number])}>
+          <RadixMenu.RadioGroup value={value} onValueChange={(next) => onChange?.(next as (typeof ROLES)[S][number])}>
             {roles.map((role) => (
               <RadixMenu.RadioItem
                 key={role}
                 value={role}
-                className="flex cursor-pointer items-start justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-13 text-text outline-none data-[highlighted]:bg-subtle"
+                disabled={!onChange}
+                className="flex cursor-pointer items-start justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-13 text-text outline-none data-[disabled]:cursor-default data-[disabled]:text-ghost data-[highlighted]:bg-subtle"
               >
                 <span className="flex flex-col">
                   {t(`settings.role.${scope}.${role}`)}

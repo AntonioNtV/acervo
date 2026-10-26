@@ -562,7 +562,7 @@ export interface paths {
         };
         /**
          * List Trashed Kbs
-         * @description Bases of the organization (the Pessoal when none) in the trash where the person is Editor or more, most
+         * @description Bases of the organization (the Pessoal when none) in the trash where the person is Admin, most
          *     recently trashed first.
          */
         get: operations["list_trashed_kbs_v1_kbs_trash_get"];
@@ -1850,7 +1850,7 @@ export interface components {
         InviteCreate: {
             /**
              * Emails
-             * @description Who to invite.
+             * @description Who to invite, at most 50.
              */
             emails: string[];
             /**
