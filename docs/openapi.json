@@ -692,6 +692,63 @@
         "title": "KbSummary",
         "type": "object"
       },
+      "LinkPreview": {
+        "description": "What a site says about itself, for the card of a link; only `url` and `domain` when it did not answer.",
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The page's og:description, else its meta description.",
+            "title": "Description"
+          },
+          "domain": {
+            "description": "Its host.",
+            "title": "Domain",
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The page's og:image as an absolute http(s) URL, on the site.",
+            "title": "Image"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The page's og:title, else its <title>.",
+            "title": "Title"
+          },
+          "url": {
+            "description": "The URL asked for.",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "domain"
+        ],
+        "title": "LinkPreview",
+        "type": "object"
+      },
       "Mention": {
         "description": "A page of the base whose `[[\u2026]]` link opens this page.",
         "properties": {
@@ -3264,6 +3321,75 @@
         "summary": "List Trash",
         "tags": [
           "trash"
+        ]
+      }
+    },
+    "/v1/link-preview": {
+      "get": {
+        "description": "The site's title, description and image, read by the server within 5 seconds and 1 MB.\n\nA site that fails or is too slow gives only `url` and `domain`. A URL that is not http(s), or whose host or any\nredirect points to a loopback, private, link-local, multicast or reserved address, is 422 `link_not_allowed`.",
+        "operationId": "link_preview_v1_link_preview_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "url",
+            "required": true,
+            "schema": {
+              "title": "Url",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkPreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Link Preview",
+        "tags": [
+          "link-previews"
         ]
       }
     },
