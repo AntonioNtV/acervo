@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.api.cookies import SESSION_COOKIE
 from acervo.core.settings import Settings
-from acervo.db.models import Account, PageVersion
+from acervo.db.models import Account, PageDraft, PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
 from acervo.services.session_service import SessionService
@@ -113,3 +113,20 @@ async def test_history_lists_each_versions_author(
     assert await authors() == [(str(bia.id), "Bia", True), (None, None, False)]
     await session.execute(delete(Account).where(Account.id == bia.id))
     assert await authors() == [(None, None, True), (None, None, False)]
+
+
+async def test_a_cut_credits_who_typed_the_text_not_who_opened_the_history(
+    client: httpx.AsyncClient,
+    make_tree: MakeTree,
+    session: AsyncSession,
+    make_account: Callable[..., Awaitable[AccountRead]],
+) -> None:
+    page = (await make_tree({"Emissão.md": None}))["Emissão.md"]
+    bia = await make_account(email="bia@example.com", name="Bia")
+    # Bia typed and closed the tab before her text was cut.
+    session.add(PageDraft(node_id=page.id, markdown="Da Bia.\n", revision=1, author_id=bia.id))
+    await session.flush()
+
+    history = (await client.get(f"/v1/pages/{page.id}/versions")).json()
+
+    assert (history[0]["author_id"], history[0]["author"]) == (str(bia.id), "Bia")

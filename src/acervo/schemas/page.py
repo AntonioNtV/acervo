@@ -16,6 +16,7 @@ class PageVersionCreate(BaseModel):
     edit_started_at: datetime | None = Field(default=None, description="First change of the editing session it ends.")
     edit_ended_at: datetime | None = Field(default=None, description="Last change of the editing session it ends.")
     author_id: UUID | None = Field(default=None, description="Account that saved it; null when none is known.")
+    author_known: bool = Field(default=True, description="False when who wrote it cannot be told.")
 
 
 class PageVersionSummary(BaseModel):
@@ -70,6 +71,7 @@ class PageDraftCreate(BaseModel):
     markdown: str = Field(description="The page's whole text.")
     revision: int = Field(description="Bumped on every save; a save from an older revision is refused.")
     started_at: datetime = Field(description="First change of the editing session not yet cut as a version.")
+    author_id: UUID | None = Field(default=None, description="Account that typed it last; null when unknown.")
 
 
 class PageDraftRead(PageDraftCreate):

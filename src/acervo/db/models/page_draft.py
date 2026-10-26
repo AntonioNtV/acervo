@@ -14,3 +14,5 @@ class PageDraft(UUIDPkMixin, TimestampMixin, Base):
     markdown: Mapped[str] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(server_default="0")
     started_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    # Who typed it last: the version it is cut into is theirs, whoever's request does the cut.
+    author_id: Mapped[UUID | None] = mapped_column(ForeignKey("account.id", ondelete="SET NULL"))
