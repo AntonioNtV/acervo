@@ -11,6 +11,7 @@ from acervo.api.cookies import SESSION_COOKIE
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
+from acervo.services.mailer import FakeMailer, MailTemplate
 from acervo.services.session_service import SessionService
 
 PHOTO = Path(__file__).parent.parent / "fixtures" / "files" / "photo.png"
@@ -77,3 +78,20 @@ async def test_an_email_change_needs_the_current_password(sign_in: SignIn, make_
 
     assert [(r.status_code, r.json()["error"]) for r in (missing, wrong)] == [(401, "invalid_credentials")] * 2
     assert right.status_code == 204, right.text
+
+
+async def test_a_password_change_ends_the_other_sessions(
+    app: FastAPI, sign_in: SignIn, make_account: MakeAccount
+) -> None:
+    mailer: FakeMailer = app.state.mailer
+    ana = await make_account()
+    here, there = await sign_in(ana), await sign_in(ana)
+
+    changed = await here.put("/v1/account/password", json={"password": "outra-senha-boa"})
+
+    assert changed.status_code == 200, changed.text
+    assert [(await c.get("/v1/account")).status_code for c in (here, there)] == [200, 401]
+    assert (mailer.sent[-1].template, mailer.sent[-1].values["change"]) == (
+        MailTemplate.SECURITY_CHANGE,
+        "password_changed",
+    )

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
-from acervo.services.session_service import SessionService
+from acervo.services.session_service import SessionService, device
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 DAYS = 30
@@ -98,3 +98,40 @@ async def test_end_all_keeps_the_excepted_session(sessions: SessionService, make
     assert await sessions.resolve(other) == bia
     await sessions.end_all(ana.id)
     assert await sessions.resolve(here) is None
+
+
+@pytest.mark.parametrize(
+    ("user_agent", "named"),
+    [
+        (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 "
+            "Safari/537.36 Edg/130.0.0.0",
+            ("Edge", "Windows"),
+        ),
+        ("Mozilla/5.0 (X11; Linux x86_64; rv:131.0) Gecko/20100101 Firefox/131.0", ("Firefox", "Linux")),
+        (
+            "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 "
+            "Mobile Safari/537.36",
+            ("Chrome", "Android"),
+        ),
+        ("curl/8.7.1", (None, None)),
+        (None, (None, None)),
+    ],
+)
+def test_device_names_the_browser_and_system(user_agent: str | None, named: tuple[str | None, str | None]) -> None:
+    assert device(user_agent) == named
+
+
+async def test_listing_shows_live_sessions_with_their_method(
+    sessions: SessionService, make_account: MakeAccount, clock: Clock, uow: UnitOfWork
+) -> None:
+    ana = await make_account()
+    await sessions.create(ana.id, None, "google")
+    clock.now = START + timedelta(days=DAYS + 1)
+    await sessions.create(ana.id, None)
+    current = await uow.sessions.get_by(account_id=ana.id, method="password")
+    assert current is not None
+
+    listed = await sessions.of_account(ana.id, current.id)
+
+    assert [(row.method, row.current) for row in listed] == [("password", True)]

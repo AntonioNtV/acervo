@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from acervo.api.cookies import set_session_cookie
-from acervo.api.deps import get_google_auth_service, get_settings
+from acervo.api.deps import CurrentAccount, RecentSignIn, get_google_auth_service, get_settings
 from acervo.core.settings import Settings
 from acervo.schemas.account import AccountRead
 from acervo.schemas.common import ErrorResponse
@@ -78,3 +78,10 @@ async def google_link(
     account, token = await service.link(body.token, body.password, request.headers.get("user-agent"))
     set_session_cookie(response, token, settings)
     return account
+
+
+@router.delete("/link", response_model=AccountRead, responses={401: ERROR, 403: ERROR, 409: ERROR})
+async def google_unlink(account: CurrentAccount, session: RecentSignIn, service: Service) -> AccountRead:
+    """Desvincular Google. 403 `reauthentication_required` without a recent sign-in; 409 `last_way_in` when the
+    account has no password and no passkey."""
+    return await service.unlink(account.id, session)

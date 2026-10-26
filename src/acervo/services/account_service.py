@@ -19,19 +19,29 @@ from acervo.core.errors import (
     TooManyAttempts,
     ValidationError,
 )
-from acervo.core.passwords import verify_password
+from acervo.core.passwords import hash_password, verify_password
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import (
     AccountRead,
     AccountUpdate,
     EmailCodeCreate,
     EmailCodeUpdate,
+    LoginFailureCreate,
     Preferences,
     ProfileUpdate,
+    SessionUpdate,
 )
-from acervo.services.auth_service import RESEND_AFTER, UNVERIFIED_KEPT
+from acervo.schemas.security import SecurityEventKind
+from acervo.services.auth_service import (
+    LOCKOUT_FAILURES,
+    LOCKOUT_WINDOW,
+    RESEND_AFTER,
+    UNVERIFIED_KEPT,
+    _locked,
+)
 from acervo.services.mailer import Mailer, MailTemplate
-from acervo.services.session_service import token_hash
+from acervo.services.security_log import SecurityLog
+from acervo.services.session_service import device, token_hash
 from acervo.services.storage import Storage
 
 PHOTO_SIZE = 256
@@ -181,6 +191,49 @@ class AccountService:
         await self._uow.commit()
         values = {"name": account.name, "new_email": account.email}
         await self._mailer.send(old.email, MailTemplate.EMAIL_CHANGED, account.language, values)
+        return AccountRead.of(account)
+
+    async def reauthenticate(self, account_id: UUID, session_id: UUID, password: str) -> None:
+        """Lets the session make sensitive changes for a while once the password is right; a wrong one counts
+        toward the sign-in lockout, as a guess at the password is the same guess here."""
+        now = self._now()
+        account = await self._uow.accounts.get(account_id)
+        email_lower = account.email.lower()
+        await self._uow.login_failures.lock(email_lower)
+        if _locked(await self._uow.login_failures.latest(email_lower, LOCKOUT_FAILURES), now):
+            raise TooManyAttempts("too many wrong passwords for this email")
+        if account.password_hash is None or not await asyncio.to_thread(
+            verify_password, password, account.password_hash
+        ):
+            await self._uow.login_failures.create(LoginFailureCreate(email_lower=email_lower), created_at=now)
+            await self._uow.login_failures.clear(email_lower, before=now - LOCKOUT_WINDOW)
+            await self._uow.commit()
+            raise InvalidCredentials("wrong password")
+        await self._uow.sessions.update(session_id, SessionUpdate(reauthenticated_at=now))
+        await self._uow.commit()
+
+    async def set_password(self, account_id: UUID, session_id: UUID, password: str) -> AccountRead:
+        """Sets or changes the password; every other session of the account ends."""
+        session = await self._uow.sessions.get(session_id)
+        password_hash = await asyncio.to_thread(hash_password, password)
+        account = await self._uow.accounts.update(account_id, AccountUpdate(password_hash=password_hash))
+        await self._uow.sessions.delete_of_account(account_id, keep_token_hash=session.token_hash)
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.PASSWORD_CHANGED,
+            account_id=account_id,
+            actor_id=account_id,
+            user_agent=session.user_agent,
+        )
+        await self._uow.commit()
+        browser, system = device(session.user_agent)
+        values = {
+            "name": account.name,
+            "change": "password_changed",
+            "browser": browser or "",
+            "system": system or "",
+            "link": "/conta/seguranca",
+        }
+        await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.language, values)
         return AccountRead.of(account)
 
     async def _update(self, account_id: UUID, change: AccountUpdate) -> AccountRead:
