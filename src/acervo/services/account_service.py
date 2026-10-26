@@ -151,7 +151,10 @@ class AccountService:
         )
         await self._uow.commit()
         await self._mailer.send(
-            new_email, MailTemplate.CHANGE_EMAIL_CODE, account.language, {"code": code, "name": account.name}
+            new_email,
+            MailTemplate.CHANGE_EMAIL_CODE,
+            account.language,
+            {"code": code, "name": account.name, "new_email": new_email},
         )
 
     async def confirm_email_change(self, account_id: UUID, code: str) -> AccountRead:
