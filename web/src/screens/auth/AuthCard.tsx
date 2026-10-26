@@ -59,9 +59,14 @@ export function AuthCard({
  */
 export function GoogleFirst({ next, children }: { next: string; children?: ReactNode }) {
   const { t } = useI18n();
+  // An account Google signs up keeps this zone.
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return (
     <>
-      <ProviderButton href={`/v1/auth/google/start?next=${encodeURIComponent(next)}`} logo={<GoogleLogo />}>
+      <ProviderButton
+        href={`/v1/auth/google/start?next=${encodeURIComponent(next)}&timezone=${encodeURIComponent(timezone)}`}
+        logo={<GoogleLogo />}
+      >
         {t("auth.google")}
       </ProviderButton>
       {children}
