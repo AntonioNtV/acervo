@@ -1,7 +1,6 @@
 from acervo.db.models.account import Account
 from acervo.db.models.base_member import BaseMember
 from acervo.db.models.email_code import EmailCode
-from acervo.db.models.email_copy import EmailCopy
 from acervo.db.models.favorite import Favorite
 from acervo.db.models.file import File
 from acervo.db.models.file_version import FileVersion
@@ -26,7 +25,6 @@ __all__ = [
     "Account",
     "BaseMember",
     "EmailCode",
-    "EmailCopy",
     "Favorite",
     "File",
     "FileVersion",

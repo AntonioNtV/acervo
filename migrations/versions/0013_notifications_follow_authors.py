@@ -1,4 +1,4 @@
-"""notifications: email toggles and time zone on account, page_follow, page_version.author_id, email_copy
+"""notifications: email toggles and time zone on account, page_follow, page_version.author_id
 
 Revision ID: 0013
 Revises: 0012
@@ -7,7 +7,6 @@ Create Date: 2026-10-26 00:00:00.000000
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision = "0013"
 down_revision = "0012"
@@ -69,22 +68,8 @@ def upgrade() -> None:
         "with check (node_id in (select id from acervo.node))"
     )
 
-    # Not a base's: no row-level security; 0009's default privileges grant it to acervo_app.
-    op.create_table(
-        "email_copy",
-        sa.Column("template", sa.Text(), nullable=False),
-        sa.Column("language", sa.Text(), nullable=False),
-        sa.Column("copy", postgresql.JSONB(), nullable=False),
-        sa.Column("updated_by", sa.Uuid(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        _fk("email_copy", "updated_by", "account", ondelete="SET NULL"),
-        sa.PrimaryKeyConstraint("template", "language", name=op.f("pk_email_copy")),
-        schema="acervo",
-    )
-
 
 def downgrade() -> None:
-    op.drop_table("email_copy", schema="acervo")
     op.drop_table("page_follow", schema="acervo")
     op.drop_constraint(op.f("fk_page_version_author_id_account"), "page_version", schema="acervo", type_="foreignkey")
     op.drop_column("page_version", "author_id", schema="acervo")

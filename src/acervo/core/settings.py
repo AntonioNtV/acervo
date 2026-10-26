@@ -1,9 +1,9 @@
 from functools import lru_cache
-from typing import Annotated, Self
+from typing import Self
 from urllib.parse import urlsplit
 
 from pydantic import SecretStr, ValidationInfo, field_validator, model_validator
-from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -48,8 +48,6 @@ class Settings(BaseSettings):
     # The authentication template, created and approved at Meta, and the code of its language there.
     whatsapp_template: str = "acervo_codigo"
     whatsapp_language: str = "pt_BR"
-    # People who edit the emails' texts; comma separated in the environment.
-    admin_emails: Annotated[list[str], NoDecode] = []
     # The Temporal server the digest schedule runs on.
     temporal_address: str = "localhost:7233"
     temporal_namespace: str = "default"
@@ -65,11 +63,6 @@ class Settings(BaseSettings):
         if not value.get_secret_value():
             raise ValueError(f"{(info.field_name or '').upper()} cannot be empty")
         return value
-
-    @field_validator("admin_emails", mode="before")
-    @classmethod
-    def _split_emails(cls, value: object) -> object:
-        return [email.strip() for email in value.split(",") if email.strip()] if isinstance(value, str) else value
 
     @model_validator(mode="after")
     def _webauthn_from_public_url(self) -> Self:
