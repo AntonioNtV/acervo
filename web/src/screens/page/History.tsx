@@ -1,10 +1,11 @@
 import type { DiffLine, PageVersion } from "../../api/client";
+import { useMe } from "../../data/account";
 import { usePageVersionDiff, usePageVersions } from "../../data/pages";
 import { useI18n } from "../../i18n";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { cx } from "../../ui/cx";
-import { AuthorLine, dayLabel, spanText, timeOf } from "./format";
+import { AuthorLine, authorText, dayLabel, spanText, timeOf } from "./format";
 
 const rowClass = "flex w-full flex-col gap-0.5 border-0 border-l-2 border-transparent bg-transparent px-4 py-2.5 text-left";
 
@@ -27,6 +28,7 @@ export function History({
 }) {
   const { t, lang } = useI18n();
   const versions = usePageVersions(nodeId);
+  const meId = useMe().data?.id;
 
   const days: { label: string; items: PageVersion[] }[] = [];
   for (const version of versions.data ?? []) {
@@ -71,7 +73,7 @@ export function History({
                     className={cx(rowClass, "cursor-pointer text-text hover:bg-side", on && "border-l-ink bg-subtle hover:bg-subtle")}
                   >
                     <span className="font-medium tabular-nums">{timeOf(version.created_at, lang)}</span>
-                    <AuthorLine>{spanText(t, version)}</AuthorLine>
+                    <AuthorLine>{[authorText(t, version, meId), spanText(t, version)].filter(Boolean).join(" · ")}</AuthorLine>
                   </button>
                 </li>
               );

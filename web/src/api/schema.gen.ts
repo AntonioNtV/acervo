@@ -3245,6 +3245,21 @@ export interface components {
          */
         PageVersionSummary: {
             /**
+             * Author
+             * @description Name of the account that saved it; null when `author_id` is.
+             */
+            author: string | null;
+            /**
+             * Author Id
+             * @description Account that saved it; null for versions saved before authors were recorded, or once the account is deleted.
+             */
+            author_id: string | null;
+            /**
+             * Author Known
+             * @description False for versions saved before authors were recorded; a null author with this true is a deleted account.
+             */
+            author_known: boolean;
+            /**
              * Created At
              * Format: date-time
              * @description When it was written.

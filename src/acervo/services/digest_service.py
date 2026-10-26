@@ -66,8 +66,10 @@ def _pages(changes: list[DigestChange], account_id: UUID, language: Language) ->
             continue
         names = [YOU[language]] if any(v.author_id == account_id for v in versions) else []
         for v in versions:
+            if v.author_id == account_id or not v.author_known:
+                continue
             name = v.author or DELETED_ACCOUNT[language]
-            if v.author_id != account_id and name not in names:
+            if name not in names:
                 names.append(name)
-        pages.append((versions[0].title, join_names(names, language), versions[0].base))
+        pages.append((versions[0].title, join_names(names, language) if names else "", versions[0].base))
     return pages

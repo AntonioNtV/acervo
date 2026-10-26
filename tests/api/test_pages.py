@@ -145,7 +145,8 @@ async def test_history_has_no_text(client: httpx.AsyncClient) -> None:
 
     versions = await _versions(client, node_id)
 
-    assert [set(version) for version in versions] == [{"id", "created_at", "edit_started_at", "edit_ended_at"}] * 2
+    keys = {"id", "created_at", "edit_started_at", "edit_ended_at", "author_id", "author", "author_known"}
+    assert [set(version) for version in versions] == [keys] * 2
 
 
 async def test_401_without_a_session(

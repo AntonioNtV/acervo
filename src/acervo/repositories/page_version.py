@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from acervo.core.errors import NotFoundError
+from acervo.db.models.account import Account
 from acervo.db.models.page_version import PageVersion
 from acervo.repositories.base import BaseRepository
 from acervo.schemas.page import PageVersionCreate, PageVersionRead, PageVersionSummary
@@ -33,7 +34,11 @@ class PageVersionRepository(BaseRepository[PageVersion, PageVersionRead, PageVer
                 PageVersion.created_at,
                 PageVersion.edit_started_at,
                 PageVersion.edit_ended_at,
+                PageVersion.author_id,
+                Account.name.label("author"),
+                PageVersion.author_known,
             )
+            .outerjoin(Account, Account.id == PageVersion.author_id)
             .where(PageVersion.node_id == node_id)
             .order_by(PageVersion.created_at.desc())
         )
