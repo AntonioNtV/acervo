@@ -87,7 +87,7 @@ export function useSignIn() {
 /** Creates the account and sends the code; the session starts only once the code is confirmed. */
 export function useSignUp() {
   return useMutation({
-    mutationFn: (body: { name: string; email: string; password: string }) =>
+    mutationFn: (body: { name: string; email: string; password: string; timezone: string }) =>
       call(api.POST("/v1/auth/sign-up", { body })),
   });
 }
@@ -121,5 +121,19 @@ export function useConfirmReset() {
 export function useLinkGoogle() {
   return useMutation({
     mutationFn: (body: { token: string; password: string }) => call(api.POST("/v1/auth/google/link", { body })),
+  });
+}
+
+/** Parar de receber, from an email, without signing in: turns off the toggle the link carries. */
+export function useUnsubscribe() {
+  return useMutation({
+    mutationFn: (token: string) => call(api.POST("/v1/auth/unsubscribe/{token}", { params: { path: { token } } })),
+  });
+}
+
+/** Turns the toggle of the same link back on. */
+export function useResubscribe() {
+  return useMutation({
+    mutationFn: (token: string) => call(api.POST("/v1/auth/resubscribe/{token}", { params: { path: { token } } })),
   });
 }

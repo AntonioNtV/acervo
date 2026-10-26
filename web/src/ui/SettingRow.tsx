@@ -34,7 +34,7 @@ export function SettingRow<T extends string>({
             align="end"
             sideOffset={4}
             aria-label={title}
-            className="flex w-[200px] flex-col rounded-[8px] border border-line-2 bg-bg p-1"
+            className="flex max-h-[var(--radix-dropdown-menu-content-available-height)] w-[200px] flex-col overflow-y-auto rounded-[8px] border border-line-2 bg-bg p-1"
           >
             <RadixMenu.RadioGroup value={value} onValueChange={(next) => onChange(next as T)}>
               {options.map((option) => (
