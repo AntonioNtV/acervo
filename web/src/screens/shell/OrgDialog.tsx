@@ -72,7 +72,7 @@ export function OrgDialog({ onCreated, onClose }: { onCreated: (org: Organizatio
         </label>
         <div className="flex flex-col gap-1.5 text-12 text-text-2">
           {t("organizations.logo")}
-          <PhotoField
+          <PhotoField kind="logo"
             avatar={<Avatar name={name} photo={preview} size={64} square />}
             hasPhoto={logo !== null}
             sending={setLogo.isPending}
