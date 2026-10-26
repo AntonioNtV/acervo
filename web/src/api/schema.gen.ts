@@ -1143,9 +1143,50 @@ export interface paths {
         head?: never;
         /**
          * Update Organization
-         * @description Owners and Admins; a Pessoal keeps its name.
+         * @description Owners and Admins; a Pessoal keeps its name and requires nothing. Turning `require_two_factor` on emails the
+         *     members who sign in with a password only; `password_only` says how many remain.
          */
         patch: operations["update_organization_v1_organizations__organization_id__patch"];
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit
+         * @description Organização › Auditoria, for Owners and Admins: the last 90 days, newest first.
+         */
+        get: operations["audit_v1_organizations__organization_id__audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/audit.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit Csv
+         * @description The audit of `GET /audit` as a CSV download (Exportar CSV).
+         */
+        get: operations["audit_csv_v1_organizations__organization_id__audit_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/organizations/{organization_id}/invites": {
@@ -1582,6 +1623,26 @@ export interface paths {
         patch: operations["rename_passkey_v1_passkeys__passkey_id__patch"];
         trace?: never;
     };
+    "/v1/security/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Activity
+         * @description Conta › Atividade: the account's last 90 days, newest first.
+         */
+        get: operations["activity_v1_security_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions": {
         parameters: {
             query?: never;
@@ -1788,6 +1849,40 @@ export interface components {
             size: number;
         };
         /**
+         * AuditEventRead
+         * @description A line of Organização › Auditoria.
+         */
+        AuditEventRead: {
+            /** Actor Email */
+            actor_email: string | null;
+            /**
+             * Actor Id
+             * @description Who did it; null once their account is gone.
+             */
+            actor_id: string | null;
+            /** Actor Name */
+            actor_name: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Data
+             * @description What the kind names: the member, the base, the roles…
+             */
+            data: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             * @description Event ID.
+             */
+            id: string;
+            kind: components["schemas"]["SecurityEventKind"];
+        };
+        /**
          * BaseAccess
          * @description Who reaches a base: everyone in its organization, and the people added to it.
          */
@@ -1883,11 +1978,6 @@ export interface components {
              * Format: email
              */
             new_email: string;
-            /**
-             * Password
-             * @description The current password; required when the account has one.
-             */
-            password?: string | null;
         };
         /**
          * EmailCodeIn
@@ -2927,6 +3017,11 @@ export interface components {
              */
             new_base_access: "none" | "reader" | "editor";
             /**
+             * Password Only
+             * @description Members with neither a passkey nor two-step verification; only for Owners and Admins of a team asking for this organization, else null.
+             */
+            password_only?: number | null;
+            /**
              * Personal
              * @description Whether this is the person's Pessoal.
              */
@@ -3314,6 +3409,47 @@ export interface components {
              * @description The heading's text.
              */
             heading: string;
+        };
+        /**
+         * SecurityEventKind
+         * @description What a line of the activity (account) or of the audit (organization) says happened.
+         * @enum {string}
+         */
+        SecurityEventKind: "signed_in" | "wrong_password" | "wrong_code" | "locked_out" | "password_changed" | "email_changed" | "passkey_added" | "passkey_removed" | "passkey_refused" | "two_factor_on" | "two_factor_off" | "google_linked" | "google_unlinked" | "session_ended" | "invited" | "invite_revoked" | "joined" | "role_changed" | "removed" | "base_created" | "base_trashed" | "base_restored" | "access_changed" | "two_factor_required";
+        /**
+         * SecurityEventRead
+         * @description A line of Conta › Atividade.
+         */
+        SecurityEventRead: {
+            /**
+             * Browser
+             * @description From the user agent of the request; null when unknown.
+             */
+            browser: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Data
+             * @description What the kind names: the sign-in method, the passkey's name…
+             */
+            data: {
+                [key: string]: unknown;
+            };
+            /**
+             * Id
+             * Format: uuid
+             * @description Event ID.
+             */
+            id: string;
+            kind: components["schemas"]["SecurityEventKind"];
+            /**
+             * System
+             * @description From the user agent of the request; null when unknown.
+             */
+            system: string | null;
         };
         /**
          * SessionRead
@@ -7367,6 +7503,108 @@ export interface operations {
             };
         };
     };
+    audit_v1_organizations__organization_id__audit_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    audit_csv_v1_organizations__organization_id__audit_csv_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The audit as CSV. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     organization_invites_v1_organizations__organization_id__invites_get: {
         parameters: {
             query?: never;
@@ -8897,6 +9135,46 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    activity_v1_security_activity_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityEventRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

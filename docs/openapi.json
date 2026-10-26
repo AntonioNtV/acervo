@@ -108,6 +108,77 @@
         "title": "Attachment",
         "type": "object"
       },
+      "AuditEventRead": {
+        "description": "A line of Organiza\u00e7\u00e3o \u203a Auditoria.",
+        "properties": {
+          "actor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Email"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who did it; null once their account is gone.",
+            "title": "Actor Id"
+          },
+          "actor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Name"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "description": "What the kind names: the member, the base, the roles\u2026",
+            "title": "Data",
+            "type": "object"
+          },
+          "id": {
+            "description": "Event ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SecurityEventKind"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "data",
+          "actor_id",
+          "actor_name",
+          "actor_email",
+          "created_at"
+        ],
+        "title": "AuditEventRead",
+        "type": "object"
+      },
       "BaseAccess": {
         "description": "Who reaches a base: everyone in its organization, and the people added to it.",
         "properties": {
@@ -301,18 +372,6 @@
             "format": "email",
             "title": "New Email",
             "type": "string"
-          },
-          "password": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "The current password; required when the account has one.",
-            "title": "Password"
           }
         },
         "required": [
@@ -2113,6 +2172,18 @@
             "title": "New Base Access",
             "type": "string"
           },
+          "password_only": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Members with neither a passkey nor two-step verification; only for Owners and Admins of a team asking for this organization, else null.",
+            "title": "Password Only"
+          },
           "personal": {
             "description": "Whether this is the person's Pessoal.",
             "title": "Personal",
@@ -2760,6 +2831,96 @@
           "heading"
         ],
         "title": "Section",
+        "type": "object"
+      },
+      "SecurityEventKind": {
+        "description": "What a line of the activity (account) or of the audit (organization) says happened.",
+        "enum": [
+          "signed_in",
+          "wrong_password",
+          "wrong_code",
+          "locked_out",
+          "password_changed",
+          "email_changed",
+          "passkey_added",
+          "passkey_removed",
+          "passkey_refused",
+          "two_factor_on",
+          "two_factor_off",
+          "google_linked",
+          "google_unlinked",
+          "session_ended",
+          "invited",
+          "invite_revoked",
+          "joined",
+          "role_changed",
+          "removed",
+          "base_created",
+          "base_trashed",
+          "base_restored",
+          "access_changed",
+          "two_factor_required"
+        ],
+        "title": "SecurityEventKind",
+        "type": "string"
+      },
+      "SecurityEventRead": {
+        "description": "A line of Conta \u203a Atividade.",
+        "properties": {
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the user agent of the request; null when unknown.",
+            "title": "Browser"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "description": "What the kind names: the sign-in method, the passkey's name\u2026",
+            "title": "Data",
+            "type": "object"
+          },
+          "id": {
+            "description": "Event ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SecurityEventKind"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the user agent of the request; null when unknown.",
+            "title": "System"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "data",
+          "browser",
+          "system",
+          "created_at"
+        ],
+        "title": "SecurityEventRead",
         "type": "object"
       },
       "SessionRead": {
@@ -9063,7 +9224,7 @@
         ]
       },
       "patch": {
-        "description": "Owners and Admins; a Pessoal keeps its name.",
+        "description": "Owners and Admins; a Pessoal keeps its name and requires nothing. Turning `require_two_factor` on emails the\nmembers who sign in with a password only; `password_only` says how many remain.",
         "operationId": "update_organization_v1_organizations__organization_id__patch",
         "parameters": [
           {
@@ -9156,6 +9317,166 @@
           }
         },
         "summary": "Update Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/audit": {
+      "get": {
+        "description": "Organiza\u00e7\u00e3o \u203a Auditoria, for Owners and Admins: the last 90 days, newest first.",
+        "operationId": "audit_v1_organizations__organization_id__audit_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventRead"
+                  },
+                  "title": "Response Audit V1 Organizations  Organization Id  Audit Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Audit",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/audit.csv": {
+      "get": {
+        "description": "The audit of `GET /audit` as a CSV download (Exportar CSV).",
+        "operationId": "audit_csv_v1_organizations__organization_id__audit_csv_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/csv": {}
+            },
+            "description": "The audit as CSV."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Audit Csv",
         "tags": [
           "organizations"
         ]
@@ -11587,6 +11908,70 @@
         "summary": "Rename Passkey",
         "tags": [
           "passkeys"
+        ]
+      }
+    },
+    "/v1/security/activity": {
+      "get": {
+        "description": "Conta \u203a Atividade: the account's last 90 days, newest first.",
+        "operationId": "activity_v1_security_activity_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SecurityEventRead"
+                  },
+                  "title": "Response Activity V1 Security Activity Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Activity",
+        "tags": [
+          "security"
         ]
       }
     },
