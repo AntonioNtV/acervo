@@ -1,6 +1,9 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import type { KbSummary } from "../../api/client";
 import { useOrganizationBases } from "../../data/orgSettings";
 import { useI18n } from "../../i18n";
+import { Button } from "../../ui/Button";
+import { ShareDialog } from "../shell/ShareDialog";
 import { SettingsPage, SettingsSection, useOrganization } from "./SettingsFrame";
 
 /** `/organizacao/bases`: every base of the organization and who it is open to, to review in one place. */
@@ -8,6 +11,7 @@ export function OrgBases() {
   const { t } = useI18n();
   const organization = useOrganization();
   const bases = useOrganizationBases(organization.id).data;
+  const [sharing, setSharing] = useState<KbSummary | null>(null);
   if (!bases) return null;
   return (
     <SettingsPage title={t("settings.org.bases")}>
@@ -28,16 +32,13 @@ export function OrgBases() {
                     })}
               </span>
             </span>
-            {/* shortcut: opens the base, whose menu has Compartilhar; open card 09's ShareDialog here once merged. */}
-            <Link
-              to={`/kbs/${kb.id}`}
-              className="inline-flex h-[26px] items-center rounded-[6px] border border-line-2 px-2 text-12 font-medium text-text hover:bg-subtle"
-            >
-              {t("settings.bases.open")}
-            </Link>
+            <Button size="sm" onClick={() => setSharing(kb)}>
+              {t("sharing.share")}
+            </Button>
           </div>
         ))}
       </SettingsSection>
+      {sharing && <ShareDialog kb={sharing} onClose={() => setSharing(null)} />}
     </SettingsPage>
   );
 }

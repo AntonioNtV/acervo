@@ -1,6 +1,14 @@
 import { useEffect, type ReactNode } from "react";
-import { Navigate, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from "react-router-dom";
-import { readCurrentOrganization, useOrganizations, type Organization } from "../../data/orgSettings";
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+  useSearchParams,
+} from "react-router-dom";
+import { switchOrganization, useCurrentOrganization, type Organization } from "../../data/organizations";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -62,24 +70,32 @@ function Glyph({ name }: { name: keyof typeof GLYPHS }) {
 /** Where Voltar goes: the screen that opened the settings, carried in the router's state between their pages. */
 export type SettingsState = { from?: string } | null;
 
-/** The organization this browser shows (card 07's choice, else the Pessoal), once the list is loaded. */
-function useCurrentOrganization(): Organization | undefined {
-  const organizations = useOrganizations().data;
-  const id = readCurrentOrganization();
-  return organizations?.find((organization) => organization.id === id) ?? organizations?.[0];
-}
-
-/** Only Owners and Admins of a team configure it; a Pessoal has nothing to configure. */
+/** Every member of a team sees its Geral; only its Owners and Admins configure it. A Pessoal has nothing to see. */
+const team = (organization: Organization | undefined) => organization !== undefined && !organization.personal;
 const configurable = (organization: Organization | undefined) =>
-  organization !== undefined && !organization.personal && organization.my_role !== "member";
+  team(organization) && organization!.my_role !== "member";
 
-/** The pages of Organização: the current organization for them, or Perfil for whoever cannot configure it. */
+/**
+ * The pages of Organização: the current organization for them, Geral only for a Membro, Perfil for a Pessoal.
+ * `?org=` (the `invite_accepted` link) first makes that organization the current one, when the person is in it.
+ */
 export function OrgSettings() {
-  const organization = useCurrentOrganization();
-  const state = useLocation().state as SettingsState;
-  if (!organization) return null;
-  if (!configurable(organization)) return <Navigate replace to="/conta/perfil" state={state} />;
-  return <Outlet context={organization} />;
+  const { organizations, current } = useCurrentOrganization();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const linked = params.get("org");
+  const known = organizations?.some((organization) => organization.id === linked);
+  useEffect(() => {
+    if (!organizations || !linked) return;
+    if (known) switchOrganization(linked);
+    setParams({}, { replace: true, state: location.state });
+  }, [organizations, linked, known, setParams, location.state]);
+
+  if (!current || linked) return null;
+  if (!team(current)) return <Navigate replace to="/conta/perfil" state={location.state} />;
+  if (!configurable(current) && location.pathname !== "/organizacao/geral")
+    return <Navigate replace to="/organizacao/geral" state={location.state} />;
+  return <Outlet context={current} />;
 }
 
 /** The organization a page of Organização configures. */
@@ -93,7 +109,7 @@ export function SettingsFrame() {
   const navigate = useNavigate();
   const state = useLocation().state as SettingsState;
   const from = state?.from ?? "/";
-  const organization = useCurrentOrganization();
+  const organization = useCurrentOrganization().current;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -126,13 +142,17 @@ export function SettingsFrame() {
           <Glyph name="sliders" />
           {t("settings.preferences")}
         </NavLink>
-        {configurable(organization) && (
+        {team(organization) && (
           <>
             <span className="mt-3 flex h-7 items-center truncate px-2 text-12 text-text-3">{organization!.name}</span>
             <NavLink to="/organizacao/geral" state={{ from }} className={link}>
               <Glyph name="gear" />
               {t("settings.org.general")}
             </NavLink>
+          </>
+        )}
+        {configurable(organization) && (
+          <>
             <NavLink to="/organizacao/membros" state={{ from }} className={link}>
               <Glyph name="users" />
               {t("settings.org.members")}
@@ -174,7 +194,7 @@ export function SettingsSection({
 }: {
   title: string;
   desc?: string;
-  action?: { label: string; onClick: () => void };
+  action?: { label: string; onClick: () => void; disabled?: boolean };
   children?: ReactNode;
 }) {
   return (
@@ -185,7 +205,7 @@ export function SettingsSection({
           {desc && <p className="m-0 text-13 text-text-3">{desc}</p>}
         </span>
         {action && (
-          <Button size="sm" onClick={action.onClick}>
+          <Button size="sm" disabled={action.disabled} onClick={action.onClick}>
             {action.label}
           </Button>
         )}

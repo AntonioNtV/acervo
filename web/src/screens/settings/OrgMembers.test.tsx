@@ -28,7 +28,7 @@ function renderMembers(members: Member[]) {
     { id: "pessoal", name: "Pessoal", logo_url: null, my_role: "owner", new_base_access: "editor", personal: true },
     { id: "org-1", name: "Seguros SA", logo_url: null, my_role: "owner", new_base_access: "editor", personal: false },
   ];
-  localStorage.setItem("acervo.organization", "org-1");
+  localStorage.setItem("acervo.org", "org-1");
   respond("GET", "/v1/organizations", { body: organizations });
   respond("GET", `${ORG}/members`, { body: members });
   respond("GET", `${ORG}/invites`, {

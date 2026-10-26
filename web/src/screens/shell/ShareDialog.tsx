@@ -7,7 +7,6 @@ import {
   useBaseAccess,
   useBaseInvites,
   useInviteToBase,
-  useOrganizations,
   useRemoveFromBase,
   useResendInvite,
   useRevokeInvite,
@@ -19,6 +18,7 @@ import {
   type Invite,
 } from "../../data/access";
 import { useKbs } from "../../data/kbs";
+import { useOrganizations } from "../../data/organizations";
 import { useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";

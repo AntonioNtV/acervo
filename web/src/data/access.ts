@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { components } from "../api/schema.gen";
-import { useKbs } from "./kbs";
+import { useKb } from "./kbs";
 import { call, invalidate } from "./request";
 
 export type BaseRole = components["schemas"]["BaseMemberChange"]["role"];
@@ -10,16 +10,12 @@ export type BaseMember = components["schemas"]["MemberRead"];
 export type Invite = components["schemas"]["InviteRead"];
 
 /**
- * The person's role in a base, and what it lets the screens offer. Until the bases load the role is unknown and
+ * The person's role in a base, and what it lets the screens offer. Until the base loads the role is unknown and
  * nothing is hidden: the API refuses what the role does not allow anyway.
  */
 export function useAccess(kbId: string) {
-  const role = useKbs().data?.find((kb) => kb.id === kbId)?.my_role ?? undefined;
+  const role = useKb(kbId).data?.my_role ?? undefined;
   return { role, canEdit: role !== "reader", canManage: role !== "reader" && role !== "editor" };
-}
-
-export function useOrganizations() {
-  return useQuery({ queryKey: ["organizations"], queryFn: () => call(api.GET("/v1/organizations")) });
 }
 
 export function useBaseAccess(kbId: string) {

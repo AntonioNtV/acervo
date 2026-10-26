@@ -1,19 +1,28 @@
+import { useCallback, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
 import { useForgetAccount } from "../../app/lastPage";
 import { useMe, useSignOut } from "../../data/account";
-import {
-  rememberCurrentOrganization,
-  useAcceptInvite,
-  useInvitePreview,
-  type InvitePreview,
-} from "../../data/orgSettings";
+import { switchOrganization } from "../../data/organizations";
+import { useAcceptInvite, useInvitePreview, type InvitePreview } from "../../data/orgSettings";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { AuthCard, AuthError, authLink, GoogleFirst } from "./AuthCard";
 
 /** Where the invite leads once accepted: the base it shares, else the organization's Bases. */
 const landing = (invite: InvitePreview) => (invite.kb_id ? `/kbs/${invite.kb_id}` : "/bases");
+
+/** Lands where the accepted invite leads; a base's organization is the shell's to follow from the base. */
+function useLand() {
+  const navigate = useNavigate();
+  return useCallback(
+    (invite: InvitePreview) => {
+      if (!invite.kb_id) switchOrganization(invite.organization_id);
+      navigate(landing(invite), { replace: true });
+    },
+    [navigate],
+  );
+}
 
 /** The organization, or the base, and the role the invite gives. */
 function Target({ invite }: { invite: InvitePreview }) {
@@ -33,7 +42,8 @@ function Target({ invite }: { invite: InvitePreview }) {
 
 /**
  * `/convite/:token`, the link of the `org_invite` email. Signed in with the invited email, it joins; with another,
- * it offers to switch account; with none, it creates the account with the invited email, which joins once confirmed.
+ * it offers to switch account; with none, it creates the account with the invited email, which joins once confirmed
+ * and comes back here. A used link signed in as who joined with it lands where it leads.
  */
 export function Invite() {
   const { t } = useI18n();
@@ -45,13 +55,22 @@ export function Invite() {
   const me = useMe();
   const accept = useAcceptInvite();
   const signOut = useSignOut();
+  const land = useLand();
   const here = `/convite/${token}`;
+  const used = preview.isError && Boolean(me.data);
+  const { mutate } = accept;
+
+  // The API answers a used invite again only for the account that joined with it, still in.
+  useEffect(() => {
+    if (used) mutate(token, { onSuccess: land });
+  }, [used, token, mutate, land]);
   const home = (
     <Link to="/" className={authLink}>
       {t("auth.invite.home")}
     </Link>
   );
 
+  if (preview.isError && (me.isPending || (me.data && !accept.isError))) return null;
   if (preview.isError) return <AuthCard title={t("auth.invite.invalid.title")} desc={t("auth.invite.invalid.desc")} foot={home} />;
   if (!preview.data || me.isPending) return null;
   const invite = preview.data;
@@ -86,7 +105,7 @@ export function Invite() {
           className="w-full"
           onClick={() =>
             // The email goes in the router's state, not the URL; confirming it joins what it was invited to.
-            navigate(`/criar-conta?next=${encodeURIComponent(landing(invite))}`, { state: { email: invite.email } })
+            navigate(`/criar-conta?next=${encodeURIComponent(here)}`, { state: { email: invite.email } })
           }
         >
           {t("auth.invite.email")}
@@ -127,12 +146,7 @@ export function Invite() {
         className="w-full"
         disabled={accept.isPending}
         onClick={() =>
-          accept.mutate(token, {
-            onSuccess: () => {
-              rememberCurrentOrganization(invite.organization_id);
-              navigate(landing(invite), { replace: true });
-            },
-          })
+          accept.mutate(token, { onSuccess: land })
         }
       >
         {t("auth.invite.accept")}

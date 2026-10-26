@@ -1,39 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
 import type { components } from "../api/schema.gen";
+import { switchOrganization, type Organization } from "./organizations";
 import { call, invalidate } from "./request";
 
-export type Organization = components["schemas"]["OrganizationRead"];
+export type { Organization };
 export type Member = components["schemas"]["MemberRead"];
 export type Invite = components["schemas"]["InviteRead"];
 export type InvitePreview = components["schemas"]["InvitePreview"];
 export type OrgRole = Organization["my_role"];
 export type BaseAccess = Organization["new_base_access"];
-
-// shortcut: the same key and fallback as card 07's helper in data/organizations.ts; use that one once both are merged.
-const CURRENT_KEY = "acervo.organization";
-
-/** The organization this browser shows; null for none yet, which means the Pessoal. */
-export function readCurrentOrganization(): string | null {
-  try {
-    return localStorage.getItem(CURRENT_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function rememberCurrentOrganization(id: string) {
-  try {
-    localStorage.setItem(CURRENT_KEY, id);
-  } catch {
-    // Without storage, Acervo opens on the Pessoal.
-  }
-}
-
-/** The person's organizations, Pessoal first. */
-export function useOrganizations() {
-  return useQuery({ queryKey: ["organizations"], queryFn: () => call(api.GET("/v1/organizations")) });
-}
 
 const path = (organizationId: string) => ({ params: { path: { organization_id: organizationId } } });
 
@@ -70,9 +46,11 @@ export function useRemoveLogo(organizationId: string) {
   return useOrganizationChange(() => call(api.DELETE("/v1/organizations/{organization_id}/logo", path(organizationId))));
 }
 
-export function useMembers(organizationId: string) {
+/** Only its Owners and Admins may list them. */
+export function useMembers(organizationId: string, enabled = true) {
   return useQuery({
     queryKey: ["members", organizationId],
+    enabled,
     queryFn: () => call(api.GET("/v1/organizations/{organization_id}/members", path(organizationId))),
   });
 }
@@ -160,9 +138,26 @@ export function useInvitePreview(token: string) {
   });
 }
 
-/** Refused with `invite_email_mismatch` when the session's email is not the invite's. */
+/**
+ * Refused with `invite_email_mismatch` when the session's email is not the invite's. A used invite answers again for
+ * the account that joined with it.
+ */
 export function useAcceptInvite() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (token: string) => call(api.POST("/v1/invites/accept", { body: { token } })),
+    onSuccess: () => invalidate(queryClient, ["organizations"], ["kbs"]),
+  });
+}
+
+/** Refused with `last_owner` for its last Owner; the person is back on their Pessoal. */
+export function useLeaveOrganization(organizationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => call(api.POST("/v1/organizations/{organization_id}/leave", path(organizationId))),
+    onSuccess: () => {
+      switchOrganization(null);
+      return invalidate(queryClient, ["organizations"], ["kbs"], ["trash-kbs"], ["favorites"]);
+    },
   });
 }

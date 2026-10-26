@@ -1,26 +1,29 @@
 import { useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
-import { useKbs } from "../data/kbs";
-import { switchOrganization, useBaseOrganization, useCurrentOrganization } from "../data/organizations";
+import { useKb, useKbs } from "../data/kbs";
+import { switchOrganization, useCurrentOrganization } from "../data/organizations";
 import { useI18n } from "../i18n";
 import { SearchPalette } from "../screens/search/SearchPalette";
 import { ShellProvider, useCurrent, useShell } from "../screens/shell/shell";
 import { Sidebar } from "../screens/shell/Sidebar";
 
 /**
- * A base in the URL that the current organization does not list: the rail switches to the person's organization that
- * does; `noAccess` when none does, so the base's name is never shown.
+ * A base in the URL that the current organization does not list: the rail switches to the base's organization, the
+ * Pessoal for a base shared with the person as a guest; `noAccess` when the person cannot see it, so the base's name
+ * is never shown.
  */
 function useFollowBase(): { noAccess: boolean } {
   const { kbId } = useCurrent();
   const kbs = useKbs().data;
-  const current = useCurrentOrganization().current;
+  const { organizations, current } = useCurrentOrganization();
   const missing = Boolean(kbId && kbs && !kbs.some((kb) => kb.id === kbId));
-  const owner = useBaseOrganization(kbId, missing).data;
+  const base = useKb(kbId, missing);
+  const home = organizations?.find((org) => org.id === base.data?.organization_id);
+  const target = home && !home.personal ? home.id : null;
   useEffect(() => {
-    if (missing && owner && owner.id !== current?.id) switchOrganization(owner);
-  }, [missing, owner, current]);
-  return { noAccess: missing && owner === null };
+    if (missing && base.data && organizations && target !== (current?.personal ? null : current?.id)) switchOrganization(target);
+  }, [missing, base.data, organizations, target, current]);
+  return { noAccess: missing && base.isError };
 }
 
 function Frame() {
