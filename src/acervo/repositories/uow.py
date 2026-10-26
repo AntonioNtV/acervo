@@ -5,13 +5,17 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.repositories.account import AccountRepository
+from acervo.repositories.base_member import BaseMemberRepository
 from acervo.repositories.email_code import EmailCodeRepository
 from acervo.repositories.favorite import FavoriteRepository
 from acervo.repositories.file import FileRepository
 from acervo.repositories.file_version import FileVersionRepository
+from acervo.repositories.invite import InviteRepository
 from acervo.repositories.kb import KbRepository
 from acervo.repositories.login_failure import LoginFailureRepository
+from acervo.repositories.membership import MembershipRepository
 from acervo.repositories.node import NodeRepository
+from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.page_attachment import PageAttachmentRepository
 from acervo.repositories.page_draft import PageDraftRepository
 from acervo.repositories.page_link import PageLinkRepository
@@ -37,6 +41,10 @@ class UnitOfWork:
     email_codes: EmailCodeRepository
     password_resets: PasswordResetRepository
     login_failures: LoginFailureRepository
+    organizations: OrganizationRepository
+    memberships: MembershipRepository
+    base_members: BaseMemberRepository
+    invites: InviteRepository
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
@@ -57,6 +65,10 @@ class UnitOfWork:
         self.email_codes = EmailCodeRepository(self._session)
         self.password_resets = PasswordResetRepository(self._session)
         self.login_failures = LoginFailureRepository(self._session)
+        self.organizations = OrganizationRepository(self._session)
+        self.memberships = MembershipRepository(self._session)
+        self.base_members = BaseMemberRepository(self._session)
+        self.invites = InviteRepository(self._session)
         return self
 
     async def __aexit__(
@@ -75,3 +87,9 @@ class UnitOfWork:
     def act_as(self, account_id: UUID) -> None:
         """Reads that depend on who asks (a node's `favorite`) answer for this account from now on."""
         self._session.info["account_id"] = account_id
+
+    @property
+    def account_id(self) -> UUID | None:
+        """The account `act_as` named; None outside a signed-in request."""
+        account_id: UUID | None = self._session.info.get("account_id")
+        return account_id

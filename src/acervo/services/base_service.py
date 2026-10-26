@@ -24,7 +24,17 @@ class BaseService:
         return await self._uow.kbs.summaries(name)
 
     async def create(self, data: KbCreate) -> KbRead:
-        kb = await self._uow.kbs.create(KbCreate(name=_name(data.name), description=data.description.strip()))
+        """A base in `data.organization_id`, or in the acting account's Pessoal when none is given."""
+        organization_id = data.organization_id
+        if organization_id is None:
+            account_id = self._uow.account_id
+            personal = None if account_id is None else await self._uow.organizations.get_by(personal_of=account_id)
+            if personal is None:
+                raise ValidationError("a base needs an organization", {"organization_id": None})
+            organization_id = personal.id
+        kb = await self._uow.kbs.create(
+            KbCreate(name=_name(data.name), description=data.description.strip(), organization_id=organization_id)
+        )
         await self._uow.commit()
         return kb
 

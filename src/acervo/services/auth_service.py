@@ -84,6 +84,7 @@ class AuthService:
             )
         except ConflictError as exc:
             raise EmailTaken("email already has an account") from exc
+        await self._uow.organizations.create_personal(account.id)
         code = await self._new_code(account)
         await self._uow.commit()
         await self._send_code(account, code)
