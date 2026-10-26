@@ -18,6 +18,7 @@ from acervo.core.passwords import hash_password, needs_rehash, verify_password
 from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import (
+    DEFAULT_TIMEZONE,
     AccountCreate,
     AccountRead,
     AccountRecord,
@@ -30,6 +31,7 @@ from acervo.schemas.account import (
     ResetConfirm,
     SignIn,
     SignUp,
+    known_timezones,
 )
 from acervo.schemas.security import (
     PendingSignIn,
@@ -138,10 +140,12 @@ class AuthService:
         if await self._uow.accounts.by_email(data.email) is not None:
             raise EmailTaken("email already has an account")
         password_hash = await asyncio.to_thread(hash_password, data.password)
+        timezone = data.timezone if data.timezone in known_timezones() else DEFAULT_TIMEZONE
+        created = AccountCreate(
+            email=data.email, name=data.name.strip(), password_hash=password_hash, timezone=timezone
+        )
         try:
-            account = await self._uow.accounts.create(
-                AccountCreate(email=data.email, name=data.name.strip(), password_hash=password_hash), created_at=now
-            )
+            account = await self._uow.accounts.create(created, created_at=now)
         except ConflictError as exc:
             raise EmailTaken("email already has an account") from exc
         await self._uow.organizations.create_personal(account.id)

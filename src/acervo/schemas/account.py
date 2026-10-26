@@ -1,9 +1,11 @@
 from datetime import datetime
+from functools import cache
 from pathlib import PurePosixPath
-from typing import Literal, Self
+from typing import Annotated, Literal, Self
 from uuid import UUID
+from zoneinfo import available_timezones
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field
 
 Theme = Literal["light", "dark", "system"]
 PageWidth = Literal["default", "wide"]
@@ -14,6 +16,21 @@ TwoFactor = Literal["none", "email", "whatsapp"]
 SignInMethod = Literal["password", "google", "passkey", "reset"]
 
 PASSWORD_MIN = 10
+DEFAULT_TIMEZONE = "America/Sao_Paulo"
+
+
+@cache
+def known_timezones() -> set[str]:
+    return available_timezones()
+
+
+def _known_timezone(name: str) -> str:
+    if name not in known_timezones():
+        raise ValueError(f"unknown time zone {name}")
+    return name
+
+
+TimeZone = Annotated[str, AfterValidator(_known_timezone)]
 
 
 class Preferences(BaseModel):
@@ -25,6 +42,9 @@ class Preferences(BaseModel):
     page_width: PageWidth = Field(default="default", description="default (720 px) or wide (1040 px).")
     language: Language = Field(default="pt-BR", description="Language of the app and of the emails.")
     start_page: StartPage = Field(default="last", description="What opens on start: the last page opened, or Bases.")
+    notify_invites: bool = Field(default=True, description="Gets the emails of invites accepted and access changes.")
+    notify_followed: bool = Field(default=False, description="Gets the daily digest of the pages it follows.")
+    timezone: TimeZone = Field(default=DEFAULT_TIMEZONE, description="IANA name; the digest goes out at 8:00 there.")
 
 
 class AccountCreate(BaseModel):
@@ -35,6 +55,7 @@ class AccountCreate(BaseModel):
     password_hash: str | None = Field(default=None, description="argon2id hash; null for a Google-only account.")
     google_sub: str | None = Field(default=None, description="Google's id of the person.")
     email_verified_at: datetime | None = Field(default=None, description="Null until the email is confirmed.")
+    timezone: str = Field(default=DEFAULT_TIMEZONE, description="IANA name.")
 
 
 class AccountUpdate(BaseModel):
@@ -50,6 +71,9 @@ class AccountUpdate(BaseModel):
     page_width: PageWidth | None = None
     language: Language | None = None
     start_page: StartPage | None = None
+    notify_invites: bool | None = None
+    notify_followed: bool | None = None
+    timezone: str | None = None
     two_factor: TwoFactor | None = None
     phone: str | None = None
     phone_verified_at: datetime | None = None
@@ -66,6 +90,8 @@ class AccountRecord(AccountCreate):
     page_width: PageWidth
     language: Language
     start_page: StartPage
+    notify_invites: bool
+    notify_followed: bool
     two_factor: TwoFactor
     phone: str | None
     phone_verified_at: datetime | None
@@ -111,6 +137,9 @@ class SignUp(BaseModel):
     name: str = Field(min_length=1, description="Shown name.")
     email: EmailStr
     password: str = Field(min_length=PASSWORD_MIN)
+    timezone: str | None = Field(
+        default=None, description="The browser's IANA time zone; unknown or missing is America/Sao_Paulo."
+    )
 
 
 class SignIn(BaseModel):
