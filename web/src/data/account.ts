@@ -41,10 +41,13 @@ export function useRemovePhoto() {
   return useAccountChange(() => call(api.DELETE("/v1/account/photo")));
 }
 
-/** Sends a code to the new address; the email changes only once that code is confirmed. */
+/**
+ * Sends a code to the new address, once the current password is right when the account has one; the email changes
+ * only once that code is confirmed.
+ */
 export function useRequestEmailChange() {
   return useMutation({
-    mutationFn: (newEmail: string) => call(api.POST("/v1/account/email", { body: { new_email: newEmail } })),
+    mutationFn: (body: { new_email: string; password?: string }) => call(api.POST("/v1/account/email", { body })),
   });
 }
 
@@ -60,6 +63,8 @@ export function useConfirmEmailChange() {
 export function useSetPreferences() {
   const queryClient = useQueryClient();
   return useMutation({
+    // One at a time, so quick changes reach the server in the order they were made.
+    scope: { id: "preferences" },
     mutationFn: async (change: Partial<Preferences>) => {
       const me = queryClient.getQueryData<Account>(["me"]);
       if (!me) return;
