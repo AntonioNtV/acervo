@@ -8,6 +8,7 @@ from acervo.core.errors import (
     AuthError,
     ConflictError,
     NotFoundError,
+    TooManyAttempts,
     ValidationError,
 )
 from acervo.schemas.common import ErrorResponse
@@ -18,6 +19,7 @@ STATUS_BY_ERROR: dict[type[AcervoError], int] = {
     ConflictError: 409,
     ValidationError: 422,
     AuthError: 401,
+    TooManyAttempts: 429,
     AcervoError: 500,
 }
 

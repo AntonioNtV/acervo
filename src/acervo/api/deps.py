@@ -4,12 +4,14 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header, Query, Request
+from fastapi import Cookie, Depends, Header, Query, Request, Response
 
+from acervo.api.cookies import SESSION_COOKIE, set_session_cookie
 from acervo.core import signing
 from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.account import AccountRead
 from acervo.services.attachment_service import AttachmentService
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
@@ -18,7 +20,9 @@ from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
 from acervo.services.link_preview_service import LinkPreviewService
+from acervo.services.mailer import Mailer
 from acervo.services.page_service import PageService
+from acervo.services.session_service import SessionService
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -31,6 +35,11 @@ def get_settings(request: Request) -> Settings:
 def get_storage(request: Request) -> Storage:
     storage: Storage = request.app.state.storage
     return storage
+
+
+def get_mailer(request: Request) -> Mailer:
+    mailer: Mailer = request.app.state.mailer
+    return mailer
 
 
 async def require_api_key(
@@ -124,3 +133,27 @@ def get_attachment_service(
 
 def get_link_preview_service(settings: Annotated[Settings, Depends(get_settings)]) -> LinkPreviewService:
     return LinkPreviewService(settings.link_preview_timeout_seconds, settings.link_preview_max_bytes)
+
+
+def get_session_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)], settings: Annotated[Settings, Depends(get_settings)]
+) -> SessionService:
+    return SessionService(uow, settings.session_days)
+
+
+async def current_account(
+    response: Response,
+    sessions: Annotated[SessionService, Depends(get_session_service)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> AccountRead:
+    """The account of the session cookie; 401 when there is none or it ended."""
+    account = None if token is None else await sessions.resolve(token)
+    if token is None or account is None:
+        raise AuthError("Missing or ended session.")
+    # The session slides with each request, so the cookie's Max-Age slides with it.
+    set_session_cookie(response, token, settings)
+    return account
+
+
+CurrentAccount = Annotated[AccountRead, Depends(current_account)]

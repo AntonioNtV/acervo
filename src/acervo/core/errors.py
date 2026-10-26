@@ -38,9 +38,33 @@ class SameFile(ConflictError):
     code = "same_file"
 
 
+class EmailTaken(ConflictError):
+    code = "email_taken"
+
+
 class ValidationError(AcervoError):
     code = "validation"
 
 
+class CodeInvalid(ValidationError):
+    """A code or link that is wrong, expired, used or out of tries; the person is not told which."""
+
+    code = "code_invalid"
+
+
 class AuthError(AcervoError):
     code = "unauthorized"
+
+
+class InvalidCredentials(AuthError):
+    """A wrong email or a wrong password, with the same body for both."""
+
+    code = "invalid_credentials"
+
+
+class EmailNotVerified(AuthError):
+    code = "email_not_verified"
+
+
+class TooManyAttempts(AcervoError):
+    code = "too_many_attempts"
