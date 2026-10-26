@@ -654,7 +654,7 @@ def _when(now: datetime, language: Language) -> dict[str, str]:
     return {"date": f"{now.day} de {MONTHS[now.month - 1]}", "time": f"{now:%H:%M}"}
 
 
-def _join(items: list[str], language: Language) -> str:
+def join_names(items: list[str], language: Language) -> str:
     """ "A, B e C"."""
     return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} {AND[language]} {items[-1]}"
 
@@ -664,7 +664,7 @@ def _bases(names: str, language: Language) -> str:
     listed = [name for name in names.split("\n") if name]
     if not listed:
         return NO_BASES[language]
-    return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {_join(listed, language)}"
+    return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {join_names(listed, language)}"
 
 
 def _device(browser: str, system: str, language: Language) -> str:
@@ -700,7 +700,7 @@ def render(
     # One page per line: title, authors and base; the list the digest shows.
     pages = [line.split("\t") for line in values.get("pages", "").split("\n") if line]
     if pages:
-        fill["titles"] = _join([title for title, _, _ in pages], language)
+        fill["titles"] = join_names([title for title, _, _ in pages], language)
     listed = [(title, " · ".join(x for x in (authors, base) if x)) for title, authors, base in pages]
     if "expires_at" in values:
         fill["until"] = _when(datetime.fromisoformat(values["expires_at"]), language)["date"]

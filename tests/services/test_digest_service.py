@@ -157,3 +157,23 @@ async def test_one_digest_a_day(
     await digests.send(uuid4(), NOW)
 
     assert [mail.to for mail in fake_mailer.sent] == ["ana@example.com"]
+
+
+async def test_a_failed_mail_gives_the_day_back(
+    digests: DigestService, session: AsyncSession, make_tree: MakeTree, fake_mailer: FakeMailer, ana: UUID, bruno: UUID
+) -> None:
+    tree = await make_tree(TREE)
+    await FollowRepository(session).follow(ana, tree["Glossário.md"].id)
+    await _save(session, tree["Glossário.md"], bruno)
+    send = fake_mailer.send
+
+    async def down(*args: object, **kwargs: object) -> None:
+        raise ConnectionError("smtp down")
+
+    fake_mailer.send = down  # type: ignore[method-assign]
+    with pytest.raises(ConnectionError):
+        await digests.send(ana, NOW)
+    fake_mailer.send = send  # type: ignore[method-assign]
+    await digests.send(ana, NOW)
+
+    assert [mail.to for mail in fake_mailer.sent] == ["ana@example.com"]

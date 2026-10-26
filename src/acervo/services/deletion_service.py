@@ -91,5 +91,9 @@ class DeletionService:
                 logger.exception("stored object %s not deleted", key)
 
     async def _send(self, mails: list[tuple[AccountRecord, MailTemplate, dict[str, str]]]) -> None:
+        # After the commit too: the delete is done, so a mail that fails is logged instead of answering an error.
         for account, template, values in mails:
-            await self._mailer.send(account.email, template, account.language, values)
+            try:
+                await self._mailer.send(account.email, template, account.language, values)
+            except Exception:
+                logger.exception("%s not sent to %s", template, account.id)

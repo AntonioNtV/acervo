@@ -6,7 +6,7 @@ from acervo.repositories.digest import DigestChange
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import Language
 from acervo.schemas.notification import Notification
-from acervo.services.mail_templates import _join
+from acervo.services.mail_templates import join_names
 from acervo.services.mailer import Mailer, MailTemplate, Unsubscribe
 
 YOU: dict[Language, str] = {"pt-BR": "Você", "en": "You"}
@@ -26,7 +26,8 @@ class DigestService:
 
     async def send(self, account_id: UUID, now: datetime) -> None:
         """Sends the account's digest for the day before its local `now`, once a day; with nothing changed, the
-        day is marked and no email goes out. A deleted account is skipped."""
+        day is marked and no email goes out. A deleted account is skipped. A mail that fails gives the day back and
+        raises, for the caller to retry."""
         account = await self._uow.digests.account(account_id)
         if account is None:
             return
@@ -43,7 +44,15 @@ class DigestService:
             return
         values = {"count": str(len(pages)), "pages": "\n".join("\t".join(page) for page in pages)}
         unsubscribe = Unsubscribe(account_id, Notification.FOLLOWED)
-        await self._mailer.send(account.email, MailTemplate.DIGEST, account.language, values, unsubscribe=unsubscribe)
+        try:
+            await self._mailer.send(
+                account.email, MailTemplate.DIGEST, account.language, values, unsubscribe=unsubscribe
+            )
+        except Exception:
+            # The day goes back, so the activity's retry sends it; two runs at once still claim it once.
+            await self._uow.digests.release(account_id, today, account.digest_sent_on)
+            await self._uow.commit()
+            raise
 
 
 def _pages(changes: list[DigestChange], account_id: UUID, language: Language) -> list[tuple[str, str, str]]:
@@ -60,5 +69,5 @@ def _pages(changes: list[DigestChange], account_id: UUID, language: Language) ->
             name = v.author or DELETED_ACCOUNT[language]
             if v.author_id != account_id and name not in names:
                 names.append(name)
-        pages.append((versions[0].title, _join(names, language), versions[0].base))
+        pages.append((versions[0].title, join_names(names, language), versions[0].base))
     return pages

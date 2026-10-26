@@ -20,6 +20,7 @@ class DigestAccount(BaseModel):
     email: str
     language: Language
     timezone: str
+    digest_sent_on: date | None
 
 
 class DigestChange(BaseModel):
@@ -66,6 +67,15 @@ class DigestRepository:
             .returning(Account.id)
         )
         return await self._session.scalar(query) is not None
+
+    async def release(self, account_id: UUID, today: date, previous: date | None) -> None:
+        """Undoes `claim` when today's digest did not go out, so a retry sends it."""
+        query = (
+            update(Account)
+            .where(Account.id == account_id, Account.digest_sent_on == today)
+            .values(digest_sent_on=previous)
+        )
+        await self._session.execute(query)
 
     async def changes(self, account_id: UUID, start: datetime, end: datetime) -> list[DigestChange]:
         """The versions saved in [start, end) on the live pages of live bases the account follows, oldest first.

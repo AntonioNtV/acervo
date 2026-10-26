@@ -1,5 +1,6 @@
 import { useMutation, useQueries, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api/client";
+import { membersQuery } from "./orgSettings";
 import { switchOrganization, useOrganizations, type Organization } from "./organizations";
 import { call, invalidate } from "./request";
 
@@ -29,11 +30,7 @@ export function useAccountOrganizations(): { sole: Organization[]; left: Organiz
   const organizations = useOrganizations().data?.filter((org) => !org.personal);
   const owned = organizations?.filter((org) => org.my_role === "owner") ?? [];
   const members = useQueries({
-    queries: owned.map((org) => ({
-      queryKey: ["members", org.id],
-      queryFn: () =>
-        call(api.GET("/v1/organizations/{organization_id}/members", { params: { path: { organization_id: org.id } } })),
-    })),
+    queries: owned.map((org) => membersQuery(org.id)),
   });
   if (!organizations || members.some((query) => query.isPending)) return undefined;
   const sole = owned.filter((_org, i) => members[i]?.data?.filter((member) => member.role === "owner").length === 1);

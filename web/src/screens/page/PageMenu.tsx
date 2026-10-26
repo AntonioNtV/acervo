@@ -48,7 +48,8 @@ export function PageMenu({
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
-    if (!notice) return;
+    // A notice with a link (Notificações) stays until the next action, so the keyboard can reach it.
+    if (typeof notice !== "string") return;
     const timer = setTimeout(() => setNotice(null), NOTICE_MS);
     return () => clearTimeout(timer);
   }, [notice]);
