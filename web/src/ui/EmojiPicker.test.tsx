@@ -35,6 +35,20 @@ describe("EmojiPicker", () => {
     expect(within(picker).queryByRole("button", { name: "Remover" })).not.toBeInTheDocument();
   });
 
+  it("filters by the query it is given, with no search field of its own", () => {
+    render(
+      <I18nProvider>
+        <div>
+          <EmojiPicker query="cas" onPick={vi.fn()} onClose={vi.fn()} />
+        </div>
+      </I18nProvider>,
+    );
+    const picker = screen.getByRole("dialog", { name: "Escolher ícone" });
+
+    expect(within(picker).getAllByRole("button").map((button) => button.textContent)).toEqual(["🏠"]);
+    expect(within(picker).queryByRole("searchbox")).not.toBeInTheDocument();
+  });
+
   it("removes the icon there is", async () => {
     const onRemove = vi.fn();
     const { onPick, picker } = renderPicker(onRemove);
