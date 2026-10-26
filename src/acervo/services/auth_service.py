@@ -166,7 +166,7 @@ class AuthService:
     async def confirm_reset(self, data: ResetConfirm, user_agent: str | None) -> tuple[AccountRead, str]:
         """Sets the password, ends every session of the account and starts a new one; gives the account and token."""
         now = self._now()
-        reset = await self._uow.password_resets.get_by(token_hash=token_hash(data.token))
+        reset = await self._uow.password_resets.by_token(token_hash(data.token))
         if reset is None or reset.used_at is not None or reset.expires_at <= now:
             raise CodeInvalid("wrong, expired or used link")
         # Every link of the account dies with this one, not only the one used.

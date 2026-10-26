@@ -47,7 +47,7 @@ async def remove_photo(account: CurrentAccount, service: Service) -> AccountRead
     return await service.remove_photo(account.id)
 
 
-@router.post("/account/email", status_code=204, responses={409: ERROR})
+@router.post("/account/email", status_code=204, responses={409: ERROR, 429: ERROR})
 async def request_email_change(body: EmailChange, account: CurrentAccount, service: Service) -> None:
     """Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`."""
     await service.request_email_change(account.id, body.new_email, body.password)

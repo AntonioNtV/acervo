@@ -19,6 +19,12 @@ class PasswordResetRepository(
         reset = await self._session.scalar(query.limit(1))
         return None if reset is None else self._to_read(reset)
 
+    async def by_token(self, token_hash: str) -> PasswordResetRecord | None:
+        """The link with this token, its row locked so two requests with the same link cannot both use it."""
+        query = self._select().where(PasswordReset.token_hash == token_hash).with_for_update()
+        reset = await self._session.scalar(query)
+        return None if reset is None else self._to_read(reset)
+
     async def use_all(self, account_id: UUID, used_at: datetime) -> None:
         """Marks every unused link of the account used."""
         await self._session.execute(
