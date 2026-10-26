@@ -3,6 +3,7 @@ import { useI18n } from "../../i18n";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
 import { Breadcrumb } from "./Breadcrumb";
+import { ShareButton } from "./ShareDialog";
 import { useShell } from "./shell";
 
 type Props = {
@@ -33,6 +34,7 @@ export function TopBar({ kbId, nodeId, label, status, actions, menu }: Props) {
       </div>
       <div className="flex shrink-0 items-center gap-0.5">
         {status && <span className="px-2 text-12 text-text-3">{status}</span>}
+        {kbId && <ShareButton kbId={kbId} />}
         {actions}
         {menu}
       </div>

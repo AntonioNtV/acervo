@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import type { TreeNode } from "../../api/client";
+import { useAccess } from "../../data/access";
 import { useFavorite } from "../../data/favorites";
 import { useChildren, useCreateNode, useMoveNode, useNode, useRenameNode, useTrashNode } from "../../data/tree";
 import { useI18n } from "../../i18n";
@@ -20,6 +21,8 @@ type Zone = "before" | "into";
 
 type TreeState = {
   kbId: string;
+  /** False for a Leitor: no drag, drop, new, rename or trash. */
+  canEdit: boolean;
   selectedId?: string;
   expanded: Set<string>;
   setOpen: (id: string, open: boolean) => void;
@@ -93,6 +96,7 @@ export function TreeRows({
   const favorite = useFavorite();
   const startUpload = useStartUpload(kbId);
   const errorText = useTreeErrorText();
+  const { canEdit } = useAccess(kbId);
 
   const [setOpen] = useState(() => (id: string, open: boolean) =>
     setExpanded((current) => {
@@ -110,6 +114,7 @@ export function TreeRows({
 
   const state: TreeState = {
     kbId,
+    canEdit,
     selectedId,
     expanded,
     setOpen,
@@ -146,6 +151,7 @@ export function TreeRows({
       <div
         className={cx("flex flex-col gap-px rounded-[6px]", rootDrop && "bg-muted")}
         onDragOver={(event) => {
+          if (!canEdit) return;
           event.preventDefault();
           setRootDrop(true);
         }}
@@ -155,16 +161,18 @@ export function TreeRows({
         <ul role="tree" aria-label={t("shell.tree")} className="m-0 flex list-none flex-col gap-px p-0">
           <Level parentId={null} depth={0} />
         </ul>
-        <button
-          type="button"
-          onClick={() => onDraft({ parentId: null, kind: "page" })}
-          className={cx(rowClass, "text-text-3")}
-          style={indent(0)}
-        >
-          <span className="size-4 shrink-0" />
-          <Icon name="plus" size={14} />
-          <span className="truncate">{t("base.new.page")}</span>
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={() => onDraft({ parentId: null, kind: "page" })}
+            className={cx(rowClass, "text-text-3")}
+            style={indent(0)}
+          >
+            <span className="size-4 shrink-0" />
+            <Icon name="plus" size={14} />
+            <span className="truncate">{t("base.new.page")}</span>
+          </button>
+        )}
       </div>
     </TreeContext.Provider>
   );
@@ -261,7 +269,7 @@ function DraftRow({ draft, depth }: { draft: Draft; depth: number }) {
 function Row({ node, depth }: { node: TreeNode; depth: number }) {
   const { t } = useI18n();
   const tree = useTree();
-  const { kbId, selectedId, expanded, setOpen, editingId, setEditingId, draft, setDraft, setNotice } = tree;
+  const { kbId, canEdit, selectedId, expanded, setOpen, editingId, setEditingId, draft, setDraft, setNotice } = tree;
   const { errorText, rename, trash, move, favorite, startUpload } = tree;
   const [renameError, setRenameError] = useState<string | null>(null);
   const [drop, setDrop] = useState<Zone | null>(null);
@@ -329,12 +337,13 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
   return (
     <li role="treeitem" aria-expanded={hasCaret ? open : undefined} aria-selected={selected} aria-label={name}>
       <div
-        draggable={editingId !== node.id}
+        draggable={canEdit && editingId !== node.id}
         onDragStart={(event) => {
           event.dataTransfer.setData(NODE_TYPE, JSON.stringify({ kbId, id: node.id }));
           event.dataTransfer.effectAllowed = "move";
         }}
         onDragOver={(event) => {
+          if (!canEdit) return;
           event.preventDefault();
           event.stopPropagation();
           setDrop(zoneOf(event));
@@ -362,36 +371,44 @@ function Row({ node, depth }: { node: TreeNode; depth: number }) {
           <span className="size-4 shrink-0" />
         )}
         {label}
-        <Menu
-          trigger={
-            <IconButton
-              size="sm"
-              aria-label={t("base.actions", { name })}
-              className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
-            >
-              <Icon name="more" size={14} />
-            </IconButton>
-          }
-        >
-          <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("base.new.page")}</MenuItem>
-          {folder && (
-            <MenuItem onSelect={() => setDraft({ parentId: node.id, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
-          )}
-          {(folder || page) && (
-            <MenuItem
-              onSelect={() =>
-                favorite.mutate({ nodeId: node.id, favorite: !node.favorite }, { onError: (e) => setNotice(errorText(e)) })
-              }
-            >
-              {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
-            </MenuItem>
-          )}
-          <MenuSeparator />
-          <MenuItem onSelect={() => setEditingId(node.id)}>{t("base.rename")}</MenuItem>
-          <MenuItem onSelect={() => trash.mutate(node.id, { onError: (e) => setNotice(errorText(e)) })}>
-            {t("base.trash")}
-          </MenuItem>
-        </Menu>
+        {(canEdit || folder || page) && (
+          <Menu
+            trigger={
+              <IconButton
+                size="sm"
+                aria-label={t("base.actions", { name })}
+                className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+              >
+                <Icon name="more" size={14} />
+              </IconButton>
+            }
+          >
+            {canEdit && (
+              <MenuItem onSelect={() => setDraft({ parentId: parentForNew, kind: "page" })}>{t("base.new.page")}</MenuItem>
+            )}
+            {canEdit && folder && (
+              <MenuItem onSelect={() => setDraft({ parentId: node.id, kind: "folder" })}>{t("base.new.folder")}</MenuItem>
+            )}
+            {(folder || page) && (
+              <MenuItem
+                onSelect={() =>
+                  favorite.mutate({ nodeId: node.id, favorite: !node.favorite }, { onError: (e) => setNotice(errorText(e)) })
+                }
+              >
+                {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
+              </MenuItem>
+            )}
+            {canEdit && (
+              <>
+                <MenuSeparator />
+                <MenuItem onSelect={() => setEditingId(node.id)}>{t("base.rename")}</MenuItem>
+                <MenuItem onSelect={() => trash.mutate(node.id, { onError: (e) => setNotice(errorText(e)) })}>
+                  {t("base.trash")}
+                </MenuItem>
+              </>
+            )}
+          </Menu>
+        )}
       </div>
       {open && (
         <ul role="group" className="m-0 flex list-none flex-col gap-px p-0">

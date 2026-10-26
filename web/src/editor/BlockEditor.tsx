@@ -36,6 +36,8 @@ type Props = {
   pageTitles?: string[];
   /** What is typed after `[[` or `@` while the picker is open; null once it closes. */
   onPageQuery?: (query: string | null) => void;
+  /** False shows the page as it is, with no way to change it (a Leitor). */
+  editable?: boolean;
 };
 
 /** Uploads `files` as attachments of the page at the selection; false when there is nothing to take. */
@@ -55,7 +57,15 @@ const WITH_VIEW: Record<string, AnyExtension> = {
   linkBlock: LinkBlockWithView,
 };
 
-export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, pageTitles = [], onPageQuery }: Props) {
+export function BlockEditor({
+  markdown,
+  onChange,
+  resolveLink,
+  onCreateSubPage,
+  pageTitles = [],
+  onPageQuery,
+  editable = true,
+}: Props) {
   const { t } = useI18n();
   const pageId = useContext(PageContext)?.nodeId ?? null;
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -102,6 +112,7 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
   const written = useRef("");
 
   const editor = useEditor({
+    editable,
     extensions: [
       ...blockExtensions.map(
         (extension) =>
@@ -150,6 +161,11 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
       latest.current.onChange(next);
     },
   });
+
+  // The role can arrive after the editor is made.
+  useEffect(() => {
+    editor?.setEditable(editable, false);
+  }, [editor, editable]);
 
   // An edit moves blocks: the hovered one is followed to where it went, or let go when it was deleted.
   useEffect(() => {
@@ -245,10 +261,12 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
         }}
         onMouseLeave={() => setBlock(null)}
       >
-        {editor && block && <BlockHandle key={block.pos} editor={editor} block={block} onClose={() => setBlock(null)} />}
+        {editor && editable && block && (
+          <BlockHandle key={block.pos} editor={editor} block={block} onClose={() => setBlock(null)} />
+        )}
         <EditorContent editor={editor} />
       </div>
-      {editor && <SelectionToolbar editor={editor} />}
+      {editor && editable && <SelectionToolbar editor={editor} />}
       {menu && <MenuPopover items={items} active={active} rect={menu.rect} onPick={pick} onHover={setActive} />}
     </ResolveLink.Provider>
   );

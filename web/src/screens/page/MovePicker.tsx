@@ -64,13 +64,16 @@ function BaseDestinations({
 }
 
 /**
- * "Mover para…": every base's root, and its folders and pages by title. Into another base the sub-pages and files go
- * along; a file the destination already holds refuses the move, naming it.
+ * "Mover para…": the root of every base of the same organization the person can edit, and its folders and pages by
+ * title. Into another base the sub-pages and files go along; a file the destination already holds refuses the move,
+ * naming it.
  */
 export function MovePicker({ node, onClose }: { node: NodeDetail; onClose: () => void }) {
   const { t } = useI18n();
   const navigate = useNavigate();
-  const kbs = useKbs().data ?? [];
+  const all = useKbs().data ?? [];
+  const organization = all.find((kb) => kb.id === node.kb_id)?.organization_id;
+  const kbs = all.filter((kb) => kb.organization_id === organization && kb.my_role !== "reader");
   const move = useMoveNode();
   const treeErrorText = useTreeErrorText();
   const [query, setQuery] = useState("");

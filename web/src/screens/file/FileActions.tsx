@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { NodeDetail } from "../../api/client";
+import { useAccess } from "../../data/access";
 import { useFileVersions, useRestoreFileVersion } from "../../data/files";
 import { ApiError } from "../../data/request";
 import { useReplaceFile } from "../../data/upload";
@@ -62,9 +63,13 @@ export function useReplacePicker(nodeId: string) {
   return { choose: () => input.current?.click(), view };
 }
 
-/** The file's ⋯: "Substituir" sends its current content to the history, "Versões" brings an older one back. */
+/**
+ * The file's ⋯: "Substituir" sends its current content to the history, "Versões" brings an older one back; a Leitor
+ * only sees and downloads the versions.
+ */
 export function FileMenu({ node }: { node: NodeDetail }) {
   const { t } = useI18n();
+  const { canEdit } = useAccess(node.kb_id);
   const replace = useReplacePicker(node.id);
   const [versionsOpen, setVersionsOpen] = useState(false);
 
@@ -78,7 +83,7 @@ export function FileMenu({ node }: { node: NodeDetail }) {
           </IconButton>
         }
       >
-        <MenuItem onSelect={replace.choose}>{t("file.replace.short")}</MenuItem>
+        {canEdit && <MenuItem onSelect={replace.choose}>{t("file.replace.short")}</MenuItem>}
         <MenuItem onSelect={() => setVersionsOpen(true)}>{t("file.versions")}</MenuItem>
       </Menu>
       <Dialog
@@ -91,13 +96,13 @@ export function FileMenu({ node }: { node: NodeDetail }) {
           </DialogClose>
         }
       >
-        <VersionList nodeId={node.id} title={node.title} />
+        <VersionList nodeId={node.id} title={node.title} canEdit={canEdit} />
       </Dialog>
     </>
   );
 }
 
-function VersionList({ nodeId, title }: { nodeId: string; title: string }) {
+function VersionList({ nodeId, title, canEdit }: { nodeId: string; title: string; canEdit: boolean }) {
   const { t, lang } = useI18n();
   const versions = useFileVersions(nodeId);
   const restore = useRestoreFileVersion(nodeId);
@@ -115,14 +120,11 @@ function VersionList({ nodeId, title }: { nodeId: string; title: string }) {
             <span className="min-w-0 flex-1 truncate">{formatDate(version.replaced_at, lang)}</span>
             <span className="text-12 text-text-3 tabular-nums">{formatSize(version.size, lang)}</span>
             <DownloadLink nodeId={nodeId} filename={title} versionId={version.id} />
-            <Button
-              variant="quiet"
-              size="sm"
-              disabled={restore.isPending}
-              onClick={() => restore.mutate(version.id)}
-            >
-              {t("file.restore")}
-            </Button>
+            {canEdit && (
+              <Button variant="quiet" size="sm" disabled={restore.isPending} onClick={() => restore.mutate(version.id)}>
+                {t("file.restore")}
+              </Button>
+            )}
           </li>
         ))}
       </ul>

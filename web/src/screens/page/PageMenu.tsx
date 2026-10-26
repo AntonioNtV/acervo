@@ -14,15 +14,17 @@ import { MovePicker } from "./MovePicker";
 const NOTICE_MS = 2000;
 
 /**
- * The page's ⋯: favorite, duplicate, move, copy link, history, export, upload and trash. `flush` sends the text still
- * being typed, so a copy, a move or an export has it.
+ * The page's ⋯: favorite, duplicate, move, copy link, history, export, upload and trash; without `canEdit` (a Leitor)
+ * only what changes nothing. `flush` sends the text still being typed, so a copy, a move or an export has it.
  */
 export function PageMenu({
   node,
+  canEdit = true,
   flush,
   onHistory,
 }: {
   node: NodeDetail;
+  canEdit?: boolean;
   flush: () => Promise<unknown>;
   onHistory: () => void;
 }) {
@@ -115,17 +117,21 @@ export function PageMenu({
         <MenuItem onSelect={() => run(() => favorite.mutateAsync({ nodeId: node.id, favorite: !node.favorite }))}>
           {t(node.favorite ? "shell.favorite.remove" : "shell.favorite.add")}
         </MenuItem>
-        <MenuItem onSelect={duplicatePage}>{t("page.duplicate")}</MenuItem>
-        <MenuItem onSelect={movePage}>{t("page.move")}</MenuItem>
+        {canEdit && <MenuItem onSelect={duplicatePage}>{t("page.duplicate")}</MenuItem>}
+        {canEdit && <MenuItem onSelect={movePage}>{t("page.move")}</MenuItem>}
         <MenuItem onSelect={copyLink}>{t("page.link.copy")}</MenuItem>
         <MenuSeparator />
         <MenuItem onSelect={onHistory}>{t("page.history")}</MenuItem>
         <MenuItem onSelect={exportPage}>{t("page.export")}</MenuItem>
-        <MenuItem onSelect={() => fileInput.current?.click()}>{t("page.upload")}</MenuItem>
-        <MenuSeparator />
-        <MenuItem onSelect={trashPage}>
-          <span className="text-err">{t("page.trash")}</span>
-        </MenuItem>
+        {canEdit && (
+          <>
+            <MenuItem onSelect={() => fileInput.current?.click()}>{t("page.upload")}</MenuItem>
+            <MenuSeparator />
+            <MenuItem onSelect={trashPage}>
+              <span className="text-err">{t("page.trash")}</span>
+            </MenuItem>
+          </>
+        )}
       </Menu>
       {moving && <MovePicker node={node} onClose={() => setMoving(false)} />}
     </>

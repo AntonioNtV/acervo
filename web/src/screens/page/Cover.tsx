@@ -96,8 +96,8 @@ function CoverImage({ nodeId, cover }: { nodeId: string; cover: string }) {
   );
 }
 
-/** A page's or folder's cover, full width above its column, with "Trocar" and "Remover" on hover. */
-export function Cover({ node }: { node: NodeDetail }) {
+/** A page's or folder's cover, full width above its column, with "Trocar" and "Remover" on hover when `editable`. */
+export function Cover({ node, editable = true }: { node: NodeDetail; editable?: boolean }) {
   const { t } = useI18n();
   const errorText = useErrorText();
   const decorate = useDecorateNode();
@@ -113,26 +113,28 @@ export function Cover({ node }: { node: NodeDetail }) {
           {upload.error || errorText(decorate.error)}
         </p>
       )}
-      <div className="absolute right-4 bottom-3 flex gap-1.5 opacity-0 group-hover/cover:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
-        <CoverMenu
-          align="end"
-          onPick={setCover}
-          onUpload={upload.choose}
-          trigger={<Button size="sm">{t("page.cover.change")}</Button>}
-        />
-        <Button size="sm" onClick={() => setCover(null)}>
-          {t("page.cover.remove")}
-        </Button>
-      </div>
+      {editable && (
+        <div className="absolute right-4 bottom-3 flex gap-1.5 opacity-0 group-hover/cover:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100">
+          <CoverMenu
+            align="end"
+            onPick={setCover}
+            onUpload={upload.choose}
+            trigger={<Button size="sm">{t("page.cover.change")}</Button>}
+          />
+          <Button size="sm" onClick={() => setCover(null)}>
+            {t("page.cover.remove")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
  * Above the title: the node's emoji, which opens the picker, and on hover over the header "Adicionar ícone" and
- * "Adicionar capa" for what it lacks. Rendered inside a `group/header` box.
+ * "Adicionar capa" for what it lacks. Rendered inside a `group/header` box; not `editable`, only the emoji.
  */
-export function HeaderDecor({ node }: { node: NodeDetail }) {
+export function HeaderDecor({ node, editable = true }: { node: NodeDetail; editable?: boolean }) {
   const { t } = useI18n();
   const errorText = useErrorText();
   const decorate = useDecorateNode();
@@ -156,6 +158,7 @@ export function HeaderDecor({ node }: { node: NodeDetail }) {
           <button
             type="button"
             aria-label={t("page.icon.change")}
+            disabled={!editable}
             onClick={() => setPicking(!picking)}
             className="flex size-[76px] cursor-pointer items-center justify-center rounded-[10px] border-0 bg-transparent p-0 text-[56px] leading-none hover:bg-subtle"
           >
@@ -164,7 +167,7 @@ export function HeaderDecor({ node }: { node: NodeDetail }) {
           {picker}
         </div>
       )}
-      {(!node.icon || !node.cover) && (
+      {editable && (!node.icon || !node.cover) && (
         <div
           className={cx(
             "-ml-1.5 flex gap-1 opacity-0 group-hover/header:opacity-100 focus-within:opacity-100 has-[[data-state=open]]:opacity-100",
