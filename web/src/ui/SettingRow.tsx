@@ -1,4 +1,5 @@
 import * as RadixMenu from "@radix-ui/react-dropdown-menu";
+import { useRef } from "react";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 
@@ -16,13 +17,14 @@ export function SettingRow<T extends string>({
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
 }) {
+  const opening = useRef(false);
   return (
     <div className="flex min-h-14 items-center justify-between gap-4 border-b border-line py-2.5">
       <span className="flex min-w-0 flex-col">
         <span className="text-13 text-text">{title}</span>
         {desc && <span className="text-12 leading-[18px] text-text-3">{desc}</span>}
       </span>
-      <RadixMenu.Root>
+      <RadixMenu.Root onOpenChange={(open) => (opening.current = open)}>
         <RadixMenu.Trigger asChild>
           <Button variant="quiet" size="sm" aria-label={title}>
             {options.find((option) => option.value === value)?.label}
@@ -34,7 +36,18 @@ export function SettingRow<T extends string>({
             align="end"
             sideOffset={4}
             aria-label={title}
-            className="flex max-h-[var(--radix-dropdown-menu-content-available-height)] w-[200px] flex-col overflow-y-auto rounded-[8px] border border-line-2 bg-bg p-1"
+            // While opening, Radix focuses the menu and, from the keyboard, its first option; both go to the chosen
+            // option instead, so a long list (time zones) opens where the person is. Only then: later the menu is
+            // refocused as the pointer leaves an option. The max height is fixed, as Radix's is set after positioning.
+            onFocus={(event) => {
+              const content = event.currentTarget;
+              const checked = content.querySelector<HTMLElement>('[role="menuitemradio"][data-state="checked"]');
+              if (!opening.current || !checked || event.target === checked) return;
+              checked.focus({ preventScroll: true });
+              content.scrollTop = checked.offsetTop - (content.clientHeight - checked.offsetHeight) / 2;
+              requestAnimationFrame(() => (opening.current = false));
+            }}
+            className="flex max-h-80 w-[200px] flex-col overflow-y-auto rounded-[8px] border border-line-2 bg-bg p-1"
           >
             <RadixMenu.RadioGroup value={value} onValueChange={(next) => onChange(next as T)}>
               {options.map((option) => (

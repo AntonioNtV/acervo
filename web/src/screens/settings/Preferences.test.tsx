@@ -49,6 +49,8 @@ describe("Preferences", () => {
     const row = await screen.findByRole("button", { name: "Fuso horário" });
     expect(row).toHaveTextContent("Sao Paulo (GMT-3)");
     await userEvent.click(row);
+    // The menu opens on the chosen zone, not on the first of some 400.
+    await waitFor(() => expect(screen.getByRole("menuitemradio", { name: "Sao Paulo (GMT-3)" })).toHaveFocus());
     await userEvent.click(await screen.findByRole("menuitemradio", { name: "Tokyo (GMT+9)" }));
 
     await waitFor(() =>
