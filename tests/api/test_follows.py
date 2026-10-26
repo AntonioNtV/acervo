@@ -40,7 +40,7 @@ async def test_only_pages_can_be_followed(client: httpx.AsyncClient, make_tree: 
 
     for node in (tree["Residencial"], tree["Residencial/CG 2026.pdf"]):
         refused = await client.put(f"/v1/pages/{node.id}/follow")
-        assert (refused.status_code, refused.json()["error"]) == (422, "not_a_page")
+        assert (refused.status_code, refused.json()["error"]) == (422, "validation")
 
 
 async def test_a_page_out_of_reach_is_404(
@@ -77,4 +77,16 @@ async def test_a_saved_version_has_its_author(
     author = await session.scalar(
         select(PageVersion.author_id).where(PageVersion.markdown == "Cinco dias.\n", PageVersion.node_id == page.id)
     )
+    assert author == default_account_id
+
+
+async def test_a_duplicated_page_has_its_author(
+    client: httpx.AsyncClient, make_tree: MakeTree, session: AsyncSession, default_account_id: Any
+) -> None:
+    page = (await make_tree({"Emissão.md": None}))["Emissão.md"]
+
+    copy = await client.post(f"/v1/nodes/{page.id}/duplicate")
+    assert copy.status_code == 201, copy.text
+
+    author = await session.scalar(select(PageVersion.author_id).where(PageVersion.node_id == copy.json()["id"]))
     assert author == default_account_id
