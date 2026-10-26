@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { useMe } from "../data/account";
 import { useKbs } from "../data/kbs";
 import { ApiError } from "../data/request";
 import { useChildren, useNode } from "../data/tree";
@@ -18,11 +19,12 @@ function FirstNode({ kbId }: { kbId: string }) {
 }
 
 /**
- * `/`: the last page seen in this browser while it is still there, else the first base's first node, else the offer
- * of a first base.
+ * `/`: Bases when the account opens there; else the last page seen in this browser while it is still there, else the
+ * first base's first node, else the offer of a first base.
  */
 export function Home() {
   const { t } = useI18n();
+  const me = useMe();
   const kbs = useKbs();
   const errorText = useErrorText();
   const [creating, setCreating] = useState(false);
@@ -33,6 +35,8 @@ export function Home() {
   useEffect(() => {
     if (gone) forgetLastPage();
   }, [gone]);
+  if (me.isPending) return null;
+  if (me.data?.preferences.start_page === "bases") return <Navigate replace to="/bases" />;
   // Under the node's base of now: it may have moved to another base since it was seen.
   if (last && !gone) {
     if (lastNode.isPending) return null;

@@ -4,11 +4,13 @@ import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { PageContext } from "../../editor/nodes/generated";
 import { SyncedSource, type SyncedTarget } from "../../editor/nodes/synced";
+import { useMe } from "../../data/account";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
 import { useChildren, useRenameNode, useSearch } from "../../data/tree";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
+import { cx } from "../../ui/cx";
 import { FileName } from "../../ui/FileName";
 import { Icon } from "../../ui/Icon";
 import { IconButton } from "../../ui/IconButton";
@@ -77,6 +79,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const [selected, setSelected] = useState<PageVersion | null>(null);
   const [editingNow, setEditingNow] = useState(false);
   const restore = useRestorePageVersion(node.id);
+  const wide = useMe().data?.preferences.page_width === "wide";
   const children = useChildren(kbId, node.id).data ?? [];
   const untitled = useCreateUntitledPage(kbId, node.id);
   const errorText = useTreeErrorText();
@@ -197,7 +200,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
             kbId={kbId}
             parentId={node.id}
             name={node.title}
-            className="mx-auto box-border w-full max-w-[720px] px-8 pt-10 pb-30"
+            className={cx("mx-auto box-border w-full px-8 pt-10 pb-30", wide ? "max-w-[1040px]" : "max-w-[720px]")}
           >
             <div className="group/header">
               <HeaderDecor node={node} />

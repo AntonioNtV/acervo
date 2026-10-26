@@ -1,10 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { calls, node, renderWithApi, resetApi, respond } from "../../api/testing";
 import { ThemeProvider } from "../../app/theme";
 import { fakeBases, summary } from "../bases/testing";
+import { signedIn } from "../settings/testing";
 import { Sidebar } from "./Sidebar";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
@@ -187,5 +188,29 @@ describe("Sidebar", () => {
     await screen.findByRole("region", { name: "Seguros · Operação" });
     await waitFor(() => expect(calls.some((call) => call.path === "/v1/favorites")).toBe(true));
     expect(screen.queryByRole("region", { name: "Favoritos" })).not.toBeInTheDocument();
+  });
+
+  it("Sair ends the session, opens Entrar and drops what the account had loaded", async () => {
+    signedIn();
+    respond("POST", "/v1/auth/sign-out", { body: {} });
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/glossario");
+    const { queryClient } = renderWithApi(
+      <ThemeProvider>
+        <MemoryRouter initialEntries={["/kbs/kb-1"]}>
+          <Routes>
+            <Route path="/kbs/:kbId" element={<Sidebar />} />
+            <Route path="/entrar" element={<p>Entrar</p>} />
+          </Routes>
+        </MemoryRouter>
+      </ThemeProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole("button", { name: /Antonio Bertino/ }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Sair" }));
+
+    expect(await screen.findByText("Entrar")).toBeInTheDocument();
+    expect(calls.some((call) => call.method === "POST" && call.path === "/v1/auth/sign-out")).toBe(true);
+    expect(queryClient.getQueryCache().getAll()).toHaveLength(0);
+    expect(localStorage.getItem("acervo.lastPage")).toBeNull();
   });
 });
