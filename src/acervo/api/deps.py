@@ -139,11 +139,13 @@ def get_google_auth_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     sessions: Annotated[SessionService, Depends(get_session_service)],
     google: Annotated[GoogleClient, Depends(get_google_client)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> GoogleAuthService:
     # Through the web app's origin (its /v1 proxy), so the session cookie lands where the app reads it.
     redirect_uri = f"{settings.public_url.rstrip('/')}/v1/auth/google/callback"
-    return GoogleAuthService(uow, sessions, google, settings.session_secret.get_secret_value(), redirect_uri)
+    secret = settings.session_secret.get_secret_value()
+    return GoogleAuthService(uow, sessions, google, mailer, secret, redirect_uri)
 
 
 def get_access_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> AccessService:

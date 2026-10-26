@@ -3,6 +3,7 @@ import hmac
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from acervo.core.errors import (
     CodeInvalid,
@@ -28,6 +29,8 @@ from acervo.schemas.account import (
     SignIn,
     SignUp,
 )
+from acervo.services.access_service import AccessService
+from acervo.services.invite_service import InviteService
 from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.session_service import SessionService, token_hash
 
@@ -103,6 +106,7 @@ class AuthService:
             raise CodeInvalid("wrong or expired code")
         await self._uow.email_codes.update(live.id, EmailCodeUpdate(used_at=now))
         verified = await self._uow.accounts.update(account.id, AccountUpdate(email_verified_at=now))
+        await self._claim_invites(account.id)
         return AccountRead.of(verified), await self._sessions.create(account.id, user_agent)
 
     async def resend_code(self, email: str) -> None:
@@ -175,13 +179,20 @@ class AuthService:
         account = await self._uow.accounts.get(reset.account_id)
         # The link reached the inbox, which confirms the email.
         change = AccountUpdate(password_hash=await asyncio.to_thread(hash_password, data.password))
-        if account.email_verified_at is None:
+        confirmed_now = account.email_verified_at is None
+        if confirmed_now:
             change.email_verified_at = now
         account = await self._uow.accounts.update(account.id, change)
+        if confirmed_now:
+            await self._claim_invites(account.id)
         # Whoever set the new password through the inbox is not the one guessing it: the lock would only keep them out.
         await self._uow.login_failures.clear(account.email.lower())
         await self._sessions.end_all(account.id)
         return AccountRead.of(account), await self._sessions.create(account.id, user_agent)
+
+    async def _claim_invites(self, account_id: UUID) -> None:
+        """An invited email that just got a confirmed account joins what it was invited to (spec §3)."""
+        await InviteService(self._uow, self._mailer, AccessService(self._uow), self._now).claim(account_id)
 
     async def _sent_recently(self, account: AccountRecord) -> bool:
         live = await self._uow.email_codes.live(account.id, "verify_email")
