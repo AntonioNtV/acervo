@@ -234,7 +234,13 @@ export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNod
 }
 
 /** For `BlockEditor`, as `PageLink` gets its view there; `SyncedBlock` alone goes after `RawInline`/`RawBlock`. */
-export const SyncedBlockWithView = SyncedBlock.extend({ addNodeView: () => ReactNodeViewRenderer(SyncedBlockView) });
+export const SyncedBlockWithView = SyncedBlock.extend({
+  addNodeView: () =>
+    ReactNodeViewRenderer(SyncedBlockView, {
+      // The editor would select the block on mousedown and swallow the click of "Editar na origem" and the section list.
+      stopEvent: ({ event }) => event.target instanceof Element && event.target.closest("button") !== null,
+    }),
+});
 
 /** Inserted with `insertSyncedBlock()`: `![[` opens the page picker, then the block lists the page's sections. */
 export const syncedKinds: BlockKind[] = [{ id: "synced", group: "link" }];

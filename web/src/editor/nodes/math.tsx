@@ -1,6 +1,6 @@
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FormulaEditor } from "../../ui/FormulaEditor";
 import type { BlockKind } from "../blocks";
 import "./math.css";
@@ -41,21 +41,48 @@ function render(katex: Katex, tex: string): { html: string } | { error: string }
 /** Opens on `$` before a non-space, closes on `$` after a non-space and not before a digit: `R$ 400` stays text. */
 const INLINE_MATH = /^\$(?=\S)((?:\\.|[^\\$\n])+)(?<=\S)\$(?!\d)/;
 
-export function InlineMathView({ node, updateAttributes, deleteNode }: ReactNodeViewProps) {
+// `FormulaEditor`'s width.
+const PANEL_WIDTH = 360;
+
+export function InlineMathView({ editor, node, getPos, updateAttributes, deleteNode }: ReactNodeViewProps) {
   const tex = String(node.attrs.tex);
   const katex = useKatex();
   // A new formula has no source yet: it opens with its editor.
   const [editing, setEditing] = useState<string | null>(tex ? null : "");
+  const source = useRef<HTMLButtonElement>(null);
+  // Shifted left as far as needed to stay inside the window, so a formula near the right edge never scrolls the page
+  // sideways; it still hangs from the formula and follows it when the page scrolls.
+  const [shift, setShift] = useState(0);
+  const open = editing !== null;
+  useLayoutEffect(() => {
+    const left = open ? source.current?.getBoundingClientRect().left : undefined;
+    setShift(left === undefined ? 0 : Math.min(0, window.innerWidth - 8 - PANEL_WIDTH - left));
+  }, [open]);
   const shown = katex ? render(katex, tex) : null;
   const draft = katex && editing ? render(katex, editing) : null;
-  const close = (source: string) => {
+  const close = (next: string) => {
     setEditing(null);
-    if (!source.trim()) deleteNode();
-    else if (source !== tex) updateAttributes({ tex: source });
+    const pos = getPos();
+    if (!next.trim()) deleteNode();
+    else if (next !== tex) updateAttributes({ tex: next });
+    // Back to the text right after the formula. The panel's input is inside the editor, so tiptap's `focus()` takes it
+    // for focused and leaves the browser's caret where it fell: focus the view itself, then set the selection.
+    if (pos !== undefined) {
+      editor.view.focus();
+      editor.commands.setTextSelection(next.trim() ? pos + node.nodeSize : pos);
+    }
   };
   return (
     <NodeViewWrapper as="span" className="inline-math">
-      <button type="button" className="inline-math-source" contentEditable={false} onClick={() => setEditing(tex)}>
+      <button
+        ref={source}
+        type="button"
+        className="inline-math-source"
+        contentEditable={false}
+        // The editor would take the focus back on mousedown and keep its caret elsewhere; the panel's input gets it.
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setEditing(tex)}
+      >
         {shown && "html" in shown ? (
           <span dangerouslySetInnerHTML={{ __html: shown.html }} />
         ) : (
@@ -63,7 +90,7 @@ export function InlineMathView({ node, updateAttributes, deleteNode }: ReactNode
         )}
       </button>
       {editing !== null && (
-        <span className="inline-math-panel" contentEditable={false}>
+        <span className="inline-math-panel" style={{ left: shift }} contentEditable={false}>
           <FormulaEditor
             kind="tex"
             source={editing}

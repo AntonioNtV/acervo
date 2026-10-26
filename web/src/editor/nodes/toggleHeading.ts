@@ -55,7 +55,7 @@ export const ToggleHeading = Node.create<{ t: Translate }>({
         dom.classList.toggle("is-open", open);
         caret.setAttribute("aria-expanded", String(open));
         caret.setAttribute("aria-label", t(open ? "editor.toggle.close" : "editor.toggle.open"));
-        dom.style.setProperty("--toggle-heading-count", JSON.stringify(t("editor.toggleHeading.count", { n: node.childCount - 1 })));
+        dom.style.setProperty("--toggle-heading-count", JSON.stringify(t(`editor.toggleHeading.count.${node.childCount === 2 ? "one" : "other"}`, { n: node.childCount - 1 })));
       };
       show();
 
