@@ -103,6 +103,12 @@ class TwoFactorConfirm(BaseModel):
     code: str = Field(pattern=r"^\d{6}$", description="The 6 digits sent by email or WhatsApp.")
 
 
+class TwoFactorResend(BaseModel):
+    channel: Literal["email"] | None = Field(
+        default=None, description="email sends it to the account email whatever the method (Receber por email)."
+    )
+
+
 class PendingSignIn(BaseModel):
     """A right password on an account with two-step verification: the code is the next step, no session yet."""
 

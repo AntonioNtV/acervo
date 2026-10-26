@@ -14,6 +14,7 @@ from acervo.services.auth_service import AuthService
 from acervo.services.invite_service import InviteService
 from acervo.services.mailer import FakeMailer, MailTemplate
 from acervo.services.session_service import SessionService
+from acervo.services.whatsapp import FakeWhatsApp
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 MakeOrganization = Callable[..., Awaitable[OrganizationRecord]]
@@ -118,7 +119,7 @@ async def test_signing_up_with_an_invited_email_joins_once_the_email_is_confirme
     clock: Clock,
 ) -> None:
     await invites.invite_to_organization(ana.id, team.id, InviteCreate(emails=["julia@example.com"], role="member"))
-    auth = AuthService(entered, SessionService(entered, 30, clock), fake_mailer, clock)
+    auth = AuthService(entered, SessionService(entered, 30, clock), fake_mailer, FakeWhatsApp(), "pt_BR", clock)
 
     await auth.sign_up(SignUp(name="Julia Lima", email="Julia@example.com", password="senha-de-teste"))
     code = fake_mailer.sent[-1].values["code"]
@@ -224,7 +225,9 @@ async def test_signing_up_with_an_email_invited_to_a_base_joins_the_base(
 
     # Signing up happens before any session, so its unit of work acts for no one.
     async with UnitOfWork(session_factory) as signing_up:
-        auth = AuthService(signing_up, SessionService(signing_up, 30, clock), fake_mailer, clock)
+        auth = AuthService(
+            signing_up, SessionService(signing_up, 30, clock), fake_mailer, FakeWhatsApp(), "pt_BR", clock
+        )
         await auth.sign_up(SignUp(name="Julia Lima", email="julia@example.com", password="senha-de-teste"))
         code = fake_mailer.sent[-1].values["code"]
         julia, _ = await auth.verify_email(EmailCodeIn(email="julia@example.com", code=code), None)
