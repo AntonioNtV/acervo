@@ -2,10 +2,12 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 
 from acervo.api.deps import current_account, get_base_service
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.kb import KbCreate, KbEdit, KbRead, KbSummary
+from acervo.schemas.organization import BaseAccess, BaseMemberChange, GeneralAccess
 from acervo.services.base_service import BaseService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
@@ -14,16 +16,24 @@ router = APIRouter(
     prefix="/v1/kbs",
     tags=["kbs"],
     dependencies=[Depends(current_account)],
-    responses={401: ERROR, 422: ERROR},
+    responses={401: ERROR, 403: ERROR, 422: ERROR},
 )
 
 Service = Annotated[BaseService, Depends(get_base_service)]
 
 
+class GeneralAccessChange(BaseModel):
+    """What every member of the base's organization gets on it."""
+
+    general_access: GeneralAccess = Field(description="Leitor or Editor for everyone; none for only the people added.")
+
+
 @router.get("", response_model=list[KbSummary])
-async def list_kbs(service: Service, q: str = "") -> list[KbSummary]:
-    """Live bases, most recently edited first; `q` filters by name, ignoring case and accents."""
-    return await service.list(q)
+async def list_kbs(service: Service, q: str = "", organization_id: UUID | None = None) -> list[KbSummary]:
+    """Live bases of the organization (the Pessoal when none) the person can see, most recently edited first; the
+    Pessoal also lists the bases shared with the person as a guest, with `shared_by`. `q` filters by name, ignoring
+    case and accents."""
+    return await service.list(q, organization_id)
 
 
 @router.post("", status_code=201, response_model=KbRead)
@@ -45,3 +55,27 @@ async def trash_kb(kb_id: UUID, service: Service) -> KbRead:
 @router.post("/{kb_id}/restore", response_model=KbRead, responses={404: ERROR})
 async def restore_kb(kb_id: UUID, service: Service) -> KbRead:
     return await service.restore(kb_id)
+
+
+@router.get("/{kb_id}/access", response_model=BaseAccess, responses={404: ERROR})
+async def get_access(kb_id: UUID, service: Service) -> BaseAccess:
+    """Who reaches the base: the general access and the people added to it."""
+    return await service.access(kb_id)
+
+
+@router.put("/{kb_id}/access", response_model=BaseAccess, responses={404: ERROR})
+async def set_general_access(kb_id: UUID, body: GeneralAccessChange, service: Service) -> BaseAccess:
+    """Base Admin only; a Pessoal base has no general access (422)."""
+    return await service.set_general_access(kb_id, body.general_access)
+
+
+@router.put("/{kb_id}/members/{account_id}", response_model=BaseAccess, responses={404: ERROR})
+async def put_member(kb_id: UUID, account_id: UUID, body: BaseMemberChange, service: Service) -> BaseAccess:
+    """Base Admin only: changes the role of someone added to the base, or adds a member of its organization; anyone
+    else is invited."""
+    return await service.put_member(kb_id, account_id, body.role)
+
+
+@router.delete("/{kb_id}/members/{account_id}", response_model=BaseAccess, responses={404: ERROR})
+async def remove_member(kb_id: UUID, account_id: UUID, service: Service) -> BaseAccess:
+    return await service.remove_member(kb_id, account_id)
