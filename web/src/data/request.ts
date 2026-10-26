@@ -41,9 +41,19 @@ export function unauthorized() {
   onUnauthorized?.();
 }
 
+/** Only `unauthorized` means the session is gone; a 401 `invalid_credentials` is a wrong password typed on a form. */
+export function lostSession(status: number, body: unknown): boolean {
+  return status === 401 && (body as { error?: unknown } | null)?.error === "unauthorized";
+}
+
 api.use({
-  onResponse({ response }) {
-    if (response.status === 401) unauthorized();
+  async onResponse({ response }) {
+    if (response.status !== 401) return;
+    const body: unknown = await response
+      .clone()
+      .json()
+      .catch(() => null);
+    if (lostSession(response.status, body)) unauthorized();
   },
 });
 

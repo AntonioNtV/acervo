@@ -96,6 +96,18 @@ describe("routes", () => {
     expect(document.documentElement).not.toHaveClass("dark");
   });
 
+  it("a 401 for a wrong password typed on a form keeps the session and the screen", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "invalid_credentials", message: "wrong" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao");
+
+    await new Promise((done) => setTimeout(done, 100));
+    expect(router.state.location.pathname).toBe("/kbs/kb-1/n/renovacao");
+    expect(localStorage.getItem("acervo.lastPage")).toBe("/kbs/kb-1/n/renovacao");
+  });
+
   it("with no base, / offers a new one", async () => {
     fakeBases([]);
 

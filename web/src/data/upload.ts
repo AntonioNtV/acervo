@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { components, paths } from "../api/schema.gen";
-import { ApiError, refreshContent, refreshTree, unauthorized } from "./request";
+import { ApiError, lostSession, refreshContent, refreshTree, unauthorized } from "./request";
 
 type FileNode = components["schemas"]["FileNodeRead"];
 
@@ -21,7 +21,7 @@ export function send<T>(path: string, fields: Record<string, string | Blob | und
     request.upload.onprogress = (event) => onProgress?.(event.loaded, event.total);
     request.onload = () => {
       if (request.status >= 200 && request.status < 300) return resolve(request.response as T);
-      if (request.status === 401) unauthorized();
+      if (lostSession(request.status, request.response)) unauthorized();
       reject(new ApiError(request.status, request.response, request.statusText));
     };
     request.onerror = () => reject(new ApiError(0, null, "network error"));
