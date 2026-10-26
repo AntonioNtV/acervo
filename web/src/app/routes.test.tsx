@@ -13,8 +13,8 @@ beforeEach(() => {
   resetApi();
 });
 
-function renderHome() {
-  const router = createMemoryRouter(routes, { initialEntries: ["/"] });
+function renderHome(path = "/") {
+  const router = createMemoryRouter(routes, { initialEntries: [path] });
   render(
     <Providers>
       <RouterProvider router={router} />
@@ -64,6 +64,21 @@ describe("routes", () => {
     const router = renderHome();
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/kbs/kb-1/n/bradesco"));
+  });
+
+  it("a 401 from any query forgets this browser's pages and sends to Entrar with the way back", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    localStorage.setItem("acervo.recent.kb-1", JSON.stringify(["renovacao"]));
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "unauthorized", message: "no session" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao?p=2");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    expect(router.state.location.search).toBe(`?next=${encodeURIComponent("/kbs/kb-1/n/renovacao?p=2")}`);
+    expect(await screen.findByRole("heading", { name: "Entrar no Acervo" })).toBeInTheDocument();
+    expect(localStorage.getItem("acervo.lastPage")).toBeNull();
+    expect(localStorage.getItem("acervo.recent.kb-1")).toBeNull();
   });
 
   it("with no base, / offers a new one", async () => {

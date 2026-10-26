@@ -11,7 +11,7 @@ type Reply = { status?: number; body: unknown };
 /** A promise holds the answer back until it resolves. */
 type Answer = (url: URL, body: unknown) => Reply | Promise<Reply>;
 type Handler = { method: string; path: string; reply: Answer };
-type Call = { method: string; path: string; query: string; body: unknown; key: string | null; keepalive: boolean };
+type Call = { method: string; path: string; query: string; body: unknown; keepalive: boolean };
 
 let handlers: Handler[] = [];
 export const calls: Call[] = [];
@@ -35,7 +35,6 @@ async function fakeFetch(request: Request): Promise<Response> {
     path: url.pathname,
     query: url.search,
     body,
-    key: request.headers.get("X-API-Key"),
     keepalive: request.keepalive,
   });
   const handler = handlers.find((h) => h.method === request.method && h.path === url.pathname);
@@ -52,8 +51,7 @@ async function fakeFetch(request: Request): Promise<Response> {
  * talking to the handlers above. openapi-fetch keeps the `fetch` it finds when built, so the client is replaced.
  */
 export function mockClient() {
-  const apiHeaders = { "X-API-Key": "test-key" };
-  return { apiHeaders, api: createClient<paths>({ baseUrl: "http://api.test", headers: apiHeaders, fetch: fakeFetch }) };
+  return { api: createClient<paths>({ baseUrl: "http://api.test", fetch: fakeFetch }) };
 }
 
 /** Also gives the query client, to make a test refetch. */

@@ -1,16 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, apiHeaders } from "../api/client";
+import { api } from "../api/client";
 import type { paths } from "../api/schema.gen";
 import { call, refreshContent, samePath } from "./request";
 
 const RAW = "/v1/files/{node_id}/raw" satisfies keyof paths;
 
-/** Where pdf.js reads the original file by range requests, and the headers it sends with each. */
+/** Where pdf.js reads the original file by range requests; the session cookie goes with each, no header needed. */
 export function rawFileSource(nodeId: string): { url: string; httpHeaders: Record<string, string> } {
-  return { url: RAW.replace("{node_id}", encodeURIComponent(nodeId)), httpHeaders: apiHeaders };
+  return { url: RAW.replace("{node_id}", encodeURIComponent(nodeId)), httpHeaders: {} };
 }
 
-/** A link that opens the bytes without the key for 60 s; only its path and query, so it goes through the same origin. */
+/** A link that opens the bytes for 60 s while this session lasts; only its path and query, so it goes through the same origin. */
 async function fileLink(nodeId: string, versionId?: string): Promise<string> {
   const { url } = await call(
     api.POST("/v1/files/{node_id}/link", {
@@ -20,7 +20,7 @@ async function fileLink(nodeId: string, versionId?: string): Promise<string> {
   return samePath(url);
 }
 
-/** A signed link for an `<img>`, which cannot send the key; a new one when the content changes. */
+/** A signed link for an `<img>`; a new one when the content changes. */
 export function useRawFileUrl(nodeId: string, sha256: string | undefined) {
   return useQuery({
     queryKey: ["link", nodeId, sha256],

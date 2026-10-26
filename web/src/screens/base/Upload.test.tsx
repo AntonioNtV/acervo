@@ -72,7 +72,7 @@ describe("Upload", () => {
     const [first, second] = FakeXhr.sent as [FakeXhr, FakeXhr];
     expect(first.method).toBe("POST");
     expect(first.path).toBe("/v1/kbs/kb-1/files");
-    expect(first.headers["X-API-Key"]).toBe("test-key");
+    expect(first.headers).toEqual({});
     expect(first.form?.get("parent_id")).toBe("residencial");
     first.upload.onprogress?.({ loaded: 40, total: 100 });
     second.upload.onprogress?.({ loaded: 90, total: 100 });

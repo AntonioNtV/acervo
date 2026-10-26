@@ -65,7 +65,7 @@ describe("FileView", () => {
     renderFile(fileNode("Condições Gerais 2026.pdf", "application/pdf", 180), "?p=16");
 
     expect(await screen.findByRole("img", { name: "Página 16 do PDF" })).toBeInTheDocument();
-    expect(openPdf).toHaveBeenCalledWith({ url: RAW, httpHeaders: { "X-API-Key": "test-key" } }, expect.any(Function));
+    expect(openPdf).toHaveBeenCalledWith({ url: RAW, httpHeaders: {} }, expect.any(Function));
     // The page is asked for in an effect, which may run after the canvas is on screen.
     await waitFor(() => expect(getPage).toHaveBeenCalledWith(16));
     expect(screen.getByText("arquivo original · 180 páginas · 2,3 MB")).toBeInTheDocument();
@@ -77,7 +77,6 @@ describe("FileView", () => {
 
     const image = await screen.findByRole("img", { name: "Fachada.png" });
     expect(image).toHaveAttribute("src", SIGNED);
-    expect(calls.find((call) => call.path === LINK)?.key).toBe("test-key");
     expect(calls.some((call) => call.path === RAW)).toBe(false);
     expect(openPdf).not.toHaveBeenCalled();
   });
@@ -150,7 +149,7 @@ describe("FileView", () => {
     renderFile(fileNode("Fachada.png", "image/png"));
 
     expect(
-      await screen.findByText("A API recusou a chave. Confira VITE_API_KEY em web/.env.local."),
+      await screen.findByText("Sua sessão terminou. Entre de novo."),
     ).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
@@ -176,11 +175,10 @@ describe("FileView", () => {
     const link = click.mock.contexts[0] as HTMLAnchorElement;
     expect(link.download).toBe("Condições Gerais 2026.pdf");
     expect(link.getAttribute("href")).toBe(SIGNED);
-    expect(calls.find((call) => call.method === "POST" && call.path === LINK)?.key).toBe("test-key");
     expect(calls.some((call) => call.path === RAW)).toBe(false);
   });
 
-  it("Baixar shows the unauthorized text when the key is refused", async () => {
+  it("Baixar shows the unauthorized text when the session is refused", async () => {
     fakePdf(3);
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     respond("POST", LINK, { status: 401, body: { error: "unauthorized", message: "bad key" } });
@@ -189,7 +187,7 @@ describe("FileView", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Baixar" }));
 
     expect(
-      await screen.findByText("A API recusou a chave. Confira VITE_API_KEY em web/.env.local."),
+      await screen.findByText("Sua sessão terminou. Entre de novo."),
     ).toBeInTheDocument();
     expect(click).not.toHaveBeenCalled();
   });

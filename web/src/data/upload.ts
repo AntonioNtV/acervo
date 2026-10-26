@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiHeaders } from "../api/client";
 import type { components, paths } from "../api/schema.gen";
-import { ApiError, refreshContent, refreshTree } from "./request";
+import { ApiError, refreshContent, refreshTree, unauthorized } from "./request";
 
 type FileNode = components["schemas"]["FileNodeRead"];
 
@@ -18,11 +17,11 @@ export function send<T>(path: string, fields: Record<string, string | Blob | und
   return new Promise<T>((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open("POST", path);
-    for (const [name, value] of Object.entries(apiHeaders)) request.setRequestHeader(name, value);
     request.responseType = "json";
     request.upload.onprogress = (event) => onProgress?.(event.loaded, event.total);
     request.onload = () => {
       if (request.status >= 200 && request.status < 300) return resolve(request.response as T);
+      if (request.status === 401) unauthorized();
       reject(new ApiError(request.status, request.response, request.statusText));
     };
     request.onerror = () => reject(new ApiError(0, null, "network error"));
