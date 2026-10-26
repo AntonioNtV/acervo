@@ -67,6 +67,20 @@ export function usePageMentions(nodeId: string) {
   });
 }
 
+/** Follows the page for the daily digest, or stops; the page's `following` changes with it. */
+export function useFollowPage(nodeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (follow: boolean) => {
+      const params = { path: { node_id: nodeId } };
+      return follow
+        ? call(api.PUT("/v1/pages/{node_id}/follow", { params }))
+        : call(api.DELETE("/v1/pages/{node_id}/follow", { params }));
+    },
+    onSuccess: () => invalidate(queryClient, ["node", nodeId]),
+  });
+}
+
 /** Resolves to the page as it is after the restore: its text and the revision to save from. */
 export function useRestorePageVersion(nodeId: string) {
   const queryClient = useQueryClient();
