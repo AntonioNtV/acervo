@@ -1,6 +1,7 @@
 from acervo.db.models.account import Account
 from acervo.db.models.base_member import BaseMember
 from acervo.db.models.email_code import EmailCode
+from acervo.db.models.email_copy import EmailCopy
 from acervo.db.models.favorite import Favorite
 from acervo.db.models.file import File
 from acervo.db.models.file_version import FileVersion
@@ -12,6 +13,7 @@ from acervo.db.models.node import Node
 from acervo.db.models.organization import Organization
 from acervo.db.models.page_attachment import PageAttachment
 from acervo.db.models.page_draft import PageDraft
+from acervo.db.models.page_follow import PageFollow
 from acervo.db.models.page_link import PageLink
 from acervo.db.models.page_version import PageVersion
 from acervo.db.models.passkey import Passkey
@@ -24,6 +26,7 @@ __all__ = [
     "Account",
     "BaseMember",
     "EmailCode",
+    "EmailCopy",
     "Favorite",
     "File",
     "FileVersion",
@@ -35,6 +38,7 @@ __all__ = [
     "Organization",
     "PageAttachment",
     "PageDraft",
+    "PageFollow",
     "PageLink",
     "PageVersion",
     "Passkey",
