@@ -77,14 +77,7 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
-      # Catches every email sent in development; read them at http://localhost:8025.
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
-
-  migrate:
+      migrate:
         condition: service_completed_successfully
       minio-bucket:
         condition: service_completed_successfully
