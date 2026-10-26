@@ -61,6 +61,21 @@ async def test_five_wrong_passwords_lock_the_email_for_15_minutes(
     assert (account.email, bool(token)) == ("ana@example.com", True)
 
 
+async def test_a_password_reset_lifts_the_lock(
+    auth: AuthService, make_account: MakeAccount, fake_mailer: FakeMailer
+) -> None:
+    await make_account(email="ana@example.com", password=PASSWORD)
+    for _ in range(5):
+        with pytest.raises(InvalidCredentials):
+            await auth.sign_in(SignIn(email="ana@example.com", password="errada-errada"), None)
+    await auth.request_reset("ana@example.com")
+    token = fake_mailer.sent[-1].values["link"]
+
+    await auth.confirm_reset(ResetConfirm(token=token, password="nova-senha-longa"), None)
+    account, _ = await auth.sign_in(SignIn(email="ana@example.com", password="nova-senha-longa"), None)
+    assert account.email == "ana@example.com"
+
+
 async def test_a_code_expires_after_10_minutes_and_after_5_wrong_tries(
     auth: AuthService, fake_mailer: FakeMailer, clock: Clock
 ) -> None:

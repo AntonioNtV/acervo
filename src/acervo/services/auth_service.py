@@ -161,6 +161,8 @@ class AuthService:
         if account.email_verified_at is None:
             change.email_verified_at = now
         account = await self._uow.accounts.update(account.id, change)
+        # Whoever set the new password through the inbox is not the one guessing it: the lock would only keep them out.
+        await self._uow.login_failures.clear(account.email.lower())
         await self._sessions.end_all(account.id)
         return AccountRead.of(account), await self._sessions.create(account.id, user_agent)
 
