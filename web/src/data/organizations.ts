@@ -25,11 +25,11 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** Makes `org` the current organization in this browser; the Pessoal is kept as no choice, the fallback. */
-export function switchOrganization(org: Organization) {
-  memory = org.personal ? null : org.id;
+/** Makes organization `id` the current one in this browser; null for the Pessoal, kept as no choice, the fallback. */
+export function switchOrganization(id: string | null) {
+  memory = id;
   try {
-    if (memory) localStorage.setItem(ORG_KEY, memory);
+    if (id) localStorage.setItem(ORG_KEY, id);
     else localStorage.removeItem(ORG_KEY);
   } catch {
     // The choice holds until the page reloads.
@@ -83,27 +83,5 @@ export function useSetOrganizationLogo() {
         }),
       ),
     onSuccess: () => invalidate(queryClient, ["organizations"]),
-  });
-}
-
-/**
- * The organization of the person's that lists base `kbId`, the Pessoal for a base shared with them as a guest; null
- * when none does. Only asked for a base the current organization does not list.
- */
-export function useBaseOrganization(kbId: string | undefined, enabled: boolean) {
-  const organizations = useOrganizations().data;
-  return useQuery({
-    queryKey: ["base-organization", kbId],
-    enabled: Boolean(kbId && organizations && enabled),
-    // shortcut: one list per organization until one has the base, fine for a handful; a route answering a base's
-    // organization would replace it.
-    queryFn: async () => {
-      for (const org of organizations ?? []) {
-        const query = org.personal ? {} : { organization_id: org.id };
-        const kbs = await call(api.GET("/v1/kbs", { params: { query } }));
-        if (kbs.some((kb) => kb.id === kbId)) return org;
-      }
-      return null;
-    },
   });
 }

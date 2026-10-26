@@ -61,9 +61,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     for module in (
         health,
+        # Before kbs: its literal /v1/kbs/trash would otherwise be read as GET /v1/kbs/{kb_id}.
+        trash,
         kbs,
         nodes,
-        trash,
         files,
         pages,
         favorites,

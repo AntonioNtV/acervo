@@ -87,8 +87,9 @@ async def test_a_dead_link_is_refused(
     else:
         await invites.accept(julia.id, token)
 
+    # A used link still answers Julia, who joined with it; to anyone else it is dead.
     with pytest.raises(CodeInvalid):
-        await invites.accept(julia.id, token)
+        await invites.accept(ana.id if death == "used" else julia.id, token)
 
 
 async def test_an_invite_for_another_email_is_refused(

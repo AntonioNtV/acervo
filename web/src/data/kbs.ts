@@ -17,6 +17,16 @@ export function useKbs(q = "") {
   });
 }
 
+/** One base the person can see, of any organization, with their role; `not_found` for any other. */
+export function useKb(kbId: string | undefined, enabled = true) {
+  return useQuery({
+    // Under "kbs", so whatever refreshes the lists refreshes it too.
+    queryKey: ["kbs", "id", kbId],
+    enabled: Boolean(kbId) && enabled,
+    queryFn: () => call(api.GET("/v1/kbs/{kb_id}", { params: { path: { kb_id: kbId! } } })),
+  });
+}
+
 /** Creates the base in the current organization. */
 export function useCreateKb() {
   const queryClient = useQueryClient();

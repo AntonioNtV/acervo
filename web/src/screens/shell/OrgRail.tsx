@@ -18,7 +18,7 @@ export function OrgRail() {
 
   // Each organization's bases start at Bases: the page open belongs to the one left.
   const open = (org: Organization) => {
-    switchOrganization(org);
+    switchOrganization(org.personal ? null : org.id);
     navigate("/bases");
   };
 

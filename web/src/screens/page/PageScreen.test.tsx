@@ -380,6 +380,7 @@ describe("PageScreen", () => {
 
   it("as Leitor the page is read-only and its menu changes nothing", async () => {
     respond("GET", "/v1/kbs", { body: [summary({ id: "kb-1", name: "Bradesco", my_role: "reader" })] });
+    respond("GET", "/v1/kbs/kb-1", { body: summary({ id: "kb-1", name: "Bradesco", my_role: "reader" }) });
     renderPage();
 
     const text = await screen.findByRole("textbox", { name: "Texto da página" });

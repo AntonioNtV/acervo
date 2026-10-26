@@ -41,6 +41,13 @@ async def create_kb(body: KbCreate, service: Service) -> KbRead:
     return await service.create(body)
 
 
+@router.get("/{kb_id}", response_model=KbRead, responses={404: ERROR})
+async def get_kb(kb_id: UUID, service: Service) -> KbRead:
+    """A live base the person can see, with `organization_id`, `my_role` and `shared_by`; 404 for any other, so a
+    base's name never reaches whoever cannot open it."""
+    return await service.get(kb_id)
+
+
 @router.patch("/{kb_id}", response_model=KbRead, responses={404: ERROR})
 async def update_kb(kb_id: UUID, body: KbEdit, service: Service) -> KbRead:
     return await service.update(kb_id, body)

@@ -52,8 +52,12 @@ async def test_an_invited_person_joins_through_the_emailed_link(
         transport=transport, base_url="http://api.test", cookies={SESSION_COOKIE: julia_token}
     ) as julia_client:
         accepted = await julia_client.post("/v1/invites/accept", json={"token": token})
+        # The link opened again once joined, as after Criar conta, still says where it leads; to no one else.
+        again = await julia_client.post("/v1/invites/accept", json={"token": token})
     assert accepted.status_code == 200, accepted.text
     assert accepted.json()["organization_id"] == str(team.id)
+    assert again.json()["organization_id"] == str(team.id)
+    assert (await client.post("/v1/invites/accept", json={"token": token})).json()["error"] == "code_invalid"
 
     async with UnitOfWork(app.state.session_factory) as uow:
         assert await AccessService(uow).org_role(julia.id, team.id) == "member"

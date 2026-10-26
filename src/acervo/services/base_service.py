@@ -75,6 +75,18 @@ class BaseService:
             for kb in await self._uow.kbs.summaries(ids | shared_by.keys(), name)
         ]
 
+    async def get(self, kb_id: UUID) -> KbRead:
+        """A live base the account can see, with its role and, for a guest, who shared it; any other is not found."""
+        me = self._me()
+        kb = await self._uow.kbs.get_in(kb_id)
+        role = await self._access.base_role(me, kb_id)
+        if role is None:
+            raise NotFoundError(f"kb {kb_id} not found", {"id": str(kb_id)})
+        guest = await self._access.org_role(me, kb.organization_id) is None
+        return kb.model_copy(
+            update={"my_role": role, "shared_by": await self._shared_by(kb.organization_id) if guest else None}
+        )
+
     async def create(self, data: KbCreate) -> KbRead:
         """A base in `data.organization_id`, or in the acting account's Pessoal when none is given. Its creator is
         its Admin; it starts with the organization's access for new bases, none in a Pessoal."""
