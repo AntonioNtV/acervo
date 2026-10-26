@@ -23,6 +23,12 @@ def test_targets_are_normalized_and_unique() -> None:
     assert targets(markdown) == {"renovação", "tabela de prazos"}
 
 
+def test_targets_ignore_the_section() -> None:
+    markdown = "Ver [[Renovação#Documentos]], ![[ renovação # Prazos ]], ![[Sinistro]] e [[#Topo]]."
+
+    assert targets(markdown) == {"renovação", "sinistro"}
+
+
 def test_resolve_missing_ambiguous_and_same_folder() -> None:
     renewal = Page("Renovação", BRADESCO)
     porto_claim, bradesco_claim = Page("Sinistro", PORTO), Page("Sinistro", BRADESCO)
@@ -57,3 +63,9 @@ def test_unlink_turns_the_given_targets_into_text() -> None:
     assert unlink(markdown, {"renovação", "renovação anual", "vistoria"}) == (
         "Ver Renovação e renovação  anual, [[Sinistro]] e Renovação.\nVistoria\n"
     )
+
+
+def test_rewrite_keeps_the_section() -> None:
+    markdown = "![[Renovação#Documentos]]\n\nVer [[ renovação #Prazos ]] e [[Renovação]].\n"
+
+    assert rewrite(markdown, "Renovação", "Novo") == "![[Novo#Documentos]]\n\nVer [[Novo#Prazos ]] e [[Novo]].\n"
