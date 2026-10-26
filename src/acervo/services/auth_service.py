@@ -1,3 +1,4 @@
+import asyncio
 import hmac
 import secrets
 from collections.abc import Callable
@@ -23,7 +24,6 @@ from acervo.schemas.account import (
     EmailCodeUpdate,
     LoginFailureCreate,
     PasswordResetCreate,
-    PasswordResetUpdate,
     ResetConfirm,
     SignIn,
     SignUp,
@@ -47,6 +47,15 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _locked(failures: list[datetime], now: datetime) -> bool:
+    """The last five failures, newest first, fell within the window: locked until a window after the newest."""
+    return (
+        len(failures) == LOCKOUT_FAILURES
+        and failures[0] - failures[-1] <= LOCKOUT_WINDOW
+        and now < failures[0] + LOCKOUT_WINDOW
+    )
+
+
 class AuthService:
     """Accounts by email and password: sign up, confirm the email, sign in and out, reset the password."""
 
@@ -65,15 +74,13 @@ class AuthService:
     async def sign_up(self, data: SignUp) -> AccountRead:
         """An unconfirmed account and a code to its email; the email of one left unconfirmed for 7 days is free."""
         now = self._now()
-        existing = await self._uow.accounts.by_email(data.email)
-        if existing is not None:
-            if existing.email_verified_at is not None or now - existing.created_at < UNVERIFIED_KEPT:
-                raise EmailTaken("email already has an account")
-            await self._uow.accounts.delete(existing.id)
+        await self._uow.accounts.free_if_stale(data.email, now - UNVERIFIED_KEPT)
+        if await self._uow.accounts.by_email(data.email) is not None:
+            raise EmailTaken("email already has an account")
+        password_hash = await asyncio.to_thread(hash_password, data.password)
         try:
             account = await self._uow.accounts.create(
-                AccountCreate(email=data.email, name=data.name.strip(), password_hash=hash_password(data.password)),
-                created_at=now,
+                AccountCreate(email=data.email, name=data.name.strip(), password_hash=password_hash), created_at=now
             )
         except ConflictError as exc:
             raise EmailTaken("email already has an account") from exc
@@ -112,16 +119,21 @@ class AuthService:
         """Starts a session; gives the account and the session token."""
         now = self._now()
         email_lower = data.email.lower()
-        if await self._uow.login_failures.count_since(email_lower, now - LOCKOUT_WINDOW) >= LOCKOUT_FAILURES:
+        await self._uow.login_failures.lock(email_lower)
+        if _locked(await self._uow.login_failures.latest(email_lower, LOCKOUT_FAILURES), now):
             raise TooManyAttempts("too many wrong passwords for this email")
+        await self._uow.accounts.free_if_stale(data.email, now - UNVERIFIED_KEPT)
         account = await self._uow.accounts.by_email(data.email)
         password_hash = _NO_ACCOUNT_HASH if account is None else account.password_hash or _NO_ACCOUNT_HASH
-        if not verify_password(data.password, password_hash) or account is None or account.password_hash is None:
+        right = await asyncio.to_thread(verify_password, data.password, password_hash)
+        if not right or account is None or account.password_hash is None:
             await self._uow.login_failures.create(LoginFailureCreate(email_lower=email_lower), created_at=now)
+            await self._uow.login_failures.clear(email_lower, before=now - LOCKOUT_WINDOW)
             await self._uow.commit()
             raise InvalidCredentials("wrong email or password")
         if needs_rehash(account.password_hash):
-            await self._uow.accounts.update(account.id, AccountUpdate(password_hash=hash_password(data.password)))
+            rehashed = await asyncio.to_thread(hash_password, data.password)
+            await self._uow.accounts.update(account.id, AccountUpdate(password_hash=rehashed))
         if account.email_verified_at is None:
             code = None if await self._sent_recently(account) else await self._new_code(account)
             await self._uow.commit()
@@ -135,14 +147,17 @@ class AuthService:
 
     async def request_reset(self, email: str) -> None:
         """Sends a single-use link valid for an hour, when the email has an account."""
+        now = self._now()
         account = await self._uow.accounts.by_email(email)
         if account is None:
             return
+        # Silent like a missing account, so the answer says nothing about the email.
+        latest = await self._uow.password_resets.latest(account.id)
+        if latest is not None and now - latest.created_at < RESEND_AFTER:
+            return
         token = secrets.token_urlsafe(32)
-        reset = PasswordResetCreate(
-            token_hash=token_hash(token), account_id=account.id, expires_at=self._now() + RESET_TTL
-        )
-        await self._uow.password_resets.create(reset)
+        reset = PasswordResetCreate(token_hash=token_hash(token), account_id=account.id, expires_at=now + RESET_TTL)
+        await self._uow.password_resets.create(reset, created_at=now)
         await self._uow.commit()
         # The template builds the URL around the token, from the app's public URL.
         values = {"link": token, "name": account.name}
@@ -154,10 +169,11 @@ class AuthService:
         reset = await self._uow.password_resets.get_by(token_hash=token_hash(data.token))
         if reset is None or reset.used_at is not None or reset.expires_at <= now:
             raise CodeInvalid("wrong, expired or used link")
-        await self._uow.password_resets.update(reset.id, PasswordResetUpdate(used_at=now))
+        # Every link of the account dies with this one, not only the one used.
+        await self._uow.password_resets.use_all(reset.account_id, now)
         account = await self._uow.accounts.get(reset.account_id)
         # The link reached the inbox, which confirms the email.
-        change = AccountUpdate(password_hash=hash_password(data.password))
+        change = AccountUpdate(password_hash=await asyncio.to_thread(hash_password, data.password))
         if account.email_verified_at is None:
             change.email_verified_at = now
         account = await self._uow.accounts.update(account.id, change)

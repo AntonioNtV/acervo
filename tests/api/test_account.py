@@ -66,3 +66,14 @@ async def test_photo_upload_fetch_and_delete(sign_in: SignIn, make_account: Make
     assert Image.open(io.BytesIO(fetched.content)).size == (256, 256)
     assert removed.json()["photo_url"] is None
     assert gone.status_code == 404
+
+
+async def test_an_email_change_needs_the_current_password(sign_in: SignIn, make_account: MakeAccount) -> None:
+    client = await sign_in(await make_account())
+
+    missing = await client.post("/v1/account/email", json={"new_email": "ana@novo.com"})
+    wrong = await client.post("/v1/account/email", json={"new_email": "ana@novo.com", "password": "errada-errada"})
+    right = await client.post("/v1/account/email", json={"new_email": "ana@novo.com", "password": "senha-de-teste"})
+
+    assert [(r.status_code, r.json()["error"]) for r in (missing, wrong)] == [(401, "invalid_credentials")] * 2
+    assert right.status_code == 204, right.text

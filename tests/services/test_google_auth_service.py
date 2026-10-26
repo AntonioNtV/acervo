@@ -1,3 +1,4 @@
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from urllib.parse import parse_qs, urlsplit
 
@@ -106,3 +107,19 @@ async def test_next_off_this_origin_falls_back_to_the_root(service: GoogleAuthSe
     path, _ = await _continue(service, next)
 
     assert path == "/"
+
+
+async def test_a_stale_unconfirmed_account_gives_way_to_a_new_one(
+    uow: UnitOfWork, sessions: SessionService, make_account: MakeAccount
+) -> None:
+    stale = await make_account(verified=False)
+    in_8_days = GoogleAuthService(
+        uow, sessions, FakeGoogle(), "secret", REDIRECT_URI, lambda: time.time() + 8 * 24 * 3600
+    )
+
+    path, token = await _continue(in_8_days)
+
+    assert path == "/kbs/1"
+    account = await sessions.resolve(token or "")
+    assert account is not None
+    assert (account.id != stale.id, account.has_google, account.email_verified) == (True, True, True)

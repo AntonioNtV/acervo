@@ -10,7 +10,16 @@ from uuid import UUID
 
 from PIL import Image, ImageOps
 
-from acervo.core.errors import CodeInvalid, ConflictError, EmailTaken, NotFoundError, ValidationError
+from acervo.core.errors import (
+    CodeInvalid,
+    ConflictError,
+    EmailTaken,
+    InvalidCredentials,
+    NotFoundError,
+    TooManyAttempts,
+    ValidationError,
+)
+from acervo.core.passwords import verify_password
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import (
     AccountRead,
@@ -20,11 +29,14 @@ from acervo.schemas.account import (
     Preferences,
     ProfileUpdate,
 )
+from acervo.services.auth_service import RESEND_AFTER, UNVERIFIED_KEPT
 from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.session_service import token_hash
 from acervo.services.storage import Storage
 
 PHOTO_SIZE = 256
+# Pillow's own bomb check only stops images near 180 megapixels; decoding 25 already takes about 100 MB.
+PHOTO_MAX_PIXELS = 25_000_000
 CODE_LIFETIME = timedelta(minutes=10)
 CODE_TRIES = 5
 EMAIL_UNIQUE = "uq_account_email_lower"
@@ -38,6 +50,9 @@ def _square_png(data: bytes) -> bytes:
     """The centered square of a PNG, JPEG or WebP, scaled to `PHOTO_SIZE`, as PNG."""
     try:
         with Image.open(io.BytesIO(data), formats=["PNG", "JPEG", "WEBP"]) as image:
+            # `open` only reads the header; the pixels are decoded below.
+            if image.width * image.height > PHOTO_MAX_PIXELS:
+                raise ValidationError("a foto passa de 25 megapixels", {"max_pixels": PHOTO_MAX_PIXELS})
             # Phones store JPEGs sideways and say so in EXIF; without this the photo shows rotated.
             square = ImageOps.fit(ImageOps.exif_transpose(image), (PHOTO_SIZE, PHOTO_SIZE))
             # A CMYK JPEG has no PNG form.
@@ -106,14 +121,23 @@ class AccountService:
         await self._uow.rollback()
         return account.photo_key, self._storage.stream(account.photo_key)
 
-    async def request_email_change(self, account_id: UUID, new_email: str) -> None:
-        """Sends a code to `new_email`; the email changes only once the code comes back."""
+    async def request_email_change(self, account_id: UUID, new_email: str, password: str | None) -> None:
+        """Sends a code to `new_email` once the current password, if the account has one, is right; the email
+        changes only once the code comes back."""
+        now = self._now()
+        account = await self._uow.accounts.get(account_id)
+        if account.password_hash is not None and not (
+            password is not None and await asyncio.to_thread(verify_password, password, account.password_hash)
+        ):
+            raise InvalidCredentials("wrong password")
+        await self._uow.accounts.free_if_stale(new_email, now - UNVERIFIED_KEPT)
         if await self._uow.accounts.by_email(new_email) is not None:
             raise EmailTaken("email already in use", {"email": new_email})
-        account = await self._uow.accounts.get(account_id)
         live = await self._uow.email_codes.live(account_id, "change_email")
+        if live is not None and now - live.created_at < RESEND_AFTER:
+            raise TooManyAttempts("a code was sent less than a minute ago")
         if live is not None:
-            await self._uow.email_codes.update(live.id, EmailCodeUpdate(used_at=self._now()))
+            await self._uow.email_codes.update(live.id, EmailCodeUpdate(used_at=now))
         code = f"{secrets.randbelow(10**6):06d}"
         await self._uow.email_codes.create(
             EmailCodeCreate(
@@ -121,8 +145,9 @@ class AccountService:
                 purpose="change_email",
                 target_email=new_email,
                 code_hash=token_hash(code),
-                expires_at=self._now() + CODE_LIFETIME,
-            )
+                expires_at=now + CODE_LIFETIME,
+            ),
+            created_at=now,
         )
         await self._uow.commit()
         await self._mailer.send(
@@ -140,6 +165,9 @@ class AccountService:
             raise CodeInvalid("wrong, expired or used code", {})
         old = await self._uow.accounts.get(account_id)
         await self._uow.email_codes.update(live.id, EmailCodeUpdate(used_at=self._now()))
+        # A reset link sent to the old address must not take the account back.
+        await self._uow.password_resets.use_all(account_id, self._now())
+        await self._uow.accounts.free_if_stale(live.target_email, self._now() - UNVERIFIED_KEPT)
         try:
             change = AccountUpdate(email=live.target_email, email_verified_at=self._now())
             account = await self._uow.accounts.update(account_id, change)
