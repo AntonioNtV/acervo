@@ -12,6 +12,7 @@ from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
+from acervo.schemas.organization import BaseRole
 from acervo.services.access_service import AccessService
 from acervo.services.account_service import AccountService
 from acervo.services.attachment_service import AttachmentService
@@ -227,7 +228,43 @@ def session_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[No
         ):
             live = await uow.sessions.get_by(id=session)
             if live is not None and live.expires_at > datetime.now(UTC):
+                # The link acts for whoever minted it, so the base's roles are checked as they are now.
+                uow.act_as(live.account_id)
                 return
         await current_account(response, uow, sessions, settings, token)
+
+    return dependency
+
+
+async def _require_base(uow: UnitOfWork, access: AccessService, kb_id: UUID, at_least: BaseRole) -> None:
+    # Set by the session or signature dependency that runs before this one.
+    if uow.account_id is None:
+        raise AuthError("Missing or ended session.")
+    await access.require_base(uow.account_id, kb_id, at_least)
+
+
+def in_base(at_least: BaseRole) -> Callable[..., Awaitable[None]]:
+    """The asking account has at least `at_least` in base `kb_id`; 403 `forbidden` otherwise."""
+
+    async def dependency(
+        kb_id: UUID,
+        uow: Annotated[UnitOfWork, Depends(get_uow)],
+        access: Annotated[AccessService, Depends(get_access_service)],
+    ) -> None:
+        await _require_base(uow, access, kb_id, at_least)
+
+    return dependency
+
+
+def on_node(at_least: BaseRole) -> Callable[..., Awaitable[None]]:
+    """The asking account has at least `at_least` in the base of node `node_id`, live or trashed; 403 `forbidden`
+    otherwise."""
+
+    async def dependency(
+        node_id: UUID,
+        uow: Annotated[UnitOfWork, Depends(get_uow)],
+        access: Annotated[AccessService, Depends(get_access_service)],
+    ) -> None:
+        await _require_base(uow, access, (await uow.nodes.get(node_id)).kb_id, at_least)
 
     return dependency
