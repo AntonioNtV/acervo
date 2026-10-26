@@ -4,9 +4,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, UploadFile
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
-from acervo.api.deps import CurrentAccount, current_account, get_account_service
-from acervo.schemas.account import AccountRead, CodeIn, EmailChange, Preferences, ProfileUpdate
+from acervo.api.deps import CurrentAccount, RecentSignIn, current_account, get_account_service
+from acervo.schemas.account import PASSWORD_MIN, AccountRead, CodeIn, EmailChange, Preferences, ProfileUpdate
 from acervo.schemas.common import ErrorResponse
 from acervo.services.account_service import AccountService
 
@@ -17,6 +18,10 @@ router = APIRouter(prefix="/v1", tags=["account"], responses={401: ERROR, 422: E
 
 
 Service = Annotated[AccountService, Depends(get_account_service)]
+
+
+class PasswordSet(BaseModel):
+    password: str = Field(min_length=PASSWORD_MIN, description="The new password.")
 
 
 @router.get("/account", response_model=AccountRead)
@@ -47,9 +52,19 @@ async def remove_photo(account: CurrentAccount, service: Service) -> AccountRead
     return await service.remove_photo(account.id)
 
 
-@router.post("/account/email", status_code=204, responses={409: ERROR, 429: ERROR})
-async def request_email_change(body: EmailChange, account: CurrentAccount, service: Service) -> None:
-    """Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`."""
+@router.put("/account/password", response_model=AccountRead, responses={403: ERROR})
+async def set_password(
+    body: PasswordSet, account: CurrentAccount, session: RecentSignIn, service: Service
+) -> AccountRead:
+    """Sets or changes the password and ends every other session; 403 `reauthentication_required` without a
+    recent sign-in."""
+    return await service.set_password(account.id, session, body.password)
+
+
+@router.post("/account/email", status_code=204, responses={403: ERROR, 409: ERROR, 429: ERROR})
+async def request_email_change(body: EmailChange, account: CurrentAccount, _: RecentSignIn, service: Service) -> None:
+    """Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`. 403
+    `reauthentication_required` without a recent sign-in."""
     await service.request_email_change(account.id, body.new_email, body.password)
 
 
