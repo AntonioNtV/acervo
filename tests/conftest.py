@@ -32,15 +32,13 @@ from acervo.schemas.node import NodeCreate
 from acervo.services.mailer import FakeMailer
 
 ROOT = Path(__file__).resolve().parents[1]
-API_KEY = "test-api-key"
 SESSION_SECRET = "test-session-secret"
 # acervo.api.main builds its app from the environment at import; the tests then build their own with create_app.
-os.environ.setdefault("API_KEY", API_KEY)
 os.environ.setdefault("SESSION_SECRET", SESSION_SECRET)
 
 
 def _base_settings() -> Settings:
-    return Settings(api_key=SecretStr(API_KEY), session_secret=SecretStr(SESSION_SECRET))
+    return Settings(session_secret=SecretStr(SESSION_SECRET))
 
 
 async def _admin(sql: str) -> None:

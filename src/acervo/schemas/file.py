@@ -81,7 +81,7 @@ class FileNodeRead(NodeRead):
 
 
 class FileLink(BaseModel):
-    """A short-lived URL of a file's bytes that needs no X-API-Key header."""
+    """A short-lived URL of a file's bytes that opens without the session cookie."""
 
     url: str = Field(description="The raw route with `expires` and `signature` query parameters.")
     expires_at: datetime = Field(description="When the link stops working.")
