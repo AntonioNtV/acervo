@@ -1,11 +1,9 @@
 import base64
-import hashlib
-import hmac
 import json
 import secrets
 import time
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -26,13 +24,15 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+from acervo.core import signing
 from acervo.core.errors import CodeInvalid, InvalidCredentials, LastWayIn, NotFoundError
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.account import AccountRead, SessionCreate, SessionUpdate
+from acervo.schemas.account import AccountRead, SessionUpdate
 from acervo.schemas.security import PasskeyCreate, PasskeyRead, PasskeyRecord, PasskeyUpdate, SecurityEventKind
 from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.security_log import SecurityLog
-from acervo.services.session_service import token_hash
+from acervo.services.session_service import SessionService, token_hash
 
 CHALLENGE_SECONDS = 5 * 60
 RP_NAME = "Acervo"
@@ -70,7 +70,7 @@ class PasskeyService:
         secret: str,
         rp_id: str,
         origin: str,
-        session_days: int,
+        sessions: SessionService,
         now: Callable[[], float] = time.time,
     ) -> None:
         self._uow = uow
@@ -78,7 +78,7 @@ class PasskeyService:
         self._secret = secret
         self._rp_id = rp_id
         self._origin = origin
-        self._session_days = session_days
+        self._sessions = sessions
         self._now = now
 
     async def registration_options(self, account: AccountRead) -> tuple[dict[str, Any], str]:
@@ -156,9 +156,12 @@ class PasskeyService:
 
     async def remove(self, account: AccountRead, passkey_id: UUID, user_agent: str | None) -> None:
         """Removes a passkey of the account, unless it is the last way to sign in; logs and emails it."""
-        passkey = await self._own(account.id, passkey_id)
-        others = len(await self._uow.passkeys.of_account(account.id)) - 1
-        if not account.has_password and not account.has_google and others == 0:
+        # Locked, so two removals at once cannot both see the other passkey left.
+        passkeys = await self._uow.passkeys.of_account(account.id, lock=True)
+        passkey = next((p for p in passkeys if p.id == passkey_id), None)
+        if passkey is None:
+            raise NotFoundError(f"passkey {passkey_id} not found", {"id": str(passkey_id)})
+        if not account.has_password and not account.has_google and len(passkeys) == 1:
             raise LastWayIn("This passkey is the only way to sign in to the account.")
         await self._uow.passkeys.delete(passkey_id)
         await self._changed(account, SecurityEventKind.PASSKEY_REMOVED, passkey.name, user_agent)
@@ -216,12 +219,6 @@ class PasskeyService:
         now = self._utc()
         await self._uow.passkeys.update(passkey.id, PasskeyUpdate(sign_count=verified.new_sign_count, last_used_at=now))
         token = await self._session(passkey.account_id, now, user_agent, current_token)
-        await SecurityLog(self._uow).record(
-            SecurityEventKind.SIGNED_IN,
-            account_id=passkey.account_id,
-            data={"method": "passkey"},
-            user_agent=user_agent,
-        )
         await self._uow.commit()
         return AccountRead.of(await self._uow.accounts.get(passkey.account_id)), token
 
@@ -231,19 +228,7 @@ class PasskeyService:
             if session is not None and session.account_id == account_id and session.expires_at > now:
                 await self._uow.sessions.update(session.id, SessionUpdate(reauthenticated_at=now))
                 return current
-        # shortcut: builds the session itself as SessionService.create takes no method yet; use it once it does.
-        token = secrets.token_urlsafe(32)
-        await self._uow.sessions.create(
-            SessionCreate(
-                token_hash=token_hash(token),
-                account_id=account_id,
-                last_seen_at=now,
-                expires_at=now + timedelta(days=self._session_days),
-                user_agent=user_agent,
-                method="passkey",
-            )
-        )
-        return token
+        return await self._sessions.create(account_id, user_agent, "passkey")
 
     async def _own(self, account_id: UUID, passkey_id: UUID) -> PasskeyRecord:
         passkey = await self._uow.passkeys.get_by(id=passkey_id, account_id=account_id)
@@ -254,13 +239,13 @@ class PasskeyService:
     async def _changed(self, account: AccountRead, kind: SecurityEventKind, name: str, user_agent: str | None) -> None:
         await SecurityLog(self._uow).record(kind, account_id=account.id, data={"passkey": name}, user_agent=user_agent)
         await self._uow.commit()
-        # shortcut: browser and system stay empty until card 04's user-agent table lands; fill them from it then.
+        browser, system = device(user_agent)
         values = {
             "name": account.name,
             "change": kind,
             "passkey": name,
-            "browser": "",
-            "system": "",
+            "browser": browser or "",
+            "system": system or "",
             "link": SECURITY_PATH,
         }
         await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.preferences.language, values)
@@ -269,17 +254,7 @@ class PasskeyService:
         return datetime.fromtimestamp(self._now(), UTC)
 
     def _seal(self, purpose: str, **values: str) -> str:
-        """`values` signed with the session secret for `purpose`, readable for `CHALLENGE_SECONDS`."""
-        body = _b64(json.dumps({**values, "purpose": purpose, "exp": int(self._now()) + CHALLENGE_SECONDS}).encode())
-        return f"{body}.{hmac.new(self._secret.encode(), body.encode(), hashlib.sha256).hexdigest()}"
+        return signing.seal(self._secret, purpose, int(self._now()) + CHALLENGE_SECONDS, **values)
 
     def _unseal(self, purpose: str, sealed: str | None) -> dict[str, Any] | None:
-        """What `_seal` signed for `purpose`; None when forged, expired or made for another purpose."""
-        body, _, signature = (sealed or "").rpartition(".")
-        expected = hmac.new(self._secret.encode(), body.encode(), hashlib.sha256).hexdigest()
-        if not body or not hmac.compare_digest(expected.encode(), signature.encode()):
-            return None
-        values: dict[str, Any] = json.loads(_unb64(body))
-        if values["purpose"] != purpose or values["exp"] <= self._now():
-            return None
-        return values
+        return signing.unseal(self._secret, purpose, sealed, self._now())

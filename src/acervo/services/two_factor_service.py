@@ -5,10 +5,11 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from acervo.core.errors import CodeInvalid, TooManyAttempts, ValidationError
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead, AccountRecord, AccountUpdate, EmailCodeCreate, EmailCodeUpdate
 from acervo.schemas.security import SecurityEventKind, TwoFactorMethod, TwoFactorStart
-from acervo.services.auth_service import CODE_TRIES, CODE_TTL, NO_DEVICE, RESEND_AFTER
+from acervo.services.auth_service import CODE_TRIES, CODE_TTL, RESEND_AFTER
 from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import token_hash
@@ -105,5 +106,12 @@ class TwoFactorService:
         """Logs the change and, once it is kept, emails `security_change` to the account."""
         await SecurityLog(self._uow).record(kind, account_id=account.id, data={"method": method}, user_agent=user_agent)
         await self._uow.commit()
-        values = {"name": account.name, "change": kind.value, "link": SECURITY_PATH, **NO_DEVICE}
+        browser, system = device(user_agent)
+        values = {
+            "name": account.name,
+            "change": kind.value,
+            "link": SECURITY_PATH,
+            "browser": browser or "",
+            "system": system or "",
+        }
         await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.language, values)

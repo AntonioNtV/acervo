@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import delete
 
 from acervo.db.models.pending_sign_in import PendingSignIn
@@ -19,3 +21,6 @@ class PendingSignInRepository(
 
     async def delete(self, token_hash: str) -> None:
         await self._session.execute(delete(PendingSignIn).where(PendingSignIn.token_hash == token_hash))
+
+    async def delete_of_account(self, account_id: UUID) -> None:
+        await self._session.execute(delete(PendingSignIn).where(PendingSignIn.account_id == account_id))

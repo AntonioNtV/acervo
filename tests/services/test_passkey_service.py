@@ -90,7 +90,7 @@ class SoftAuthenticator:
 async def service(uow: UnitOfWork, session: AsyncSession, fake_mailer: FakeMailer) -> AsyncIterator[PasskeyService]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
-        yield PasskeyService(uow, fake_mailer, "secret", RP_ID, ORIGIN, 30)
+        yield PasskeyService(uow, fake_mailer, "secret", RP_ID, ORIGIN, SessionService(uow, 30))
 
 
 async def _kinds(uow: UnitOfWork, account_id: UUID) -> list[SecurityEventKind]:

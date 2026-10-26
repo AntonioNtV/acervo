@@ -1,7 +1,7 @@
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from typing import get_args
+from typing import Any, get_args
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -28,8 +28,10 @@ from acervo.schemas.organization import (
     MembershipCreate,
     OrgRole,
 )
+from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import BASE_RANK, AccessService
 from acervo.services.mailer import Mailer, MailTemplate
+from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import token_hash
 
 INVITE_TTL = timedelta(days=7)
@@ -85,6 +87,8 @@ class InviteService:
         if members:
             raise AlreadyMember("already in the organization", {"emails": members})
         issued = [await self._issue(account_id, organization_id, None, email, data.role) for email in emails]
+        for email in emails:
+            await self._log(SecurityEventKind.INVITED, organization_id, account_id, {"email": email, "role": data.role})
         await self._uow.commit()
         for invite, token in issued:
             if token is not None:
@@ -102,11 +106,14 @@ class InviteService:
         issued: list[tuple[InviteRecord, str | None]] = []
         for email in _unique(data.emails):
             person = await self._uow.accounts.by_email(email)
+            done = {"email": email, "role": data.role, "base": kb.name}
             if person is not None and await self._access.org_role(person.id, kb.organization_id) is not None:
                 await self._add_to_base(kb_id, person.id, data.role)  # type: ignore[arg-type]
                 added.append(person)
+                await self._log(SecurityEventKind.ACCESS_CHANGED, kb.organization_id, account_id, done)
             else:
                 issued.append(await self._issue(account_id, kb.organization_id, kb_id, email, data.role))
+                await self._log(SecurityEventKind.INVITED, kb.organization_id, account_id, done)
         await self._uow.commit()
         inviter = await self._uow.accounts.get(account_id)
         for person in added:
@@ -139,6 +146,8 @@ class InviteService:
     async def revoke(self, account_id: UUID, invite_id: UUID) -> None:
         invite = await self._pending(account_id, invite_id)
         await self._uow.invites.update(invite.id, InviteRecordUpdate(revoked_at=self._now()))
+        revoked = {"email": invite.email, "role": invite.role}
+        await self._log(SecurityEventKind.INVITE_REVOKED, invite.organization_id, account_id, revoked)
         await self._uow.commit()
 
     async def preview(self, token: str) -> InvitePreview:
@@ -238,6 +247,13 @@ class InviteService:
             )
             await self._uow.memberships.create(membership)
         await self._uow.invites.update(invite.id, InviteRecordUpdate(accepted_at=self._now()))
+        joined: dict[str, Any] = {"email": invite.email, "role": invite.role}
+        if invite.kb_id is not None:
+            joined["base"] = await self._target_name(invite)
+        await self._log(SecurityEventKind.JOINED, invite.organization_id, account_id, joined)
+
+    async def _log(self, kind: SecurityEventKind, organization_id: UUID, actor_id: UUID, data: dict[str, Any]) -> None:
+        await SecurityLog(self._uow).record(kind, organization_id=organization_id, actor_id=actor_id, data=data)
 
     async def _joined(self, invite: InviteRecord, account: AccountRecord) -> bool:
         """Whether the invite is this account's and the account still holds what it gave."""

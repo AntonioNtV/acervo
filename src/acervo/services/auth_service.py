@@ -1,5 +1,6 @@
 import asyncio
 import hmac
+import logging
 import secrets
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -14,6 +15,7 @@ from acervo.core.errors import (
     TooManyAttempts,
 )
 from acervo.core.passwords import hash_password, needs_rehash, verify_password
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import (
     AccountCreate,
@@ -51,8 +53,8 @@ LOCKOUT_FAILURES = 5
 LOCKOUT_WINDOW = timedelta(minutes=15)
 UNVERIFIED_KEPT = timedelta(days=7)
 RESET_TTL = timedelta(hours=1)
-# shortcut: no browser or system parsed from the user agent yet (card 04 adds the parser); fill both from it then.
-NO_DEVICE = {"browser": "", "system": ""}
+
+logger = logging.getLogger(__name__)
 
 # A wrong email is checked against this hash too, so it takes as long as a wrong password.
 _NO_ACCOUNT_HASH = hash_password(secrets.token_urlsafe())
@@ -69,6 +71,28 @@ def _locked(failures: list[datetime], now: datetime) -> bool:
         and failures[0] - failures[-1] <= LOCKOUT_WINDOW
         and now < failures[0] + LOCKOUT_WINDOW
     )
+
+
+async def count_failure(
+    uow: UnitOfWork,
+    mailer: Mailer,
+    email_lower: str,
+    account: AccountRecord | None,
+    user_agent: str | None,
+    now: datetime,
+) -> None:
+    """Counts a wrong password or code toward the email's lockout and commits it. The failure that locks it is
+    logged and emailed (`lockout`): the lock refuses tries before they reach here, so that is once per lock."""
+    await uow.login_failures.create(LoginFailureCreate(email_lower=email_lower), created_at=now)
+    await uow.login_failures.clear(email_lower, before=now - LOCKOUT_WINDOW)
+    if account is None or not _locked(await uow.login_failures.latest(email_lower, LOCKOUT_FAILURES), now):
+        await uow.commit()
+        return
+    await SecurityLog(uow).record(SecurityEventKind.LOCKED_OUT, account_id=account.id, user_agent=user_agent)
+    await uow.commit()
+    browser, system = device(user_agent)
+    values = {"name": account.name, "browser": browser or "", "system": system or "", "link": "/redefinir-senha"}
+    await mailer.send(account.email, MailTemplate.LOCKOUT, account.language, values)
 
 
 def _six_digits() -> str:
@@ -164,7 +188,11 @@ class AuthService:
         password_hash = _NO_ACCOUNT_HASH if account is None else account.password_hash or _NO_ACCOUNT_HASH
         right = await asyncio.to_thread(verify_password, data.password, password_hash)
         if not right or account is None or account.password_hash is None:
-            await self._fail(email_lower)
+            if account is not None:
+                await SecurityLog(self._uow).record(
+                    SecurityEventKind.WRONG_PASSWORD, account_id=account.id, user_agent=user_agent
+                )
+            await count_failure(self._uow, self._mailer, email_lower, account, user_agent, now)
             raise InvalidCredentials("wrong email or password")
         if needs_rehash(account.password_hash):
             rehashed = await asyncio.to_thread(hash_password, data.password)
@@ -194,7 +222,7 @@ class AuthService:
             await SecurityLog(self._uow).record(
                 SecurityEventKind.WRONG_CODE, account_id=account.id, data=wrong, user_agent=user_agent
             )
-            await self._fail(email_lower)
+            await count_failure(self._uow, self._mailer, email_lower, account, user_agent, self._now())
             raise CodeInvalid("wrong or expired code")
         await self._uow.pending_sign_ins.delete(pending.token_hash)
         return AccountRead.of(account), await self._sessions.create(account.id, user_agent)
@@ -212,7 +240,7 @@ class AuthService:
         change = PendingSignInUpdate(code_hash=token_hash(code), code_sent_at=now, method=method)
         await self._uow.pending_sign_ins.update(pending.id, change)
         await self._uow.commit()
-        await self._send_login_code(account, method, code)
+        method = await self._send_login_code(account, pending.id, method, code, pending.user_agent)
         return PendingSignIn(method=method, destination=_masked(account, method))
 
     async def sign_out(self, token: str) -> None:
@@ -255,8 +283,11 @@ class AuthService:
             await self._claim_invites(account.id)
         # Whoever set the new password through the inbox is not the one guessing it: the lock would only keep them out.
         await self._uow.login_failures.clear(account.email.lower())
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.PASSWORD_CHANGED, account_id=account.id, actor_id=account.id, user_agent=user_agent
+        )
         await self._sessions.end_all(account.id)
-        return AccountRead.of(account), await self._sessions.create(account.id, user_agent)
+        return AccountRead.of(account), await self._sessions.create(account.id, user_agent, "reset")
 
     async def _claim_invites(self, account_id: UUID) -> None:
         """An invited email that just got a confirmed account joins what it was invited to (spec §3)."""
@@ -267,12 +298,6 @@ class AuthService:
         await self._uow.login_failures.lock(email_lower)
         if _locked(await self._uow.login_failures.latest(email_lower, LOCKOUT_FAILURES), self._now()):
             raise TooManyAttempts("too many wrong passwords for this email")
-
-    async def _fail(self, email_lower: str) -> None:
-        now = self._now()
-        await self._uow.login_failures.create(LoginFailureCreate(email_lower=email_lower), created_at=now)
-        await self._uow.login_failures.clear(email_lower, before=now - LOCKOUT_WINDOW)
-        await self._uow.commit()
 
     async def _pend(self, account: AccountRecord, user_agent: str | None) -> tuple[PendingSignIn, str]:
         """A right password with two-step verification on: no session yet, a code to the account's method."""
@@ -289,9 +314,11 @@ class AuthService:
             method=method,
             user_agent=user_agent,
         )
-        await self._uow.pending_sign_ins.create(pending, created_at=now)
+        # One step two at a time per account: an older pending sign-in's code stops working.
+        await self._uow.pending_sign_ins.delete_of_account(account.id)
+        created = await self._uow.pending_sign_ins.create(pending, created_at=now)
         await self._uow.commit()
-        await self._send_login_code(account, method, code)
+        method = await self._send_login_code(account, created.id, method, code, user_agent)
         return PendingSignIn(method=method, destination=_masked(account, method)), token
 
     async def _live_pending(self, token: str | None) -> PendingSignInRecord:
@@ -301,12 +328,23 @@ class AuthService:
             raise CodeInvalid("wrong or expired code")
         return pending
 
-    async def _send_login_code(self, account: AccountRecord, method: TwoFactorMethod, code: str) -> None:
+    async def _send_login_code(
+        self, account: AccountRecord, pending_id: UUID, method: TwoFactorMethod, code: str, user_agent: str | None
+    ) -> TwoFactorMethod:
+        """Sends the code of a pending sign-in and gives where it went: by email when WhatsApp fails, so the person
+        is never left without one."""
         if method == "whatsapp" and account.phone:
-            await self._whatsapp.send_code(account.phone, code, self._whatsapp_language)
-            return
-        values = {"code": code, "name": account.name, **NO_DEVICE}
+            try:
+                await self._whatsapp.send_code(account.phone, code, self._whatsapp_language)
+                return "whatsapp"
+            except Exception:
+                logger.exception("WhatsApp code not sent; sending it by email")
+                await self._uow.pending_sign_ins.update(pending_id, PendingSignInUpdate(method="email"))
+                await self._uow.commit()
+        browser, system = device(user_agent)
+        values = {"code": code, "name": account.name, "browser": browser or "", "system": system or ""}
         await self._mailer.send(account.email, MailTemplate.LOGIN_CODE, account.language, values)
+        return "email"
 
     async def _sent_recently(self, account: AccountRecord) -> bool:
         live = await self._uow.email_codes.live(account.id, "verify_email")

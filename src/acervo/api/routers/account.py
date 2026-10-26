@@ -65,7 +65,7 @@ async def set_password(
 async def request_email_change(body: EmailChange, account: CurrentAccount, _: RecentSignIn, service: Service) -> None:
     """Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`. 403
     `reauthentication_required` without a recent sign-in."""
-    await service.request_email_change(account.id, body.new_email, body.password)
+    await service.request_email_change(account.id, body.new_email)
 
 
 @router.post("/account/email/confirm", response_model=AccountRead, responses={409: ERROR})

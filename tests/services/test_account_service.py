@@ -70,7 +70,7 @@ async def test_email_changes_only_after_the_code_and_the_old_address_is_told(
 ) -> None:
     ana = await make_account(email="ana@example.com")
 
-    await service.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
+    await service.request_email_change(ana.id, "ana@novo.com")
     sent = fake_mailer.sent[-1]
     wrong = f"{(int(sent.values['code']) + 1) % 10**6:06d}"
     with pytest.raises(CodeInvalid):
@@ -98,15 +98,15 @@ async def test_an_image_over_25_megapixels_is_refused(service: AccountService, m
         await service.set_photo(ana.id, huge)
 
 
-async def test_a_new_email_code_waits_a_minute_and_a_google_only_account_needs_no_password(
+async def test_a_new_email_code_waits_a_minute(
     service: AccountService, uow: UnitOfWork, make_account: MakeAccount
 ) -> None:
     ana = await make_account()
     await uow.accounts.update(ana.id, AccountUpdate(password_hash=None, google_sub="google-1"))
 
-    await service.request_email_change(ana.id, "ana@novo.com", None)
+    await service.request_email_change(ana.id, "ana@novo.com")
     with pytest.raises(TooManyAttempts):
-        await service.request_email_change(ana.id, "ana@outro.com", None)
+        await service.request_email_change(ana.id, "ana@outro.com")
 
 
 async def test_a_new_email_ends_the_reset_links_sent_to_the_old_one(
@@ -118,7 +118,7 @@ async def test_a_new_email_ends_the_reset_links_sent_to_the_old_one(
         PasswordResetCreate(token_hash="h", account_id=ana.id, expires_at=in_a_hour)
     )
 
-    await service.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
+    await service.request_email_change(ana.id, "ana@novo.com")
     await service.confirm_email_change(ana.id, fake_mailer.sent[-1].values["code"])
 
     assert (await uow.password_resets.get(reset.id)).used_at is not None
@@ -134,6 +134,6 @@ async def test_a_new_email_held_by_a_stale_unconfirmed_account_is_free(
     )
 
     async with uow:
-        await in_8_days.request_email_change(ana.id, "ana@novo.com", "senha-de-teste")
+        await in_8_days.request_email_change(ana.id, "ana@novo.com")
         assert await uow.accounts.get_by(id=stale.id) is None
     assert fake_mailer.sent[-1].to == "ana@novo.com"

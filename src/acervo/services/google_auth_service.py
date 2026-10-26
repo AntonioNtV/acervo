@@ -2,7 +2,6 @@ import asyncio
 import base64
 import hashlib
 import hmac
-import json
 import secrets
 import time
 from collections.abc import Callable
@@ -12,10 +11,12 @@ from typing import Any
 from urllib.parse import urlencode
 from uuid import UUID
 
+from acervo.core import signing
 from acervo.core.errors import AcervoError, CodeInvalid, InvalidCredentials, LastWayIn
 from acervo.core.passwords import verify_password
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from acervo.schemas.account import AccountCreate, AccountRead, AccountRecord, AccountUpdate
 from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import AccessService
 from acervo.services.auth_service import UNVERIFIED_KEPT
@@ -23,7 +24,7 @@ from acervo.services.google_client import GoogleClient, GoogleIdentity
 from acervo.services.invite_service import InviteService
 from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.security_log import SecurityLog
-from acervo.services.session_service import SessionService, device
+from acervo.services.session_service import SessionService
 
 STATE_SECONDS = 10 * 60
 LINK_SECONDS = 10 * 60
@@ -111,7 +112,7 @@ class GoogleAuthService:
         linked = await self._uow.accounts.update(account.id, update)
         if account.email_verified_at is None:
             await self._claim_invites(account.id)
-        return AccountRead.of(linked), await self._sessions.create(account.id, user_agent, "google")
+        return AccountRead.of(linked), await self._sign_in_linked(linked, user_agent)
 
     async def unlink(self, account_id: UUID, session_id: UUID) -> AccountRead:
         """Unlinks Google, unless it is the only way left to sign in."""
@@ -126,15 +127,7 @@ class GoogleAuthService:
             SecurityEventKind.GOOGLE_UNLINKED, account_id=account_id, actor_id=account_id, user_agent=session.user_agent
         )
         await self._uow.commit()
-        browser, system = device(session.user_agent)
-        values = {
-            "name": account.name,
-            "change": "google_unlinked",
-            "browser": browser or "",
-            "system": system or "",
-            "link": "/conta/seguranca",
-        }
-        await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.language, values)
+        await self._tell(unlinked, SecurityEventKind.GOOGLE_UNLINKED, session.user_agent)
         return AccountRead.of(unlinked)
 
     async def _land(self, person: GoogleIdentity, next: str, user_agent: str | None) -> Landing:
@@ -151,15 +144,33 @@ class GoogleAuthService:
                 return Landing(f"/entrar/vincular?{urlencode({'token': token, 'next': next})}")
             if account is not None:
                 account = await self._uow.accounts.update(account.id, AccountUpdate(google_sub=person.sub))
-            else:
-                name = person.name or person.email.split("@")[0]
-                created = AccountCreate(
-                    email=person.email, name=name, google_sub=person.sub, email_verified_at=self._utc()
-                )
-                account = await self._uow.accounts.create(created)
-                await self._uow.organizations.create_personal(account.id)
-                await self._claim_invites(account.id)
+                return Landing(next, await self._sign_in_linked(account, user_agent))
+            name = person.name or person.email.split("@")[0]
+            created = AccountCreate(email=person.email, name=name, google_sub=person.sub, email_verified_at=self._utc())
+            account = await self._uow.accounts.create(created)
+            await self._uow.organizations.create_personal(account.id)
+            await self._claim_invites(account.id)
         return Landing(next, await self._sessions.create(account.id, user_agent, "google"))
+
+    async def _sign_in_linked(self, account: AccountRecord, user_agent: str | None) -> str:
+        """Logs and emails Google just linked to the account, and signs it in; gives the session token."""
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.GOOGLE_LINKED, account_id=account.id, actor_id=account.id, user_agent=user_agent
+        )
+        token = await self._sessions.create(account.id, user_agent, "google")
+        await self._tell(account, SecurityEventKind.GOOGLE_LINKED, user_agent)
+        return token
+
+    async def _tell(self, account: AccountRecord, change: SecurityEventKind, user_agent: str | None) -> None:
+        browser, system = device(user_agent)
+        values = {
+            "name": account.name,
+            "change": change.value,
+            "browser": browser or "",
+            "system": system or "",
+            "link": "/conta/seguranca",
+        }
+        await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.language, values)
 
     async def _claim_invites(self, account_id: UUID) -> None:
         """An invited email that just got a confirmed account joins what it was invited to (spec §3)."""
@@ -169,17 +180,7 @@ class GoogleAuthService:
         return datetime.fromtimestamp(self._now(), UTC)
 
     def _seal(self, purpose: str, seconds: int, **values: str) -> str:
-        """`values` signed with the session secret for `purpose`, readable until `seconds` from now."""
-        body = _b64(json.dumps({**values, "purpose": purpose, "exp": int(self._now()) + seconds}).encode())
-        return f"{body}.{hmac.new(self._secret.encode(), body.encode(), hashlib.sha256).hexdigest()}"
+        return signing.seal(self._secret, purpose, int(self._now()) + seconds, **values)
 
     def _unseal(self, purpose: str, sealed: str | None) -> dict[str, Any] | None:
-        """What `_seal` signed for `purpose`; None when forged, expired or made for another purpose."""
-        body, _, signature = (sealed or "").rpartition(".")
-        expected = hmac.new(self._secret.encode(), body.encode(), hashlib.sha256).hexdigest()
-        if not body or not hmac.compare_digest(expected.encode(), signature.encode()):
-            return None
-        values: dict[str, Any] = json.loads(base64.urlsafe_b64decode(body + "=" * (-len(body) % 4)))
-        if values["purpose"] != purpose or values["exp"] <= self._now():
-            return None
-        return values
+        return signing.unseal(self._secret, purpose, sealed, self._now())
