@@ -144,6 +144,7 @@ def get_google_auth_service(
 
 async def current_account(
     response: Response,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
     sessions: Annotated[SessionService, Depends(get_session_service)],
     settings: Annotated[Settings, Depends(get_settings)],
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
@@ -152,6 +153,8 @@ async def current_account(
     account = None if token is None else await sessions.resolve(token)
     if token is None or account is None:
         raise AuthError("Missing or ended session.")
+    # What the repositories answer for this account (a node's `favorite`) reads it from the request's session.
+    uow._session.info["account_id"] = account.id
     # The session slides with each request, so the cookie's Max-Age slides with it.
     set_session_cookie(response, token, settings)
     return account
@@ -201,6 +204,6 @@ def session_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[No
             live = await uow.sessions.get_by(id=session)
             if live is not None and live.expires_at > datetime.now(UTC):
                 return
-        await current_account(response, sessions, settings, token)
+        await current_account(response, uow, sessions, settings, token)
 
     return dependency
