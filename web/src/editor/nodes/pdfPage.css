@@ -1,0 +1,32 @@
+.pdf-page-desk {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: var(--desk);
+  padding: 16px;
+  font: inherit;
+}
+
+.pdf-page-open {
+  cursor: pointer;
+}
+
+.pdf-page-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+
+.pdf-page-caption {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 20px;
+}
