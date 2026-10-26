@@ -162,7 +162,14 @@ export function AttachmentFileView({ editor, node, getPos }: ReactNodeViewProps)
         />
       ) : (
         link.data && (
-          <MediaRow kind={kind} name={title} ext={ext} src={link.data.src} onExpired={() => void link.refetch()} />
+          <MediaRow
+            kind={kind}
+            name={title}
+            ext={ext}
+            src={link.data.src}
+            onExpired={() => void link.refetch()}
+            onDownload={() => void download()}
+          />
         )
       )}
       {reading && pageId && <AttachmentPdfDialog pageId={pageId} name={name} onClose={() => setReading(false)} />}

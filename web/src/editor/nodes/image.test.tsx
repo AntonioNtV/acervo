@@ -70,7 +70,7 @@ describe("AttachmentImage", () => {
     expect(await screen.findByRole("img", { name: "Fachada" })).toHaveAttribute("src", "/raw/fachada.jpg");
     expect(screen.getByRole("img", { name: "Fachada" })).toHaveAttribute("loading", "lazy");
     expect(screen.getByDisplayValue("Fachada")).toBeInTheDocument();
-    expect(screen.getByRole("alert")).toHaveTextContent("editor.media.missing");
+    expect(screen.getByRole("alert")).toHaveTextContent("Arquivo não encontrado");
   });
 
   it("uploads a pasted image with its progress, then shows it", async () => {
@@ -89,7 +89,7 @@ describe("AttachmentImage", () => {
     const editor = await renderPage("");
     await act(async () => insertAttachment(editor(), [new File(["x"], "grande.jpg", { type: "image/jpeg" })], "vistoria"));
     await act(async () => uploads[0]!.reject(new ApiError(413, { error: "attachment_too_large", message: "" })));
-    expect(screen.getByRole("alert")).toHaveTextContent("editor.media.tooLarge");
+    expect(screen.getByRole("alert")).toHaveTextContent("Arquivo maior que 100 MB");
 
     await act(async () => screen.getByRole("button", { name: "Tentar de novo" }).click());
     expect(screen.getByRole("button", { name: "Enviar" })).toBeInTheDocument();

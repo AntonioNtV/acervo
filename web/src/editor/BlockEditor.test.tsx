@@ -1,9 +1,18 @@
 import "@testing-library/jest-dom/vitest";
 import type { Editor } from "@tiptap/core";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { Slice } from "@tiptap/pm/model";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { I18nProvider } from "../i18n";
 import { BlockEditor } from "./BlockEditor";
+import { PageContext } from "./nodes/generated";
+
+const uploadAttachment = vi.fn(async (_page: string, file: File) => ({ name: file.name }));
+
+vi.mock("../data/attachments", () => ({
+  uploadAttachment: (page: string, file: File) => uploadAttachment(page, file),
+  useAttachmentLink: (_page: string, name: string | null) => ({ isError: false, data: name ? { src: `/raw/${name}` } : undefined }),
+}));
 
 // jsdom has no layout, and ProseMirror measures text ranges to scroll the selection into view.
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -15,12 +24,14 @@ function renderEditor(markdown: string) {
   render(
     <MemoryRouter>
       <I18nProvider>
-        <BlockEditor
-          markdown={markdown}
-          onChange={onChange}
-          resolveLink={(title) => (title === "Renovação" ? { href: "/kbs/kb-1/n/page-2" } : "missing")}
-          onCreateSubPage={async () => "Sem título"}
-        />
+        <PageContext.Provider value={{ kbId: "kb-1", nodeId: "page-1" }}>
+          <BlockEditor
+            markdown={markdown}
+            onChange={onChange}
+            resolveLink={(title) => (title === "Renovação" ? { href: "/kbs/kb-1/n/page-2" } : "missing")}
+            onCreateSubPage={async () => "Sem título"}
+          />
+        </PageContext.Provider>
       </I18nProvider>
     </MemoryRouter>,
   );
@@ -73,9 +84,32 @@ describe("BlockEditor", () => {
       "Nota de rodapé",
       "Equação na linha",
       "Bloco sincronizado",
+      "Imagem",
+      "Arquivo",
+      "Vídeo",
+      "Áudio",
+      "Equação",
+      "Diagrama",
+      "Prévia de link",
+      "Incorporar",
+      "Página de PDF",
     ]) {
-      expect(screen.getByRole("option", { name: new RegExp(name) })).toBeInTheDocument();
+      expect(screen.getByText(name, { selector: "[role=option] span" })).toBeInTheDocument();
     }
+  });
+
+  it("a file dropped in the page is uploaded as its attachment and shows its block", async () => {
+    const { editor, onChange } = renderEditor("");
+    const file = new File(["jpg"], "fachada.jpg", { type: "image/jpeg" });
+    const drop = Object.assign(new Event("drop"), { dataTransfer: { files: [file] }, clientX: 0, clientY: 0 });
+
+    act(() => {
+      editor.view.someProp("handleDrop", (f) => f(editor.view, drop as unknown as DragEvent, Slice.empty, false));
+    });
+
+    await waitFor(() => expect(onChange).toHaveBeenLastCalledWith("![](arquivos/fachada.jpg)\n"));
+    expect(uploadAttachment).toHaveBeenCalledWith("page-1", file);
+    expect(document.querySelector("img.attachment-image-img")).toHaveAttribute("src", "/raw/fachada.jpg");
   });
 
   it("#### makes a heading 4", () => {

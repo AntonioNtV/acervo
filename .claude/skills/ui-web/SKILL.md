@@ -76,7 +76,9 @@ node, by kind). Every route renders inside the shell.
 (the whole page after each edit, never on load), `resolveLink(title)` (`{href}`, `"missing"` or `"ambiguous"`),
 `onCreateSubPage()` (resolves to the title it got), `pageTitles` and `onPageQuery` (for the `[[` and `@` picker).
 "/" opens the block menu with search; Markdown shortcuts work as typed; each block has a handle (drag, turn into,
-duplicate, delete) and "+"; pasted Markdown or rich text keeps its blocks.
+duplicate, delete, "Converter em link" on a link preview or embed) and "+"; pasted Markdown or rich text keeps
+its blocks; a file pasted or dropped in the text is uploaded as an attachment of the page (`PageContext` gives its
+id) and shows as its block.
 
 | Block | Markdown |
 |---|---|
@@ -86,6 +88,12 @@ duplicate, delete) and "+"; pasted Markdown or rich text keeps its blocks.
 | callout | GFM alert `> [!NOTE]` (also `TIP`, `IMPORTANT`, `WARNING`, `CAUTION`) |
 | toggle | `<details><summary>…</summary>…</details>` |
 | page link, mention (`@`), sub-page | `[[Title]]` |
+| image (an attachment of the page) | `![caption](arquivos/name.jpg)` alone on its line |
+| file, video, audio (attachments) | `[name.ext](arquivos/name.ext)` alone in a paragraph; the extension picks the player |
+| link preview, embed | a paragraph that is only the URL (`https://…` or `<https://…>`); EmbedFrame's sites embed |
+| PDF page | `[[Name.pdf#p=12]]` alone on its line |
+| equation | `$$`, the TeX, `$$`, each on its own line |
+| diagram | a ```` ```mermaid ```` code block |
 | anything else (raw HTML, footnotes, definitions, unknown syntax) | a raw block (or raw inline), kept as written |
 
 The round-trip is the rule: an untouched block is written back byte for byte (only line endings become `\n`), an

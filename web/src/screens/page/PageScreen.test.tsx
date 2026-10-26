@@ -251,7 +251,7 @@ describe("PageScreen", () => {
     expect(calls.filter((call) => call.method === "PATCH")).toHaveLength(0);
   });
 
-  it("files dropped on the page upload into it", async () => {
+  it("files dropped on the page outside its text upload into it", async () => {
     const sent: Array<{ path: string; form: FormData }> = [];
     vi.stubGlobal(
       "XMLHttpRequest",
@@ -270,7 +270,7 @@ describe("PageScreen", () => {
     await openPage();
 
     const file = new File(["%PDF"], "Apólice.pdf", { type: "application/pdf" });
-    fireEvent.drop(screen.getByRole("textbox", { name: "Texto da página" }), {
+    fireEvent.drop(screen.getByRole("textbox", { name: "Título da página" }), {
       dataTransfer: { files: [file], types: ["Files"] },
     });
 

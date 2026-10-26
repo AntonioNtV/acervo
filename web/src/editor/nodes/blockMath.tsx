@@ -1,41 +1,14 @@
 import { Node } from "@tiptap/core";
 import { NodeViewWrapper, ReactNodeViewRenderer, type ReactNodeViewProps } from "@tiptap/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FormulaEditor } from "../../ui/FormulaEditor";
 import type { BlockKind } from "../blocks";
 import { startBefore } from "../tokenize";
+import { render, useKatex } from "./math";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     blockMath: { insertBlockMath: () => ReturnType };
-  }
-}
-
-type Katex = typeof import("katex").default;
-
-// The same dynamic imports as `math.tsx`: one KaTeX chunk, fetched once, only by a page with a formula.
-// shortcut: a second copy of math.tsx's loader, its file is not this card's; export it from there when one is free.
-let loading: Promise<Katex> | null = null;
-const loadKatex = () =>
-  (loading ??= Promise.all([import("katex"), import("katex/dist/katex.min.css")]).then(([katex]) => katex.default));
-
-function useKatex(): Katex | null {
-  const [katex, setKatex] = useState<Katex | null>(null);
-  useEffect(() => {
-    let live = true;
-    void loadKatex().then((loaded) => live && setKatex(() => loaded));
-    return () => {
-      live = false;
-    };
-  }, []);
-  return katex;
-}
-
-function render(katex: Katex, tex: string): { html: string } | { error: string } {
-  try {
-    return { html: katex.renderToString(tex, { displayMode: true, throwOnError: true }) };
-  } catch (error) {
-    return { error: error instanceof katex.ParseError ? error.rawMessage : String(error) };
   }
 }
 
@@ -49,8 +22,8 @@ export function BlockMathView({ editor, node, getPos, updateAttributes, deleteNo
   const katex = useKatex();
   // A new formula has no source yet: it opens with its editor.
   const [editing, setEditing] = useState<string | null>(tex ? null : "");
-  const shown = katex ? render(katex, tex) : null;
-  const draft = katex && editing ? render(katex, editing) : null;
+  const shown = katex ? render(katex, tex, true) : null;
+  const draft = katex && editing ? render(katex, editing, true) : null;
   const close = (next: string) => {
     setEditing(null);
     const pos = getPos();

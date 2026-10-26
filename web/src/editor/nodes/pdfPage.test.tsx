@@ -111,8 +111,8 @@ describe("pdf page block", () => {
     shown!.commands.setTextSelection(1);
     shown!.commands.insertPdfPage();
 
-    fireEvent.change(await screen.findByRole("textbox", { name: "editor.pdfPage.number" }), { target: { value: "7" } });
-    fireEvent.change(screen.getByRole("textbox", { name: "editor.pdfPage.pick" }), { target: { value: "condi" } });
+    fireEvent.change(await screen.findByRole("textbox", { name: "Página" }), { target: { value: "7" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "Escolha um PDF" }), { target: { value: "condi" } });
     fireEvent.click(await screen.findByRole("button", { name: PDF }));
 
     expect(screen.queryByRole("button", { name: "Condições" })).not.toBeInTheDocument();
@@ -124,8 +124,8 @@ describe("pdf page block", () => {
   });
 
   it.each([
-    ["a missing or trashed PDF", "Sumiu.pdf", 1, {}, "Nenhuma página com esse nome"],
-    ["a page over the last", PDF, 21, {}, /O PDF tem 20 páginas|editor\.pdfPage\.outOfRange/],
+    ["a missing or trashed PDF", "Sumiu.pdf", 1, {}, "Nenhum PDF com esse nome"],
+    ["a page over the last", PDF, 21, {}, "O PDF tem 20 páginas"],
     ["a protected PDF", PDF, 1, { password: true }, "Este PDF está protegido por senha."],
     ["a PDF that does not open", PDF, 1, { fails: true }, "Não foi possível abrir este PDF."],
   ])("shows %s with the reason", async (_case, title, page, state, reason) => {
