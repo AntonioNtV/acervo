@@ -5,13 +5,11 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from acervo.api.cookies import set_session_cookie
-from acervo.api.deps import get_session_service, get_settings, get_uow
+from acervo.api.deps import get_google_auth_service, get_settings
 from acervo.core.settings import Settings
 from acervo.schemas.account import AccountRead
 from acervo.schemas.common import ErrorResponse
 from acervo.services.google_auth_service import STATE_SECONDS, GoogleAuthService
-from acervo.services.google_client import GoogleClient
-from acervo.services.session_service import SessionService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 STATE_COOKIE = "acervo_google"
@@ -27,23 +25,6 @@ class GoogleLinkIn(BaseModel):
 
     token: str = Field(description="From the `/entrar/vincular` link the callback redirected to.")
     password: str = Field(description="The account's password.")
-
-
-def get_google_client(settings: AppSettings) -> GoogleClient:
-    secret = settings.google_client_secret
-    return GoogleClient(settings.google_client_id or "", secret.get_secret_value() if secret else "")
-
-
-def get_google_auth_service(
-    # shortcut: Any, as only deps.py may import UnitOfWork; move this getter there once card 05 frees deps.py.
-    uow: Annotated[Any, Depends(get_uow)],
-    sessions: Annotated[SessionService, Depends(get_session_service)],
-    google: Annotated[GoogleClient, Depends(get_google_client)],
-    settings: AppSettings,
-) -> GoogleAuthService:
-    # Through the web app's origin (its /v1 proxy), so the session cookie lands where the app reads it.
-    redirect_uri = f"{settings.public_url.rstrip('/')}{PREFIX}/callback"
-    return GoogleAuthService(uow, sessions, google, settings.session_secret.get_secret_value(), redirect_uri)
 
 
 Service = Annotated[GoogleAuthService, Depends(get_google_auth_service)]

@@ -30,9 +30,7 @@ def test_every_template_renders_with_no_missing_value(template: MailTemplate, la
 
 
 async def test_sends_one_message_with_to_from_and_subject() -> None:
-    settings = Settings(
-        session_secret=SecretStr("s"), smtp_host="mail.test", mail_from="Acervo <acervo@test>"
-    )
+    settings = Settings(session_secret=SecretStr("s"), smtp_host="mail.test", mail_from="Acervo <acervo@test>")
 
     with patch("smtplib.SMTP") as smtp:
         await SmtpMailer(settings, lambda: NOW).send("ana@test.com", MailTemplate.VERIFY_CODE, "en", VALUES)

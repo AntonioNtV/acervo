@@ -5,28 +5,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import CurrentAccount, current_account, get_mailer, get_settings, get_storage, get_uow
-from acervo.core.settings import Settings
-from acervo.repositories.uow import UnitOfWork
+from acervo.api.deps import CurrentAccount, current_account, get_account_service
 from acervo.schemas.account import AccountRead, CodeIn, EmailChange, Preferences, ProfileUpdate
 from acervo.schemas.common import ErrorResponse
 from acervo.services.account_service import AccountService
-from acervo.services.mailer import Mailer
-from acervo.services.storage import Storage
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
 # `/v1`, not `/v1/account`: the photo of any account is served at `/v1/accounts/{id}/photo`.
 router = APIRouter(prefix="/v1", tags=["account"], responses={401: ERROR, 422: ERROR})
-
-
-def get_account_service(
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-    storage: Annotated[Storage, Depends(get_storage)],
-    mailer: Annotated[Mailer, Depends(get_mailer)],
-    settings: Annotated[Settings, Depends(get_settings)],
-) -> AccountService:
-    return AccountService(uow, storage, mailer, settings.photo_max_bytes)
 
 
 Service = Annotated[AccountService, Depends(get_account_service)]

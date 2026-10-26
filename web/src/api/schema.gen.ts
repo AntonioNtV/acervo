@@ -4,6 +4,342 @@
  */
 
 export interface paths {
+    "/v1/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Account */
+        get: operations["get_account_v1_account_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename Account */
+        patch: operations["rename_account_v1_account_patch"];
+        trace?: never;
+    };
+    "/v1/account/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Email Change
+         * @description Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`.
+         */
+        post: operations["request_email_change_v1_account_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/email/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Email Change
+         * @description The code sent to the new address changes the email; the old address is told.
+         */
+        post: operations["confirm_email_change_v1_account_email_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Photo
+         * @description A PNG, JPEG or WebP of at most 2 MB; its centered square, 256 px, becomes the photo.
+         */
+        put: operations["set_photo_v1_account_photo_put"];
+        post?: never;
+        /**
+         * Remove Photo
+         * @description Back to the initials.
+         */
+        delete: operations["remove_photo_v1_account_photo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Preferences
+         * @description Replaces every preference at once.
+         */
+        put: operations["set_preferences_v1_account_preferences_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/accounts/{account_id}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Account Photo
+         * @description Any account's photo, for any signed-in person.
+         */
+        get: operations["account_photo_v1_accounts__account_id__photo_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Google Callback
+         * @description Where Google returns. Signs in or up and opens `next`; opens `/entrar/vincular?token=` when the account with
+         *     that email must confirm its password first; any failure opens `/entrar?erro=google`.
+         */
+        get: operations["google_callback_v1_auth_google_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/google/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Google Link
+         * @description Links Google to the account of `token` (10 minutes) after its password, and signs in.
+         *
+         *     A wrong password is 401 `invalid_credentials`; an expired or already linked token is 422 `code_invalid`.
+         */
+        post: operations["google_link_v1_auth_google_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Google Start
+         * @description Sends the browser to Google; after it, the web app opens `next` when it is a path of its own, else `/`.
+         */
+        get: operations["google_start_v1_auth_google_start_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_v1_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/resend-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Code
+         * @description A new code, the old one no longer valid; 204 also when the email has no account.
+         */
+        post: operations["resend_code_v1_auth_resend_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Reset
+         * @description A single-use link valid for an hour goes to the email; 204 also when the email has no account.
+         */
+        post: operations["request_reset_v1_auth_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/reset/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Reset
+         * @description Sets the password, ends every session of the account and signs in.
+         */
+        post: operations["confirm_reset_v1_auth_reset_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign In */
+        post: operations["sign_in_v1_auth_sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sign-out": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sign Out */
+        post: operations["sign_out_v1_auth_sign_out_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sign-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign Up
+         * @description An unconfirmed account; a 6-digit code goes to the email.
+         */
+        post: operations["sign_up_v1_auth_sign_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/verify-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify Email
+         * @description Confirms the email with its code and signs in.
+         */
+        post: operations["verify_email_v1_auth_verify_email_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/favorites": {
         parameters: {
             query?: never;
@@ -35,7 +371,7 @@ export interface paths {
         put?: never;
         /**
          * File Link
-         * @description A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds.
+         * @description A link to the file's bytes, or to one older content of it, that opens without the cookie for 60 seconds.
          */
         post: operations["file_link_v1_files__node_id__link_post"];
         delete?: never;
@@ -55,7 +391,7 @@ export interface paths {
          * Raw File
          * @description The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.
          *
-         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.
+         *     Takes the session cookie or a link from `POST /v1/files/{node_id}/link`.
          */
         get: operations["raw_file_v1_files__node_id__raw_get"];
         put?: never;
@@ -375,7 +711,7 @@ export interface paths {
         put?: never;
         /**
          * Cover Link
-         * @description A link to the node's uploaded cover image that opens without the key for 60 seconds.
+         * @description A link to the node's uploaded cover image that opens without the cookie for 60 seconds.
          */
         post: operations["cover_link_v1_nodes__node_id__cover_link_post"];
         delete?: never;
@@ -395,7 +731,7 @@ export interface paths {
          * Raw Cover
          * @description The node's uploaded cover image.
          *
-         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/cover/link`.
+         *     Takes the session cookie or a link from `POST /v1/nodes/{node_id}/cover/link`.
          */
         get: operations["raw_cover_v1_nodes__node_id__cover_raw_get"];
         put?: never;
@@ -437,7 +773,7 @@ export interface paths {
          * Export Node
          * @description A page or folder and everything live under it as a zip: pages as their Markdown text, files as stored.
          *
-         *     Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/nodes/{node_id}/export/link`.
+         *     Takes the session cookie or a link from `POST /v1/nodes/{node_id}/export/link`.
          *     A storage error breaks the download off instead of ending it as a shorter zip.
          */
         get: operations["export_node_v1_nodes__node_id__export_get"];
@@ -460,7 +796,7 @@ export interface paths {
         put?: never;
         /**
          * Export Link
-         * @description A link to the zip of a page or folder that opens without the key for 60 seconds.
+         * @description A link to the zip of a page or folder that opens without the cookie for 60 seconds.
          */
         post: operations["export_link_v1_nodes__node_id__export_link_post"];
         delete?: never;
@@ -589,7 +925,7 @@ export interface paths {
         put?: never;
         /**
          * Attachment Link
-         * @description A link to the attachment's bytes that opens without the key for 60 seconds.
+         * @description A link to the attachment's bytes that opens without the cookie for 60 seconds.
          */
         post: operations["attachment_link_v1_pages__node_id__attachments__name__link_post"];
         delete?: never;
@@ -609,8 +945,7 @@ export interface paths {
          * Raw Attachment
          * @description The attachment byte for byte; one `Range` of bytes is honored.
          *
-         *     Takes the X-API-Key header or the `expires` and `signature` of a link from
-         *     `POST /v1/pages/{node_id}/attachments/{name}/link`.
+         *     Takes the session cookie or a link from `POST /v1/pages/{node_id}/attachments/{name}/link`.
          */
         get: operations["raw_attachment_v1_pages__node_id__attachments__name__raw_get"];
         put?: never;
@@ -741,6 +1076,49 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AccountRead
+         * @description The signed-in person as the web app sees them.
+         */
+        AccountRead: {
+            /**
+             * Email
+             * @description As typed.
+             */
+            email: string;
+            /**
+             * Email Verified
+             * @description Whether the email was confirmed.
+             */
+            email_verified: boolean;
+            /**
+             * Has Google
+             * @description Whether Google is linked.
+             */
+            has_google: boolean;
+            /**
+             * Has Password
+             * @description False for an account that only signs in with Google.
+             */
+            has_password: boolean;
+            /**
+             * Id
+             * Format: uuid
+             * @description Account ID.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Shown name.
+             */
+            name: string;
+            /**
+             * Photo Url
+             * @description The photo, a 256 px square; null shows the initials.
+             */
+            photo_url: string | null;
+            preferences: components["schemas"]["Preferences"];
+        };
+        /**
          * Attachment
          * @description A file put in a page, which its Markdown reaches as `arquivos/<name>`.
          */
@@ -766,6 +1144,11 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Body_set_photo_v1_account_photo_put */
+        Body_set_photo_v1_account_photo_put: {
+            /** File */
+            file: string;
+        };
         /** Body_upload_attachment_v1_pages__node_id__attachments_post */
         Body_upload_attachment_v1_pages__node_id__attachments_post: {
             /** File */
@@ -786,6 +1169,14 @@ export interface components {
              */
             parent_id?: string | null;
         };
+        /** CodeIn */
+        CodeIn: {
+            /**
+             * Code
+             * @description The 6 digits sent by email.
+             */
+            code: string;
+        };
         /**
          * DiffLine
          * @description One line of a difference between two texts, in reading order.
@@ -802,6 +1193,30 @@ export interface components {
              * @description The line, without its line break.
              */
             text: string;
+        };
+        /** EmailChange */
+        EmailChange: {
+            /**
+             * New Email
+             * Format: email
+             */
+            new_email: string;
+        };
+        /**
+         * EmailCodeIn
+         * @description A code that confirms the email of an account not yet signed in.
+         */
+        EmailCodeIn: {
+            /**
+             * Code
+             * @description The 6 digits sent by email.
+             */
+            code: string;
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
         };
         /**
          * ErrorResponse
@@ -839,7 +1254,7 @@ export interface components {
         };
         /**
          * FileLink
-         * @description A short-lived URL of a file's bytes that needs no X-API-Key header.
+         * @description A short-lived URL of a file's bytes that opens without the session cookie.
          */
         FileLink: {
             /**
@@ -1020,6 +1435,27 @@ export interface components {
              * @description In bytes.
              */
             size: number;
+        };
+        /**
+         * GoogleLinkIn
+         * @description The password that links Google to an account whose email was not yet confirmed.
+         */
+        GoogleLinkIn: {
+            /**
+             * Password
+             * @description The account's password.
+             */
+            password: string;
+            /**
+             * Token
+             * @description From the `/entrar/vincular` link the callback redirected to.
+             */
+            token: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
         };
         /**
          * HealthResponse
@@ -1664,6 +2100,66 @@ export interface components {
             id: string;
         };
         /**
+         * Preferences
+         * @description How the app looks and opens for the account, on every device.
+         */
+        Preferences: {
+            /**
+             * Language
+             * @description Language of the app and of the emails.
+             * @default pt-BR
+             * @enum {string}
+             */
+            language: "pt-BR" | "en";
+            /**
+             * Page Width
+             * @description default (720 px) or wide (1040 px).
+             * @default default
+             * @enum {string}
+             */
+            page_width: "default" | "wide";
+            /**
+             * Start Page
+             * @description What opens on start: the last page opened, or Bases.
+             * @default last
+             * @enum {string}
+             */
+            start_page: "last" | "bases";
+            /**
+             * Theme
+             * @description light, dark, or system to follow the device.
+             * @default system
+             * @enum {string}
+             */
+            theme: "light" | "dark" | "system";
+        };
+        /** ProfileUpdate */
+        ProfileUpdate: {
+            /**
+             * Name
+             * @description New shown name.
+             */
+            name: string;
+        };
+        /** ResetConfirm */
+        ResetConfirm: {
+            /** Password */
+            password: string;
+            /**
+             * Token
+             * @description From the link sent by email.
+             */
+            token: string;
+        };
+        /** ResetRequest */
+        ResetRequest: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+        };
+        /**
          * RestoredNode
          * @description A node back from the trash.
          */
@@ -1764,6 +2260,31 @@ export interface components {
              * @description The heading's text.
              */
             heading: string;
+        };
+        /** SignIn */
+        SignIn: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /** Password */
+            password: string;
+        };
+        /** SignUp */
+        SignUp: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Name
+             * @description Shown name.
+             */
+            name: string;
+            /** Password */
+            password: string;
         };
         /**
          * TreeNode
@@ -1866,6 +2387,19 @@ export interface components {
              */
             updated_at: string;
         };
+        /** ValidationError */
+        ValidationError: {
+            /** Context */
+            ctx?: Record<string, never>;
+            /** Input */
+            input?: unknown;
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -1875,14 +2409,798 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    list_favorites_v1_favorites_get: {
+    get_account_v1_account_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rename_account_v1_account_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    request_email_change_v1_account_email_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    confirm_email_change_v1_account_email_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_photo_v1_account_photo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_set_photo_v1_account_photo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_photo_v1_account_photo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_preferences_v1_account_preferences_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Preferences"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    account_photo_v1_accounts__account_id__photo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The photo, a 256 px square. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    google_callback_v1_auth_google_callback_get: {
+        parameters: {
+            query?: {
+                code?: string | null;
+                state?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_google?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    google_link_v1_auth_google_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GoogleLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    google_start_v1_auth_google_start_get: {
+        parameters: {
+            query?: {
+                next?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_v1_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resend_code_v1_auth_resend_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    request_reset_v1_auth_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    confirm_reset_v1_auth_reset_confirm_post: {
         parameters: {
             query?: never;
             header?: {
-                "x-api-key"?: string | null;
+                "user-agent"?: string | null;
             };
             path?: never;
             cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sign_in_v1_auth_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sign_out_v1_auth_sign_out_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sign_up_v1_auth_sign_up_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignUp"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    verify_email_v1_auth_verify_email_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_favorites_v1_favorites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1920,13 +3238,13 @@ export interface operations {
             query?: {
                 version_id?: string | null;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -1972,17 +3290,19 @@ export interface operations {
         parameters: {
             query?: {
                 version_id?: string | null;
+                session?: string | null;
                 expires?: number | null;
                 signature?: string | null;
             };
             header?: {
                 range?: string | null;
-                "x-api-key"?: string | null;
             };
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2043,13 +3363,13 @@ export interface operations {
     list_file_versions_v1_files__node_id__versions_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2094,14 +3414,14 @@ export interface operations {
     restore_file_version_v1_files__node_id__versions__version_id__restore_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
                 version_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2177,11 +3497,11 @@ export interface operations {
             query?: {
                 q?: string;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2217,11 +3537,11 @@ export interface operations {
     create_kb_v1_kbs_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2261,11 +3581,11 @@ export interface operations {
     list_trashed_kbs_v1_kbs_trash_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2301,13 +3621,13 @@ export interface operations {
     trash_kb_v1_kbs__kb_id__delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2352,13 +3672,13 @@ export interface operations {
     update_kb_v1_kbs__kb_id__patch: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2409,13 +3729,13 @@ export interface operations {
             query?: {
                 parent_id?: string | null;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2460,13 +3780,13 @@ export interface operations {
     upload_file_v1_kbs__kb_id__files_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2524,13 +3844,13 @@ export interface operations {
     create_node_v1_kbs__kb_id__nodes_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2588,13 +3908,13 @@ export interface operations {
     restore_kb_v1_kbs__kb_id__restore_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2641,13 +3961,13 @@ export interface operations {
             query: {
                 q: string;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2683,13 +4003,13 @@ export interface operations {
     list_trash_v1_kbs__kb_id__trash_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 kb_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2727,11 +4047,11 @@ export interface operations {
             query: {
                 url: string;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path?: never;
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2767,13 +4087,13 @@ export interface operations {
     get_node_v1_nodes__node_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2818,13 +4138,13 @@ export interface operations {
     trash_node_v1_nodes__node_id__delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -2869,13 +4189,13 @@ export interface operations {
     edit_node_v1_nodes__node_id__patch: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2933,13 +4253,13 @@ export interface operations {
     upload_cover_v1_nodes__node_id__cover_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -2988,13 +4308,13 @@ export interface operations {
     cover_link_v1_nodes__node_id__cover_link_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3039,16 +4359,17 @@ export interface operations {
     raw_cover_v1_nodes__node_id__cover_raw_get: {
         parameters: {
             query?: {
+                session?: string | null;
                 expires?: number | null;
                 signature?: string | null;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3093,13 +4414,13 @@ export interface operations {
     duplicate_node_v1_nodes__node_id__duplicate_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3144,16 +4465,17 @@ export interface operations {
     export_node_v1_nodes__node_id__export_get: {
         parameters: {
             query?: {
+                session?: string | null;
                 expires?: number | null;
                 signature?: string | null;
             };
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3198,13 +4520,13 @@ export interface operations {
     export_link_v1_nodes__node_id__export_link_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3249,13 +4571,13 @@ export interface operations {
     place_favorite_v1_nodes__node_id__favorite_put: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -3304,13 +4626,13 @@ export interface operations {
     remove_favorite_v1_nodes__node_id__favorite_delete: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3355,13 +4677,13 @@ export interface operations {
     replace_file_v1_nodes__node_id__file_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -3419,13 +4741,13 @@ export interface operations {
     move_node_v1_nodes__node_id__move_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -3483,13 +4805,13 @@ export interface operations {
     restore_node_v1_nodes__node_id__restore_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3543,13 +4865,13 @@ export interface operations {
     get_page_v1_pages__node_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3594,13 +4916,13 @@ export interface operations {
     upload_attachment_v1_pages__node_id__attachments_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -3649,14 +4971,14 @@ export interface operations {
     attachment_link_v1_pages__node_id__attachments__name__link_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3701,18 +5023,20 @@ export interface operations {
     raw_attachment_v1_pages__node_id__attachments__name__raw_get: {
         parameters: {
             query?: {
+                session?: string | null;
                 expires?: number | null;
                 signature?: string | null;
             };
             header?: {
                 range?: string | null;
-                "x-api-key"?: string | null;
             };
             path: {
                 node_id: string;
                 name: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3773,13 +5097,13 @@ export interface operations {
     leave_page_v1_pages__node_id__leave_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3822,13 +5146,13 @@ export interface operations {
     list_page_mentions_v1_pages__node_id__mentions_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3873,13 +5197,13 @@ export interface operations {
     put_page_text_v1_pages__node_id__text_put: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody: {
             content: {
@@ -3937,13 +5261,13 @@ export interface operations {
     list_page_versions_v1_pages__node_id__versions_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -3988,14 +5312,14 @@ export interface operations {
     page_version_diff_v1_pages__node_id__versions__version_id__diff_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
                 version_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {
@@ -4040,14 +5364,14 @@ export interface operations {
     restore_page_version_v1_pages__node_id__versions__version_id__restore_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-api-key"?: string | null;
-            };
+            header?: never;
             path: {
                 node_id: string;
                 version_id: string;
             };
-            cookie?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
         };
         requestBody?: never;
         responses: {

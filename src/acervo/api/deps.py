@@ -12,6 +12,7 @@ from acervo.core.errors import AuthError
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
+from acervo.services.account_service import AccountService
 from acervo.services.attachment_service import AttachmentService
 from acervo.services.auth_service import AuthService
 from acervo.services.base_service import BaseService
@@ -20,6 +21,8 @@ from acervo.services.duplicate_service import DuplicateService
 from acervo.services.export_service import ExportService
 from acervo.services.favorite_service import FavoriteService
 from acervo.services.file_service import FileService
+from acervo.services.google_auth_service import GoogleAuthService
+from acervo.services.google_client import GoogleClient
 from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.mailer import Mailer
 from acervo.services.page_service import PageService
@@ -112,6 +115,31 @@ def get_auth_service(
     mailer: Annotated[Mailer, Depends(get_mailer)],
 ) -> AuthService:
     return AuthService(uow, sessions, mailer)
+
+
+def get_account_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    storage: Annotated[Storage, Depends(get_storage)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> AccountService:
+    return AccountService(uow, storage, mailer, settings.photo_max_bytes)
+
+
+def get_google_client(settings: Annotated[Settings, Depends(get_settings)]) -> GoogleClient:
+    secret = settings.google_client_secret
+    return GoogleClient(settings.google_client_id or "", secret.get_secret_value() if secret else "")
+
+
+def get_google_auth_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    sessions: Annotated[SessionService, Depends(get_session_service)],
+    google: Annotated[GoogleClient, Depends(get_google_client)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> GoogleAuthService:
+    # Through the web app's origin (its /v1 proxy), so the session cookie lands where the app reads it.
+    redirect_uri = f"{settings.public_url.rstrip('/')}/v1/auth/google/callback"
+    return GoogleAuthService(uow, sessions, google, settings.session_secret.get_secret_value(), redirect_uri)
 
 
 async def current_account(

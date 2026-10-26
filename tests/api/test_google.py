@@ -5,7 +5,8 @@ import pytest
 from fastapi import FastAPI
 
 from acervo.api.cookies import SESSION_COOKIE
-from acervo.api.routers.google import STATE_COOKIE, get_google_client
+from acervo.api.deps import get_google_client
+from acervo.api.routers.google import STATE_COOKIE
 from acervo.services.google_client import GoogleClient, GoogleIdentity
 
 
