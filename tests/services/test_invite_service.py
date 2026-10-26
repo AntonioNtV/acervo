@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.core.errors import CodeInvalid, InviteMismatch
 from acervo.repositories.uow import UnitOfWork
@@ -171,6 +171,7 @@ async def test_a_member_of_the_organization_is_added_to_the_base_at_once(
     make_tree: MakeTree,
     fake_mailer: FakeMailer,
 ) -> None:
+    entered.act_as(ana.id)
     julia = await make_account(email="julia@example.com", name="Julia")
     await entered.memberships.create(MembershipCreate(organization_id=team.id, account_id=julia.id, role="member"))
     tree = await make_tree({}, organization=team.id)
@@ -195,10 +196,59 @@ async def test_a_guest_of_a_team_base_gets_only_the_base_role(
 ) -> None:
     carla = await make_account(email="carla@example.com", name="Carla")
     tree = await make_tree({}, organization=team.id)
+    entered.act_as(ana.id)
     await invites.invite_to_base(ana.id, tree.kb.id, InviteCreate(emails=[carla.email], role="reader"))
 
+    entered.act_as(carla.id)
     await invites.accept(carla.id, last_link(fake_mailer))
 
     access = AccessService(entered)
     assert (await access.base_role(carla.id, tree.kb.id), await access.org_role(carla.id, team.id)) == ("reader", None)
     assert fake_mailer.sent[-1].values["link"] == f"/kbs/{tree.kb.id}"
+
+
+async def test_signing_up_with_an_email_invited_to_a_base_joins_the_base(
+    invites: InviteService,
+    entered: UnitOfWork,
+    session_factory: async_sessionmaker[AsyncSession],
+    ana: AccountRead,
+    team: OrganizationRecord,
+    make_tree: MakeTree,
+    fake_mailer: FakeMailer,
+    clock: Clock,
+) -> None:
+    tree = await make_tree({}, organization=team.id)
+    entered.act_as(ana.id)
+    await invites.invite_to_base(ana.id, tree.kb.id, InviteCreate(emails=["julia@example.com"], role="reader"))
+
+    # Signing up happens before any session, so its unit of work acts for no one.
+    async with UnitOfWork(session_factory) as signing_up:
+        auth = AuthService(signing_up, SessionService(signing_up, 30, clock), fake_mailer, clock)
+        await auth.sign_up(SignUp(name="Julia Lima", email="julia@example.com", password="senha-de-teste"))
+        code = fake_mailer.sent[-1].values["code"]
+        julia, _ = await auth.verify_email(EmailCodeIn(email="julia@example.com", code=code), None)
+
+    assert await AccessService(entered).base_role(julia.id, tree.kb.id) == "reader"
+    assert (fake_mailer.sent[-1].to, fake_mailer.sent[-1].values["organization"]) == (ana.email, tree.kb.name)
+
+
+async def test_the_link_of_a_base_invite_shows_the_base_before_signing_in(
+    invites: InviteService,
+    entered: UnitOfWork,
+    session_factory: async_sessionmaker[AsyncSession],
+    ana: AccountRead,
+    team: OrganizationRecord,
+    make_tree: MakeTree,
+    fake_mailer: FakeMailer,
+    clock: Clock,
+) -> None:
+    tree = await make_tree({}, organization=team.id, name="Sinistros")
+    entered.act_as(ana.id)
+    await invites.invite_to_base(ana.id, tree.kb.id, InviteCreate(emails=["julia@example.com"], role="reader"))
+
+    async with UnitOfWork(session_factory) as anonymous:
+        preview = await InviteService(anonymous, fake_mailer, AccessService(anonymous), clock).preview(
+            last_link(fake_mailer)
+        )
+
+    assert (preview.organization, preview.base) == (team.name, "Sinistros")

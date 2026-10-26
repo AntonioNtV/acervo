@@ -26,6 +26,12 @@ class InviteRepository(BaseRepository[Invite, InviteRecord, InviteRecordCreate, 
             query = query.where(func.lower(Invite.email) == email.lower())
         return [self._to_read(invite) for invite in await self._session.scalars(query.order_by(Invite.created_at))]
 
+    async def base_name(self, token_hash: str) -> str | None:
+        """The name of the base the invite of this token is for, even to an account row-level security hides it
+        from."""
+        name: str | None = await self._session.scalar(select(func.acervo.invited_base_name(token_hash)))
+        return name
+
     async def by_token(self, token_hash: str) -> InviteRecord | None:
         """The invite of this token, its row locked so two requests with the same link cannot both accept it."""
         invite = await self._session.scalar(self._select().where(Invite.token_hash == token_hash).with_for_update())

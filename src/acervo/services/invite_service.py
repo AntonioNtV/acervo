@@ -174,6 +174,8 @@ class InviteService:
 
     async def claim(self, account_id: UUID) -> None:
         """Accepts every live invite of the account's email, once the email was just confirmed."""
+        # Signing in has no session yet: the bases joined are read back as the account that joined them.
+        self._uow.act_as(account_id)
         account = await self._uow.accounts.get(account_id)
         invites = await self._uow.invites.claimable(account.email, self._now())
         for invite in invites:
@@ -284,7 +286,7 @@ class InviteService:
 
     async def _preview(self, invite: InviteRecord) -> InvitePreview:
         organization = await self._uow.organizations.get(invite.organization_id)
-        base = None if invite.kb_id is None else (await self._uow.kbs.get(invite.kb_id)).name
+        base = None if invite.kb_id is None else await self._uow.invites.base_name(invite.token_hash)
         return InvitePreview(
             organization_id=organization.id,
             kb_id=invite.kb_id,
