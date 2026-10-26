@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 from acervo.core.errors import Duplicate, SameFile, TitleTaken
 from acervo.core.settings import Settings
 from acervo.db.base import Base
-from acervo.db.models import File, Kb, Node
+from acervo.db.models import File, Kb, Node, Organization
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileContent, FileNodeRead
 from acervo.services.file_service import FileService
@@ -247,7 +247,10 @@ async def committed(test_settings: Settings) -> AsyncIterator[Committed]:
     engine = create_async_engine(test_settings.database_url, poolclass=NullPool)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as session:
-        kb = Kb(id=uuid.uuid4(), name="Uploads em paralelo")
+        organization = Organization(id=uuid.uuid4(), name="Seguros SA")
+        session.add(organization)
+        await session.flush()
+        kb = Kb(id=uuid.uuid4(), name="Uploads em paralelo", organization_id=organization.id)
         session.add(kb)
         await session.commit()
     yield Committed(sessions, kb.id)
@@ -256,6 +259,7 @@ async def committed(test_settings: Settings) -> AsyncIterator[Committed]:
         await session.execute(delete(File).where(File.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
+        await session.execute(delete(Organization).where(Organization.id == organization.id))
         await session.commit()
     await engine.dispose()
 

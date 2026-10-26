@@ -134,7 +134,7 @@ COPY: dict[MailTemplate, dict[Language, Copy]] = {
     MailTemplate.INVITE_ACCEPTED: {
         "pt-BR": {
             "subject": "{first} entrou na {organization}",
-            "pre": "Ela já acessa as bases da organização.",
+            "pre": "Já pode acessar as bases da organização.",
             "title": "{first} entrou na {organization}",
             "body": ["{member_email} aceitou seu convite e entrou como {role}."],
             "button": "Ver membros",

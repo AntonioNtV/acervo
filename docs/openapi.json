@@ -657,6 +657,19 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "organization_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Organization of the base; null for the Pessoal.",
+            "title": "Organization Id"
           }
         },
         "required": [
@@ -736,6 +749,16 @@
             "title": "Description",
             "type": "string"
           },
+          "general_access": {
+            "description": "What every member of the organization gets on the base.",
+            "enum": [
+              "none",
+              "reader",
+              "editor"
+            ],
+            "title": "General Access",
+            "type": "string"
+          },
           "icon": {
             "anyOf": [
               {
@@ -754,10 +777,45 @@
             "title": "Id",
             "type": "string"
           },
+          "my_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's role in the base.",
+            "title": "My Role"
+          },
           "name": {
             "description": "Name of the base.",
             "title": "Name",
             "type": "string"
+          },
+          "organization_id": {
+            "description": "Organization the base belongs to.",
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "shared_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a base the person reaches only as a guest: the owner's name for a Pessoal base, the organization's name for a team's; null otherwise.",
+            "title": "Shared By"
           },
           "updated_at": {
             "description": "When the base last changed.",
@@ -773,7 +831,9 @@
           "icon",
           "deleted_at",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "organization_id",
+          "general_access"
         ],
         "title": "KbRead",
         "type": "object"
@@ -810,6 +870,16 @@
             "title": "Files",
             "type": "integer"
           },
+          "general_access": {
+            "description": "What every member of the organization gets on the base.",
+            "enum": [
+              "none",
+              "reader",
+              "editor"
+            ],
+            "title": "General Access",
+            "type": "string"
+          },
           "icon": {
             "anyOf": [
               {
@@ -834,15 +904,50 @@
             "title": "Last Edit",
             "type": "string"
           },
+          "my_role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The person's role in the base.",
+            "title": "My Role"
+          },
           "name": {
             "description": "Name of the base.",
             "title": "Name",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "Organization the base belongs to.",
+            "format": "uuid",
+            "title": "Organization Id",
             "type": "string"
           },
           "pages": {
             "description": "Live pages in the base.",
             "title": "Pages",
             "type": "integer"
+          },
+          "shared_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For a base the person reaches only as a guest: the owner's name for a Pessoal base, the organization's name for a team's; null otherwise.",
+            "title": "Shared By"
           },
           "updated_at": {
             "description": "When the base last changed.",
@@ -859,6 +964,8 @@
           "deleted_at",
           "created_at",
           "updated_at",
+          "organization_id",
+          "general_access",
           "pages",
           "files",
           "last_edit"

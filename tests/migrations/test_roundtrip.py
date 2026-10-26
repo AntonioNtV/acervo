@@ -115,13 +115,14 @@ def _drafts(database_url: str) -> int:
 def at_head(migrations: Config, database_url: str) -> Iterator[None]:
     """Leaves the database at head and without the rows the test put in it, for the tests that follow."""
     yield
-    command.upgrade(migrations, "head")
+    # Before the upgrade: 0008 refuses bases that no account can own.
     pages = "select n.id from acervo.node n join acervo.kb k on k.id = n.kb_id where k.name = 'Migração'"
     for table in ("page_draft", "page_link", "page_version"):
         column = "from_node_id" if table == "page_link" else "node_id"
         _sql(database_url, f"delete from acervo.{table} where {column} in ({pages})")
     _sql(database_url, f"delete from acervo.node where id in ({pages})")
     _sql(database_url, "delete from acervo.kb where name = 'Migração'")
+    command.upgrade(migrations, "head")
 
 
 @pytest.mark.usefixtures("at_head")

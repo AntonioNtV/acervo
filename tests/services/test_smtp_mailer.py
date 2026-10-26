@@ -11,7 +11,22 @@ from acervo.services.mailer import MailTemplate
 from acervo.services.smtp_mailer import SAO_PAULO, SmtpMailer
 
 NOW = datetime(2026, 10, 26, 14, 2, tzinfo=SAO_PAULO)
-VALUES = {"code": "482913", "link": "tok3n", "name": "Antonio Bertino", "new_email": "antonio.b@segura.com.br"}
+VALUES = {
+    "code": "482913",
+    "link": "tok3n",
+    "name": "Antonio Bertino",
+    "new_email": "antonio.b@segura.com.br",
+    "inviter": "Marina Costa",
+    "actor": "Antonio Bertino",
+    "organization": "Seguros SA",
+    "base": "Sinistros",
+    "member_email": "julia@corretora.com",
+    # A role of the organization and of a base, so one set of values fills every template.
+    "role": "admin",
+    "old_role": "member",
+    "bases": "Seguros · Operação\nSinistros\nJurídico",
+    "expires_at": "2026-11-02T14:02:00-03:00",
+}
 
 
 @pytest.mark.parametrize("language", ["pt-BR", "en"])
