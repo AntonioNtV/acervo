@@ -13,7 +13,7 @@ from acervo.schemas.organization import (
     GeneralAccess,
     OrganizationRecord,
 )
-from acervo.services.access_service import BASE_RANK, AccessService
+from acervo.services.access_service import AccessService, role_in_base
 
 
 def _name(name: str) -> str:
@@ -68,9 +68,16 @@ class BaseService:
                 kb = await self._uow.kbs.get(kb_id)
                 if await self._access.org_role(me, kb.organization_id) is None:
                     shared_by[kb_id] = await self._shared_by(kb.organization_id)
+        added = {row.kb_id: row.role for row in await self._uow.base_members.of_account(me)}
+        org_role = await self._access.org_role(me, organization.id)
         return [
             kb.model_copy(
-                update={"my_role": await self._access.base_role(me, kb.id), "shared_by": shared_by.get(kb.id)}
+                update={
+                    "my_role": role_in_base(
+                        added.get(kb.id), None if kb.id in shared_by else org_role, kb.general_access
+                    ),
+                    "shared_by": shared_by.get(kb.id),
+                }
             )
             for kb in await self._uow.kbs.summaries(ids | shared_by.keys(), name)
         ]
@@ -121,15 +128,16 @@ class BaseService:
         return kb.model_copy(update={"my_role": role})
 
     async def trashed(self, organization_id: UUID | None = None) -> builtins.list[KbRead]:
-        """The organization's bases in the trash where the account is Editor or more."""
+        """The organization's bases in the trash where the account is Admin, the one who restores them."""
         me = self._me()
         organization = await self._organization(organization_id)
-        trashed = []
-        for kb in await self._uow.kbs.trashed(await self._access.visible_kb_ids(me, organization.id)):
-            role = await self._access.base_role(me, kb.id)
-            if role is not None and BASE_RANK[role] >= BASE_RANK["editor"]:
-                trashed.append(kb.model_copy(update={"my_role": role}))
-        return trashed
+        added = {row.kb_id: row.role for row in await self._uow.base_members.of_account(me)}
+        org_role = await self._access.org_role(me, organization.id)
+        return [
+            kb.model_copy(update={"my_role": "admin"})
+            for kb in await self._uow.kbs.trashed(await self._access.visible_kb_ids(me, organization.id))
+            if role_in_base(added.get(kb.id), org_role, kb.general_access) == "admin"
+        ]
 
     async def restore(self, kb_id: UUID) -> KbRead:
         _, role = await self._require_admin(kb_id, trashed=True)

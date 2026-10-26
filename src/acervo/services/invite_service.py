@@ -41,11 +41,6 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _mask(email: str) -> str:
-    """ "julia@…": enough for the person to recognize the address, not enough to learn it from the link."""
-    return f"{email.partition('@')[0]}@…"
-
-
 class InvitePreview(BaseModel):
     """An invite as the Convite screen shows it, before anyone signs in."""
 
@@ -169,7 +164,7 @@ class InviteService:
         ):
             raise CodeInvalid("wrong, expired, revoked or used invite")
         if invite.email.lower() != account.email.lower():
-            raise InviteMismatch("the invite is for another email", {"email": _mask(invite.email)})
+            raise InviteMismatch("the invite is for another email", {"email": invite.email})
         await self._join(invite, account_id)
         await self._uow.commit()
         await self._send_accepted(invite, account)

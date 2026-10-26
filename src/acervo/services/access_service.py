@@ -2,10 +2,21 @@ from uuid import UUID
 
 from acervo.core.errors import ForbiddenError
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.organization import BaseRole, OrgRole
+from acervo.schemas.organization import BaseRole, GeneralAccess, OrgRole
 
 ORG_RANK: dict[OrgRole, int] = {"member": 1, "admin": 2, "owner": 3}
 BASE_RANK: dict[BaseRole, int] = {"reader": 1, "editor": 2, "admin": 3}
+
+
+def role_in_base(added: BaseRole | None, org_role: OrgRole | None, general_access: GeneralAccess) -> BaseRole | None:
+    """The highest of the base role, the general access for a member of the organization, and Admin for its
+    Owners and Admins. A guest (added to the base, outside the organization) has only the base role."""
+    roles: list[BaseRole] = [] if added is None else [added]
+    if org_role in ("owner", "admin"):
+        roles.append("admin")
+    elif org_role is not None and general_access != "none":
+        roles.append(general_access)
+    return max(roles, key=BASE_RANK.__getitem__, default=None)
 
 
 class AccessService:
@@ -19,19 +30,11 @@ class AccessService:
         return None if membership is None else membership.role
 
     async def base_role(self, account_id: UUID, kb_id: UUID) -> BaseRole | None:
-        """The highest of the base role, the general access for a member of the organization, and Admin for its
-        Owners and Admins. A guest (added to the base, outside the organization) has only the base role."""
+        """The account's role in the base, by `role_in_base`."""
         kb = await self._uow.kbs.get(kb_id)
-        roles: list[BaseRole] = []
         added = await self._uow.base_members.get_by(kb_id=kb_id, account_id=account_id)
-        if added is not None:
-            roles.append(added.role)
         org_role = await self.org_role(account_id, kb.organization_id)
-        if org_role in ("owner", "admin"):
-            roles.append("admin")
-        elif org_role is not None and kb.general_access != "none":
-            roles.append(kb.general_access)
-        return max(roles, key=BASE_RANK.__getitem__, default=None)
+        return role_in_base(None if added is None else added.role, org_role, kb.general_access)
 
     async def require_org(self, account_id: UUID, organization_id: UUID, at_least: OrgRole) -> OrgRole:
         role = await self.org_role(account_id, organization_id)

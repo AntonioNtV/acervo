@@ -25,7 +25,7 @@ router = APIRouter(
 async def list_trashed_kbs(
     service: Annotated[BaseService, Depends(get_base_service)], organization_id: UUID | None = None
 ) -> list[KbRead]:
-    """Bases of the organization (the Pessoal when none) in the trash where the person is Editor or more, most
+    """Bases of the organization (the Pessoal when none) in the trash where the person is Admin, most
     recently trashed first."""
     return await service.trashed(organization_id)
 

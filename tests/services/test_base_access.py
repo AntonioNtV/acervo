@@ -124,6 +124,7 @@ async def test_only_a_base_admin_trashes_the_base(
     await as_("Ana").restore(kb.id)
     await as_("Ana").put_member(kb.id, people["Caio"], "editor")
     await as_("Ana").trash(kb.id)
-    assert [t.id for t in await as_("Caio").trashed(team.id)] == [kb.id]
+    # The Lixeira lists a base only to who can restore it.
+    assert (await as_("Caio").trashed(team.id), [t.id for t in await as_("Bia").trashed(team.id)]) == ([], [kb.id])
     with pytest.raises(ForbiddenError):
         await as_("Caio").restore(kb.id)
