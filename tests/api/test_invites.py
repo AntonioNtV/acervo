@@ -40,7 +40,7 @@ async def test_an_invited_person_joins_through_the_emailed_link(
     preview = (await anon_client.get(f"/v1/invites/by-token/{token}")).json()
     assert (preview["organization"], preview["email"], preview["role"], preview["expired"]) == (
         "Seguros SA",
-        "julia@…",
+        "julia@example.com",
         "member",
         False,
     )

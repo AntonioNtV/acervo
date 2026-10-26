@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator, Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from acervo.core.errors import CodeInvalid, InviteMismatch
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead, EmailCodeIn, SignUp
-from acervo.schemas.organization import InviteCreate, OrganizationRecord
+from acervo.schemas.organization import InviteCreate, MembershipCreate, OrganizationRecord
 from acervo.services.access_service import AccessService
 from acervo.services.auth_service import AuthService
 from acervo.services.invite_service import InviteService
@@ -16,6 +17,7 @@ from acervo.services.session_service import SessionService
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 MakeOrganization = Callable[..., Awaitable[OrganizationRecord]]
+MakeTree = Callable[..., Awaitable[Any]]
 
 
 class Clock:
@@ -157,3 +159,46 @@ async def test_inviting_an_email_again_resends_its_invite(
         await invites.accept(julia.id, old_token)
     await invites.accept(julia.id, last_link(fake_mailer))
     assert await is_member(entered, julia, team)
+
+
+async def test_a_member_of_the_organization_is_added_to_the_base_at_once(
+    invites: InviteService,
+    entered: UnitOfWork,
+    ana: AccountRead,
+    team: OrganizationRecord,
+    make_account: MakeAccount,
+    make_organization: MakeOrganization,
+    make_tree: MakeTree,
+    fake_mailer: FakeMailer,
+) -> None:
+    julia = await make_account(email="julia@example.com", name="Julia")
+    await entered.memberships.create(MembershipCreate(organization_id=team.id, account_id=julia.id, role="member"))
+    tree = await make_tree({}, organization=team.id)
+
+    issued = await invites.invite_to_base(ana.id, tree.kb.id, InviteCreate(emails=[julia.email], role="admin"))
+
+    assert issued == []
+    added = await entered.base_members.get_by(kb_id=tree.kb.id, account_id=julia.id)
+    assert added is not None
+    assert added.role == "admin"
+    assert (fake_mailer.sent[-1].to, fake_mailer.sent[-1].template) == (julia.email, MailTemplate.BASE_SHARED)
+
+
+async def test_a_guest_of_a_team_base_gets_only_the_base_role(
+    invites: InviteService,
+    entered: UnitOfWork,
+    ana: AccountRead,
+    team: OrganizationRecord,
+    make_account: MakeAccount,
+    make_tree: MakeTree,
+    fake_mailer: FakeMailer,
+) -> None:
+    carla = await make_account(email="carla@example.com", name="Carla")
+    tree = await make_tree({}, organization=team.id)
+    await invites.invite_to_base(ana.id, tree.kb.id, InviteCreate(emails=[carla.email], role="reader"))
+
+    await invites.accept(carla.id, last_link(fake_mailer))
+
+    access = AccessService(entered)
+    assert (await access.base_role(carla.id, tree.kb.id), await access.org_role(carla.id, team.id)) == ("reader", None)
+    assert fake_mailer.sent[-1].values["link"] == f"/kbs/{tree.kb.id}"

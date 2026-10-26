@@ -55,7 +55,7 @@ class InvitePreview(BaseModel):
     base: str | None = Field(description="Name of the base; null for an organization invite.")
     inviter: str = Field(description="Name of who invited.")
     role: OrgRole | BaseRole = Field(description="The role the invite gives.")
-    email: str = Field(description="Who the invite is for, masked: julia@….")
+    email: str = Field(description="Who the invite is for; the token was mailed to it, and Criar conta fills it in.")
     expired: bool = Field(description="Whether the link stopped working.")
 
 
@@ -292,7 +292,7 @@ class InviteService:
             base=base,
             inviter=(await self._uow.accounts.get(invite.invited_by)).name,
             role=invite.role,
-            email=_mask(invite.email),
+            email=invite.email,
             expired=invite.expires_at <= self._now(),
         )
 
