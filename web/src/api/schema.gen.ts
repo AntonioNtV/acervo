@@ -453,6 +453,83 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/invites/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Invite
+         * @description Joins with the invite's role; 422 `invite_email_mismatch` when signed in with another email.
+         */
+        post: operations["accept_invite_v1_invites_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invites/by-token/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Invite By Token
+         * @description What the Convite screen shows, without a session; 422 `code_invalid` for a revoked or used link.
+         */
+        get: operations["invite_by_token_v1_invites_by_token__token__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invites/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Invite */
+        delete: operations["revoke_invite_v1_invites__invite_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/invites/{invite_id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Invite
+         * @description A new 7-day link, the old one no longer valid; 429 within a minute of the last one.
+         */
+        post: operations["resend_invite_v1_invites__invite_id__resend_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kbs": {
         parameters: {
             query?: never;
@@ -462,7 +539,9 @@ export interface paths {
         };
         /**
          * List Kbs
-         * @description Live bases, most recently edited first; `q` filters by name, ignoring case and accents.
+         * @description Live bases of the organization (the Pessoal when none) the person can see, most recently edited first; the
+         *     Pessoal also lists the bases shared with the person as a guest, with `shared_by`. `q` filters by name, ignoring
+         *     case and accents.
          */
         get: operations["list_kbs_v1_kbs_get"];
         put?: never;
@@ -483,7 +562,8 @@ export interface paths {
         };
         /**
          * List Trashed Kbs
-         * @description Bases in the trash, most recently trashed first.
+         * @description Bases of the organization (the Pessoal when none) in the trash where the person is Editor or more, most
+         *     recently trashed first.
          */
         get: operations["list_trashed_kbs_v1_kbs_trash_get"];
         put?: never;
@@ -513,6 +593,30 @@ export interface paths {
         head?: never;
         /** Update Kb */
         patch: operations["update_kb_v1_kbs__kb_id__patch"];
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Access
+         * @description Who reaches the base: the general access and the people added to it.
+         */
+        get: operations["get_access_v1_kbs__kb_id__access_get"];
+        /**
+         * Set General Access
+         * @description Base Admin only; a Pessoal base has no general access (422).
+         */
+        put: operations["set_general_access_v1_kbs__kb_id__access_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/kbs/{kb_id}/children": {
@@ -547,6 +651,52 @@ export interface paths {
         /** Upload File */
         post: operations["upload_file_v1_kbs__kb_id__files_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Base Invites
+         * @description Invites to the base not yet accepted nor revoked, expired ones included.
+         */
+        get: operations["base_invites_v1_kbs__kb_id__invites_get"];
+        put?: never;
+        /**
+         * Invite To Base
+         * @description Adds members of the base's organization at once; anyone else gets an invite, which this answers.
+         */
+        post: operations["invite_to_base_v1_kbs__kb_id__invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kbs/{kb_id}/members/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Member
+         * @description Base Admin only: changes the role of someone added to the base, or adds a member of its organization; anyone
+         *     else is invited.
+         */
+        put: operations["put_member_v1_kbs__kb_id__members__account_id__put"];
+        post?: never;
+        /** Remove Member */
+        delete: operations["remove_member_v1_kbs__kb_id__members__account_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -618,7 +768,7 @@ export interface paths {
         };
         /**
          * List Trash
-         * @description One item per trashing, most recent first, with where it was; what was under it went with it.
+         * @description One item per trashing, most recent first, with where it was; what was under it went with it. Editor or more.
          */
         get: operations["list_trash_v1_kbs__kb_id__trash_get"];
         put?: never;
@@ -875,6 +1025,165 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Organizations
+         * @description The person's organizations: Pessoal first, then by name.
+         */
+        get: operations["list_organizations_v1_organizations_get"];
+        put?: never;
+        /**
+         * Create Organization
+         * @description The creator becomes its Owner.
+         */
+        post: operations["create_organization_v1_organizations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Organization */
+        get: operations["get_organization_v1_organizations__organization_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update Organization
+         * @description Owners and Admins; a Pessoal keeps its name.
+         */
+        patch: operations["update_organization_v1_organizations__organization_id__patch"];
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization Invites
+         * @description Invites not yet accepted nor revoked, expired ones included.
+         */
+        get: operations["organization_invites_v1_organizations__organization_id__invites_get"];
+        put?: never;
+        /**
+         * Invite To Organization
+         * @description Emails each address a 7-day link; 409 `already_member` names the emails already in the organization.
+         */
+        post: operations["invite_to_organization_v1_organizations__organization_id__invites_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Leave Organization
+         * @description Any member but the last Owner (409 `last_owner`); a Pessoal cannot be left (403).
+         */
+        post: operations["leave_organization_v1_organizations__organization_id__leave_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Organization Logo */
+        get: operations["organization_logo_v1_organizations__organization_id__logo_get"];
+        /**
+         * Set Logo
+         * @description A PNG, JPEG or WebP of at most 2 MB; its centered square, 256 px, becomes the logo.
+         */
+        put: operations["set_logo_v1_organizations__organization_id__logo_put"];
+        post?: never;
+        /**
+         * Remove Logo
+         * @description Back to the initials.
+         */
+        delete: operations["remove_logo_v1_organizations__organization_id__logo_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Members
+         * @description Owners and Admins; a Pessoal has none (403).
+         */
+        get: operations["list_members_v1_organizations__organization_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/members/{account_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Member
+         * @description Takes the member and their access to the organization's bases out; they are told by email.
+         */
+        delete: operations["remove_member_v1_organizations__organization_id__members__account_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Change Role
+         * @description Owners change any role, Admins those below Owner; the last Owner stays (409 `last_owner`). The member is
+         *     told by email.
+         */
+        patch: operations["change_role_v1_organizations__organization_id__members__account_id__patch"];
         trace?: never;
     };
     "/v1/pages/{node_id}": {
@@ -1139,8 +1448,42 @@ export interface components {
              */
             size: number;
         };
+        /**
+         * BaseAccess
+         * @description Who reaches a base: everyone in its organization, and the people added to it.
+         */
+        BaseAccess: {
+            /**
+             * General Access
+             * @description What every member of the organization gets; none for only the people added.
+             * @enum {string}
+             */
+            general_access: "none" | "reader" | "editor";
+            /**
+             * Members
+             * @description The people added to the base, with their base role.
+             */
+            members: components["schemas"]["MemberRead"][];
+        };
+        /**
+         * BaseMemberChange
+         * @description A new role for a person added to a base.
+         */
+        BaseMemberChange: {
+            /**
+             * Role
+             * @description The new role in the base.
+             * @enum {string}
+             */
+            role: "reader" | "editor" | "admin";
+        };
         /** Body_replace_file_v1_nodes__node_id__file_post */
         Body_replace_file_v1_nodes__node_id__file_post: {
+            /** File */
+            file: string;
+        };
+        /** Body_set_logo_v1_organizations__organization_id__logo_put */
+        Body_set_logo_v1_organizations__organization_id__logo_put: {
             /** File */
             file: string;
         };
@@ -1442,6 +1785,18 @@ export interface components {
             size: number;
         };
         /**
+         * GeneralAccessChange
+         * @description What every member of the base's organization gets on it.
+         */
+        GeneralAccessChange: {
+            /**
+             * General Access
+             * @description Leitor or Editor for everyone; none for only the people added.
+             * @enum {string}
+             */
+            general_access: "none" | "reader" | "editor";
+        };
+        /**
          * GoogleLinkIn
          * @description The password that links Google to an account whose email was not yet confirmed.
          */
@@ -1475,6 +1830,121 @@ export interface components {
              */
             status: "ok";
         };
+        /** InviteAccept */
+        InviteAccept: {
+            /**
+             * Token
+             * @description The token of the link /convite/{token}.
+             */
+            token: string;
+        };
+        /**
+         * InviteCreate
+         * @description Emails to invite, all with one role, to the organization or to one of its bases.
+         */
+        InviteCreate: {
+            /**
+             * Emails
+             * @description Who to invite.
+             */
+            emails: string[];
+            /**
+             * Kb Id
+             * @description The base to invite to; null for the organization.
+             */
+            kb_id?: string | null;
+            /**
+             * Role
+             * @description An organization role, or a base role when `kb_id` is given.
+             */
+            role: ("owner" | "admin" | "member") | ("reader" | "editor" | "admin");
+        };
+        /**
+         * InvitePreview
+         * @description An invite as the Convite screen shows it, before anyone signs in.
+         */
+        InvitePreview: {
+            /**
+             * Base
+             * @description Name of the base; null for an organization invite.
+             */
+            base: string | null;
+            /**
+             * Email
+             * @description Who the invite is for; the token was mailed to it, and Criar conta fills it in.
+             */
+            email: string;
+            /**
+             * Expired
+             * @description Whether the link stopped working.
+             */
+            expired: boolean;
+            /**
+             * Inviter
+             * @description Name of who invited.
+             */
+            inviter: string;
+            /**
+             * Kb Id
+             * @description The base invited to; null for the organization.
+             */
+            kb_id: string | null;
+            /**
+             * Organization
+             * @description Name of the organization.
+             */
+            organization: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             * @description The organization invited to, or the one of the base.
+             */
+            organization_id: string;
+            /**
+             * Role
+             * @description The role the invite gives.
+             */
+            role: ("owner" | "admin" | "member") | ("reader" | "editor" | "admin");
+        };
+        /**
+         * InviteRead
+         * @description A pending invite, as the members list shows it.
+         */
+        InviteRead: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the invite was sent.
+             */
+            created_at: string;
+            /**
+             * Email
+             * @description Who was invited.
+             */
+            email: string;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description When the link stops working.
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Invite ID.
+             */
+            id: string;
+            /**
+             * Kb Id
+             * @description The base invited to; null for the organization.
+             */
+            kb_id: string | null;
+            /**
+             * Role
+             * @description The role they get on accepting.
+             */
+            role: ("owner" | "admin" | "member") | ("reader" | "editor" | "admin");
+        };
         /**
          * KbCreate
          * @description A knowledge base to create.
@@ -1491,6 +1961,11 @@ export interface components {
              * @description Name of the base.
              */
             name: string;
+            /**
+             * Organization Id
+             * @description Organization of the base; null for the Pessoal.
+             */
+            organization_id?: string | null;
         };
         /**
          * KbEdit
@@ -1535,6 +2010,12 @@ export interface components {
              */
             description: string;
             /**
+             * General Access
+             * @description What every member of the organization gets on the base.
+             * @enum {string}
+             */
+            general_access: "none" | "reader" | "editor";
+            /**
              * Icon
              * @description An emoji shown before the name; null for none.
              */
@@ -1546,10 +2027,26 @@ export interface components {
              */
             id: string;
             /**
+             * My Role
+             * @description The person's role in the base.
+             */
+            my_role?: ("reader" | "editor" | "admin") | null;
+            /**
              * Name
              * @description Name of the base.
              */
             name: string;
+            /**
+             * Organization Id
+             * Format: uuid
+             * @description Organization the base belongs to.
+             */
+            organization_id: string;
+            /**
+             * Shared By
+             * @description For a base the person reaches only as a guest: the owner's name for a Pessoal base, the organization's name for a team's; null otherwise.
+             */
+            shared_by?: string | null;
             /**
              * Updated At
              * Format: date-time
@@ -1584,6 +2081,12 @@ export interface components {
              */
             files: number;
             /**
+             * General Access
+             * @description What every member of the organization gets on the base.
+             * @enum {string}
+             */
+            general_access: "none" | "reader" | "editor";
+            /**
              * Icon
              * @description An emoji shown before the name; null for none.
              */
@@ -1601,15 +2104,31 @@ export interface components {
              */
             last_edit: string;
             /**
+             * My Role
+             * @description The person's role in the base.
+             */
+            my_role?: ("reader" | "editor" | "admin") | null;
+            /**
              * Name
              * @description Name of the base.
              */
             name: string;
             /**
+             * Organization Id
+             * Format: uuid
+             * @description Organization the base belongs to.
+             */
+            organization_id: string;
+            /**
              * Pages
              * @description Live pages in the base.
              */
             pages: number;
+            /**
+             * Shared By
+             * @description For a base the person reaches only as a guest: the owner's name for a Pessoal base, the organization's name for a team's; null otherwise.
+             */
+            shared_by?: string | null;
             /**
              * Updated At
              * Format: date-time
@@ -1647,6 +2166,38 @@ export interface components {
              * @description The URL asked for.
              */
             url: string;
+        };
+        /**
+         * MemberRead
+         * @description A person with a role in an organization or in a base.
+         */
+        MemberRead: {
+            /**
+             * Account Id
+             * Format: uuid
+             * @description Account ID.
+             */
+            account_id: string;
+            /**
+             * Email
+             * @description As typed.
+             */
+            email: string;
+            /**
+             * Name
+             * @description Shown name.
+             */
+            name: string;
+            /**
+             * Photo Url
+             * @description The photo; null shows the initials.
+             */
+            photo_url: string | null;
+            /**
+             * Role
+             * @description Role in the organization, or in the base.
+             */
+            role: ("owner" | "admin" | "member") | ("reader" | "editor" | "admin");
         };
         /**
          * Mention
@@ -1993,6 +2544,72 @@ export interface components {
             updated_at: string;
         };
         /**
+         * OrganizationCreate
+         * @description An organization to create; its creator becomes its Owner.
+         */
+        OrganizationCreate: {
+            /**
+             * Name
+             * @description Name of the organization.
+             */
+            name: string;
+        };
+        /**
+         * OrganizationRead
+         * @description An organization as the person sees it in the rail and in its settings.
+         */
+        OrganizationRead: {
+            /**
+             * Id
+             * Format: uuid
+             * @description Organization ID.
+             */
+            id: string;
+            /**
+             * Logo Url
+             * @description The logo; null shows the initials.
+             */
+            logo_url: string | null;
+            /**
+             * My Role
+             * @description The person's role in the organization.
+             * @enum {string}
+             */
+            my_role: "owner" | "admin" | "member";
+            /**
+             * Name
+             * @description Name of the organization; the web app shows its own word for a Pessoal.
+             */
+            name: string;
+            /**
+             * New Base Access
+             * @description The general access a new base starts with.
+             * @enum {string}
+             */
+            new_base_access: "none" | "reader" | "editor";
+            /**
+             * Personal
+             * @description Whether this is the person's Pessoal.
+             */
+            personal: boolean;
+        };
+        /**
+         * OrganizationUpdate
+         * @description A change to an organization; omitted fields keep their value.
+         */
+        OrganizationUpdate: {
+            /**
+             * Name
+             * @description New name; cannot be blank.
+             */
+            name?: string | null;
+            /**
+             * New Base Access
+             * @description The general access a new base starts with (Acesso de bases novas).
+             */
+            new_base_access?: ("none" | "reader" | "editor") | null;
+        };
+        /**
          * PageDiff
          * @description A page version against the one before it.
          */
@@ -2249,6 +2866,18 @@ export interface components {
              * @description When the node last changed.
              */
             updated_at: string;
+        };
+        /**
+         * RoleChange
+         * @description A new role for a member of the organization.
+         */
+        RoleChange: {
+            /**
+             * Role
+             * @description The new role.
+             * @enum {string}
+             */
+            role: "owner" | "admin" | "member";
         };
         /**
          * Section
@@ -3236,6 +3865,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -3273,6 +3911,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3347,6 +3994,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3398,6 +4054,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3457,6 +4122,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3506,10 +4180,213 @@ export interface operations {
             };
         };
     };
+    accept_invite_v1_invites_accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    invite_by_token_v1_invites_by_token__token__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvitePreview"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    revoke_invite_v1_invites__invite_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resend_invite_v1_invites__invite_id__resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_kbs_v1_kbs_get: {
         parameters: {
             query?: {
                 q?: string;
+                organization_id?: string | null;
             };
             header?: never;
             path?: never;
@@ -3530,6 +4407,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3581,6 +4467,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -3594,7 +4489,9 @@ export interface operations {
     };
     list_trashed_kbs_v1_kbs_trash_get: {
         parameters: {
-            query?: never;
+            query?: {
+                organization_id?: string | null;
+            };
             header?: never;
             path?: never;
             cookie?: {
@@ -3614,6 +4511,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3656,6 +4562,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3718,6 +4633,139 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_access_v1_kbs__kb_id__access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseAccess"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_general_access_v1_kbs__kb_id__access_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GeneralAccessChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseAccess"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3764,6 +4812,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3826,6 +4883,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -3837,6 +4903,247 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    base_invites_v1_kbs__kb_id__invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    invite_to_base_v1_kbs__kb_id__invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    put_member_v1_kbs__kb_id__members__account_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+                account_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BaseMemberChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseAccess"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_member_v1_kbs__kb_id__members__account_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+                account_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BaseAccess"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3883,6 +5190,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3950,6 +5266,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4003,6 +5328,24 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -4038,6 +5381,24 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4129,6 +5490,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4173,6 +5543,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4228,6 +5607,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4299,6 +5687,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4343,6 +5740,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4405,6 +5811,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4449,6 +5864,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4511,6 +5935,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4555,6 +5988,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4617,6 +6059,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4661,6 +6112,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4716,6 +6176,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4787,6 +6256,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4840,6 +6318,800 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_organizations_v1_organizations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_organization_v1_organizations_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_organization_v1_organizations__organization_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_organization_v1_organizations__organization_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    organization_invites_v1_organizations__organization_id__invites_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    invite_to_organization_v1_organizations__organization_id__invites_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    leave_organization_v1_organizations__organization_id__leave_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    organization_logo_v1_organizations__organization_id__logo_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The logo, a 256 px square. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": unknown;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_logo_v1_organizations__organization_id__logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_set_logo_v1_organizations__organization_id__logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_logo_v1_organizations__organization_id__logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_members_v1_organizations__organization_id__members_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_member_v1_organizations__organization_id__members__account_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                account_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    change_role_v1_organizations__organization_id__members__account_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                account_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RoleChange"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MemberRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4907,6 +7179,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -4962,6 +7243,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -5007,6 +7297,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5081,6 +7380,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -5130,6 +7438,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5188,6 +7505,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -5236,6 +7562,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5303,6 +7638,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -5355,6 +7699,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Not Found */
             404: {
                 headers: {
@@ -5400,6 +7753,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

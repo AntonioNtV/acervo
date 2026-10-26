@@ -91,6 +91,55 @@
         "title": "Attachment",
         "type": "object"
       },
+      "BaseAccess": {
+        "description": "Who reaches a base: everyone in its organization, and the people added to it.",
+        "properties": {
+          "general_access": {
+            "description": "What every member of the organization gets; none for only the people added.",
+            "enum": [
+              "none",
+              "reader",
+              "editor"
+            ],
+            "title": "General Access",
+            "type": "string"
+          },
+          "members": {
+            "description": "The people added to the base, with their base role.",
+            "items": {
+              "$ref": "#/components/schemas/MemberRead"
+            },
+            "title": "Members",
+            "type": "array"
+          }
+        },
+        "required": [
+          "general_access",
+          "members"
+        ],
+        "title": "BaseAccess",
+        "type": "object"
+      },
+      "BaseMemberChange": {
+        "description": "A new role for a person added to a base.",
+        "properties": {
+          "role": {
+            "description": "The new role in the base.",
+            "enum": [
+              "reader",
+              "editor",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "BaseMemberChange",
+        "type": "object"
+      },
       "Body_replace_file_v1_nodes__node_id__file_post": {
         "properties": {
           "file": {
@@ -103,6 +152,20 @@
           "file"
         ],
         "title": "Body_replace_file_v1_nodes__node_id__file_post",
+        "type": "object"
+      },
+      "Body_set_logo_v1_organizations__organization_id__logo_put": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_set_logo_v1_organizations__organization_id__logo_put",
         "type": "object"
       },
       "Body_set_photo_v1_account_photo_put": {
@@ -595,6 +658,26 @@
         "title": "FileVersionResponse",
         "type": "object"
       },
+      "GeneralAccessChange": {
+        "description": "What every member of the base's organization gets on it.",
+        "properties": {
+          "general_access": {
+            "description": "Leitor or Editor for everyone; none for only the people added.",
+            "enum": [
+              "none",
+              "reader",
+              "editor"
+            ],
+            "title": "General Access",
+            "type": "string"
+          }
+        },
+        "required": [
+          "general_access"
+        ],
+        "title": "GeneralAccessChange",
+        "type": "object"
+      },
       "GoogleLinkIn": {
         "description": "The password that links Google to an account whose email was not yet confirmed.",
         "properties": {
@@ -641,6 +724,239 @@
           }
         },
         "title": "HealthResponse",
+        "type": "object"
+      },
+      "InviteAccept": {
+        "properties": {
+          "token": {
+            "description": "The token of the link /convite/{token}.",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "InviteAccept",
+        "type": "object"
+      },
+      "InviteCreate": {
+        "description": "Emails to invite, all with one role, to the organization or to one of its bases.",
+        "properties": {
+          "emails": {
+            "description": "Who to invite.",
+            "items": {
+              "format": "email",
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Emails",
+            "type": "array"
+          },
+          "kb_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The base to invite to; null for the organization.",
+            "title": "Kb Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "member"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              }
+            ],
+            "description": "An organization role, or a base role when `kb_id` is given.",
+            "title": "Role"
+          }
+        },
+        "required": [
+          "emails",
+          "role"
+        ],
+        "title": "InviteCreate",
+        "type": "object"
+      },
+      "InvitePreview": {
+        "description": "An invite as the Convite screen shows it, before anyone signs in.",
+        "properties": {
+          "base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the base; null for an organization invite.",
+            "title": "Base"
+          },
+          "email": {
+            "description": "Who the invite is for; the token was mailed to it, and Criar conta fills it in.",
+            "title": "Email",
+            "type": "string"
+          },
+          "expired": {
+            "description": "Whether the link stopped working.",
+            "title": "Expired",
+            "type": "boolean"
+          },
+          "inviter": {
+            "description": "Name of who invited.",
+            "title": "Inviter",
+            "type": "string"
+          },
+          "kb_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The base invited to; null for the organization.",
+            "title": "Kb Id"
+          },
+          "organization": {
+            "description": "Name of the organization.",
+            "title": "Organization",
+            "type": "string"
+          },
+          "organization_id": {
+            "description": "The organization invited to, or the one of the base.",
+            "format": "uuid",
+            "title": "Organization Id",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "member"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              }
+            ],
+            "description": "The role the invite gives.",
+            "title": "Role"
+          }
+        },
+        "required": [
+          "organization_id",
+          "kb_id",
+          "organization",
+          "base",
+          "inviter",
+          "role",
+          "email",
+          "expired"
+        ],
+        "title": "InvitePreview",
+        "type": "object"
+      },
+      "InviteRead": {
+        "description": "A pending invite, as the members list shows it.",
+        "properties": {
+          "created_at": {
+            "description": "When the invite was sent.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "email": {
+            "description": "Who was invited.",
+            "title": "Email",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When the link stops working.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Invite ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kb_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The base invited to; null for the organization.",
+            "title": "Kb Id"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "member"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              }
+            ],
+            "description": "The role they get on accepting.",
+            "title": "Role"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "kb_id",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "InviteRead",
         "type": "object"
       },
       "KbCreate": {
@@ -1028,6 +1344,70 @@
           "domain"
         ],
         "title": "LinkPreview",
+        "type": "object"
+      },
+      "MemberRead": {
+        "description": "A person with a role in an organization or in a base.",
+        "properties": {
+          "account_id": {
+            "description": "Account ID.",
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "email": {
+            "description": "As typed.",
+            "title": "Email",
+            "type": "string"
+          },
+          "name": {
+            "description": "Shown name.",
+            "title": "Name",
+            "type": "string"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The photo; null shows the initials.",
+            "title": "Photo Url"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "enum": [
+                  "owner",
+                  "admin",
+                  "member"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "reader",
+                  "editor",
+                  "admin"
+                ],
+                "type": "string"
+              }
+            ],
+            "description": "Role in the organization, or in the base.",
+            "title": "Role"
+          }
+        },
+        "required": [
+          "account_id",
+          "name",
+          "email",
+          "photo_url",
+          "role"
+        ],
+        "title": "MemberRead",
         "type": "object"
       },
       "Mention": {
@@ -1653,6 +2033,122 @@
         "title": "NodeWithPath",
         "type": "object"
       },
+      "OrganizationCreate": {
+        "description": "An organization to create; its creator becomes its Owner.",
+        "properties": {
+          "name": {
+            "description": "Name of the organization.",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "OrganizationCreate",
+        "type": "object"
+      },
+      "OrganizationRead": {
+        "description": "An organization as the person sees it in the rail and in its settings.",
+        "properties": {
+          "id": {
+            "description": "Organization ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The logo; null shows the initials.",
+            "title": "Logo Url"
+          },
+          "my_role": {
+            "description": "The person's role in the organization.",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "My Role",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the organization; the web app shows its own word for a Pessoal.",
+            "title": "Name",
+            "type": "string"
+          },
+          "new_base_access": {
+            "description": "The general access a new base starts with.",
+            "enum": [
+              "none",
+              "reader",
+              "editor"
+            ],
+            "title": "New Base Access",
+            "type": "string"
+          },
+          "personal": {
+            "description": "Whether this is the person's Pessoal.",
+            "title": "Personal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "logo_url",
+          "personal",
+          "my_role",
+          "new_base_access"
+        ],
+        "title": "OrganizationRead",
+        "type": "object"
+      },
+      "OrganizationUpdate": {
+        "description": "A change to an organization; omitted fields keep their value.",
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "New name; cannot be blank.",
+            "title": "Name"
+          },
+          "new_base_access": {
+            "anyOf": [
+              {
+                "enum": [
+                  "none",
+                  "reader",
+                  "editor"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The general access a new base starts with (Acesso de bases novas).",
+            "title": "New Base Access"
+          }
+        },
+        "title": "OrganizationUpdate",
+        "type": "object"
+      },
       "PageDiff": {
         "description": "A page version against the one before it.",
         "properties": {
@@ -2071,6 +2567,26 @@
           "to_root"
         ],
         "title": "RestoredNode",
+        "type": "object"
+      },
+      "RoleChange": {
+        "description": "A new role for a member of the organization.",
+        "properties": {
+          "role": {
+            "description": "The new role.",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role"
+        ],
+        "title": "RoleChange",
         "type": "object"
       },
       "Section": {
@@ -3588,6 +4104,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -3674,6 +4200,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -3839,6 +4375,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -3924,6 +4470,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -4014,6 +4570,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4072,9 +4638,304 @@
         ]
       }
     },
+    "/v1/invites/accept": {
+      "post": {
+        "description": "Joins with the invite's role; 422 `invite_email_mismatch` when signed in with another email.",
+        "operationId": "accept_invite_v1_invites_accept_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteAccept"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Accept Invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/v1/invites/by-token/{token}": {
+      "get": {
+        "description": "What the Convite screen shows, without a session; 422 `code_invalid` for a revoked or used link.",
+        "operationId": "invite_by_token_v1_invites_by_token__token__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitePreview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Invite By Token",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/v1/invites/{invite_id}": {
+      "delete": {
+        "operationId": "revoke_invite_v1_invites__invite_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Revoke Invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/v1/invites/{invite_id}/resend": {
+      "post": {
+        "description": "A new 7-day link, the old one no longer valid; 429 within a minute of the last one.",
+        "operationId": "resend_invite_v1_invites__invite_id__resend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "invite_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Invite Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Resend Invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/v1/kbs": {
       "get": {
-        "description": "Live bases, most recently edited first; `q` filters by name, ignoring case and accents.",
+        "description": "Live bases of the organization (the Pessoal when none) the person can see, most recently edited first; the\nPessoal also lists the bases shared with the person as a guest, with `shared_by`. `q` filters by name, ignoring\ncase and accents.",
         "operationId": "list_kbs_v1_kbs_get",
         "parameters": [
           {
@@ -4085,6 +4946,23 @@
               "default": "",
               "title": "Q",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
             }
           },
           {
@@ -4128,6 +5006,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "422": {
             "content": {
@@ -4196,6 +5084,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -4215,9 +5113,26 @@
     },
     "/v1/kbs/trash": {
       "get": {
-        "description": "Bases in the trash, most recently trashed first.",
+        "description": "Bases of the organization (the Pessoal when none) in the trash where the person is Editor or more, most\nrecently trashed first.",
         "operationId": "list_trashed_kbs_v1_kbs_trash_get",
         "parameters": [
+          {
+            "in": "query",
+            "name": "organization_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Organization Id"
+            }
+          },
           {
             "in": "cookie",
             "name": "acervo_session",
@@ -4259,6 +5174,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "422": {
             "content": {
@@ -4329,6 +5254,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -4417,6 +5352,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4439,6 +5384,194 @@
           }
         },
         "summary": "Update Kb",
+        "tags": [
+          "kbs"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/access": {
+      "get": {
+        "description": "Who reaches the base: the general access and the people added to it.",
+        "operationId": "get_access_v1_kbs__kb_id__access_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseAccess"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Access",
+        "tags": [
+          "kbs"
+        ]
+      },
+      "put": {
+        "description": "Base Admin only; a Pessoal base has no general access (422).",
+        "operationId": "set_general_access_v1_kbs__kb_id__access_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GeneralAccessChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseAccess"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set General Access",
         "tags": [
           "kbs"
         ]
@@ -4517,6 +5650,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -4607,6 +5750,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -4641,6 +5794,399 @@
         "summary": "Upload File",
         "tags": [
           "files"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/invites": {
+      "get": {
+        "description": "Invites to the base not yet accepted nor revoked, expired ones included.",
+        "operationId": "base_invites_v1_kbs__kb_id__invites_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteRead"
+                  },
+                  "title": "Response Base Invites V1 Kbs  Kb Id  Invites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Base Invites",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "Adds members of the base's organization at once; anyone else gets an invite, which this answers.",
+        "operationId": "invite_to_base_v1_kbs__kb_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteRead"
+                  },
+                  "title": "Response Invite To Base V1 Kbs  Kb Id  Invites Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Invite To Base",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/v1/kbs/{kb_id}/members/{account_id}": {
+      "delete": {
+        "operationId": "remove_member_v1_kbs__kb_id__members__account_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseAccess"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "kbs"
+        ]
+      },
+      "put": {
+        "description": "Base Admin only: changes the role of someone added to the base, or adds a member of its organization; anyone\nelse is invited.",
+        "operationId": "put_member_v1_kbs__kb_id__members__account_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kb_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Kb Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BaseMemberChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BaseAccess"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Put Member",
+        "tags": [
+          "kbs"
         ]
       }
     },
@@ -4706,6 +6252,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -4795,6 +6351,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -4889,6 +6455,26 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -4908,7 +6494,7 @@
     },
     "/v1/kbs/{kb_id}/trash": {
       "get": {
-        "description": "One item per trashing, most recent first, with where it was; what was under it went with it.",
+        "description": "One item per trashing, most recent first, with where it was; what was under it went with it. Editor or more.",
         "operationId": "list_trash_v1_kbs__kb_id__trash_get",
         "parameters": [
           {
@@ -4962,6 +6548,26 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
           },
           "422": {
             "content": {
@@ -5102,6 +6708,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5179,6 +6795,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -5267,6 +6893,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -5368,6 +7004,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5447,6 +7093,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -5573,6 +7229,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5652,6 +7318,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -5778,6 +7454,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5858,6 +7544,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -5936,6 +7632,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6025,6 +7731,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -6113,6 +7829,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6213,6 +7939,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -6302,6 +8038,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -6336,6 +8082,1200 @@
         "summary": "Restore Node",
         "tags": [
           "nodes"
+        ]
+      }
+    },
+    "/v1/organizations": {
+      "get": {
+        "description": "The person's organizations: Pessoal first, then by name.",
+        "operationId": "list_organizations_v1_organizations_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OrganizationRead"
+                  },
+                  "title": "Response List Organizations V1 Organizations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Organizations",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "post": {
+        "description": "The creator becomes its Owner.",
+        "operationId": "create_organization_v1_organizations_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}": {
+      "get": {
+        "operationId": "get_organization_v1_organizations__organization_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Organization",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "description": "Owners and Admins; a Pessoal keeps its name.",
+        "operationId": "update_organization_v1_organizations__organization_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Update Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/invites": {
+      "get": {
+        "description": "Invites not yet accepted nor revoked, expired ones included.",
+        "operationId": "organization_invites_v1_organizations__organization_id__invites_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteRead"
+                  },
+                  "title": "Response Organization Invites V1 Organizations  Organization Id  Invites Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Organization Invites",
+        "tags": [
+          "invites"
+        ]
+      },
+      "post": {
+        "description": "Emails each address a 7-day link; 409 `already_member` names the emails already in the organization.",
+        "operationId": "invite_to_organization_v1_organizations__organization_id__invites_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteRead"
+                  },
+                  "title": "Response Invite To Organization V1 Organizations  Organization Id  Invites Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Invite To Organization",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/leave": {
+      "post": {
+        "description": "Any member but the last Owner (409 `last_owner`); a Pessoal cannot be left (403).",
+        "operationId": "leave_organization_v1_organizations__organization_id__leave_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Leave Organization",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/logo": {
+      "delete": {
+        "description": "Back to the initials.",
+        "operationId": "remove_logo_v1_organizations__organization_id__logo_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Logo",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "get": {
+        "operationId": "organization_logo_v1_organizations__organization_id__logo_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/png": {}
+            },
+            "description": "The logo, a 256 px square."
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Organization Logo",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "put": {
+        "description": "A PNG, JPEG or WebP of at most 2 MB; its centered square, 256 px, becomes the logo.",
+        "operationId": "set_logo_v1_organizations__organization_id__logo_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_set_logo_v1_organizations__organization_id__logo_put"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set Logo",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/members": {
+      "get": {
+        "description": "Owners and Admins; a Pessoal has none (403).",
+        "operationId": "list_members_v1_organizations__organization_id__members_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberRead"
+                  },
+                  "title": "Response List Members V1 Organizations  Organization Id  Members Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Members",
+        "tags": [
+          "organizations"
+        ]
+      }
+    },
+    "/v1/organizations/{organization_id}/members/{account_id}": {
+      "delete": {
+        "description": "Takes the member and their access to the organization's bases out; they are told by email.",
+        "operationId": "remove_member_v1_organizations__organization_id__members__account_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Member",
+        "tags": [
+          "organizations"
+        ]
+      },
+      "patch": {
+        "description": "Owners change any role, Admins those below Owner; the last Owner stays (409 `last_owner`). The member is\ntold by email.",
+        "operationId": "change_role_v1_organizations__organization_id__members__account_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "organization_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Organization Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Change Role",
+        "tags": [
+          "organizations"
         ]
       }
     },
@@ -6390,6 +9330,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6481,6 +9431,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -6569,6 +9529,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6726,6 +9696,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -6801,6 +9781,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6885,6 +9875,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -6975,6 +9975,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
@@ -7070,6 +10080,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -7159,6 +10179,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "404": {
             "content": {
               "application/json": {
@@ -7247,6 +10277,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "404": {
             "content": {
