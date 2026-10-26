@@ -105,7 +105,7 @@ async def test_an_invite_for_another_email_is_refused(
 
     with pytest.raises(InviteMismatch) as refused:
         await invites.accept(bruno.id, last_link(fake_mailer))
-    assert refused.value.details == {"email": "julia@…"}
+    assert refused.value.details == {"email": "julia@example.com"}
     assert not await is_member(entered, bruno, team)
 
 

@@ -145,7 +145,7 @@ class BaseAccess(BaseModel):
 class InviteCreate(BaseModel):
     """Emails to invite, all with one role, to the organization or to one of its bases."""
 
-    emails: list[EmailStr] = Field(min_length=1, description="Who to invite.")
+    emails: list[EmailStr] = Field(min_length=1, max_length=50, description="Who to invite, at most 50.")
     role: OrgRole | BaseRole = Field(description="An organization role, or a base role when `kb_id` is given.")
     kb_id: UUID | None = Field(default=None, description="The base to invite to; null for the organization.")
 

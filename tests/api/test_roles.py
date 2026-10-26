@@ -14,7 +14,7 @@ from acervo.repositories.account import AccountRepository
 from acervo.repositories.base_member import BaseMemberRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
-from acervo.schemas.organization import BaseMemberCreate, BaseRole
+from acervo.schemas.organization import BaseMemberCreate, BaseMemberUpdate, BaseRole
 from acervo.services.session_service import SessionService
 
 MakeTree = Callable[..., Awaitable[Any]]
@@ -148,3 +148,24 @@ async def test_a_base_is_read_by_id_only_by_who_sees_it(
     await _give(session, base.kb.id, bia.id, "reader")
     guest = (await bia_client.get(f"/v1/kbs/{base.kb.id}")).json()
     assert (guest["my_role"], guest["shared_by"]) == ("reader", "Seguros SA")
+
+
+async def test_a_guest_admin_renames_trashes_and_restores_and_a_guest_editor_is_forbidden(
+    bia_client: httpx.AsyncClient, bia: AccountRead, base: Any, session: AsyncSession
+) -> None:
+    await _give(session, base.kb.id, bia.id, "admin")
+    path = f"/v1/kbs/{base.kb.id}"
+
+    renamed = await bia_client.patch(path, json={"name": "Renomeada"})
+    trashed = await bia_client.delete(path)
+    restored = await bia_client.post(f"{path}/restore")
+
+    assert (renamed.status_code, renamed.json()["name"]) == (200, "Renomeada"), renamed.text
+    assert (trashed.status_code, restored.status_code, restored.json()["deleted_at"]) == (200, 200, None)
+
+    members = BaseMemberRepository(session)
+    added = await members.get_by(kb_id=base.kb.id, account_id=bia.id)
+    assert added is not None
+    await members.update(added.id, BaseMemberUpdate(role="editor"))
+    refused = await bia_client.patch(path, json={"name": "Outra"})
+    assert (refused.status_code, refused.json()["error"]) == (403, "forbidden")

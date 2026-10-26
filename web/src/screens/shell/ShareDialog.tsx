@@ -1,4 +1,3 @@
-import * as RadixMenu from "@radix-ui/react-dropdown-menu";
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { KbSummary } from "../../api/client";
 import { useErrorText } from "../../app/errors";
@@ -25,79 +24,9 @@ import { Button } from "../../ui/Button";
 import { Dialog, DialogClose } from "../../ui/Dialog";
 import { Icon } from "../../ui/Icon";
 import { Input } from "../../ui/Input";
+import { RoleSelect } from "../../ui/RoleSelect";
 
-const ROLES: BaseRole[] = ["reader", "editor", "admin"];
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-type Option = { value: string; label: string; hint?: string };
-
-/** A role as text with a caret, opening what each choice can do; `onRemove` adds "Remover acesso" after a line. */
-function RoleSelect({
-  label,
-  value,
-  shown,
-  options,
-  onChange,
-  onRemove,
-}: {
-  label: string;
-  value: string;
-  /** The trigger's text when it is not the chosen option's label. */
-  shown?: string;
-  options: Option[];
-  onChange?: (value: string) => void;
-  onRemove?: () => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <RadixMenu.Root>
-      <RadixMenu.Trigger asChild>
-        <Button variant="quiet" size="sm" aria-label={label} className="gap-0.5 font-normal">
-          {shown ?? options.find((option) => option.value === value)?.label}
-          <Icon name="caretDown" size={14} />
-        </Button>
-      </RadixMenu.Trigger>
-      <RadixMenu.Portal>
-        <RadixMenu.Content
-          align="end"
-          sideOffset={4}
-          aria-label={label}
-          className="flex w-[260px] flex-col rounded-[8px] border border-line-2 bg-bg p-1"
-        >
-          <RadixMenu.RadioGroup value={value} onValueChange={onChange}>
-            {options.map((option) => (
-              <RadixMenu.RadioItem
-                key={option.value}
-                value={option.value}
-                disabled={!onChange}
-                className="flex cursor-pointer items-start justify-between gap-2 rounded-[6px] px-2.5 py-1.5 text-13 text-text outline-none data-[disabled]:cursor-default data-[disabled]:text-ghost data-[highlighted]:bg-subtle"
-              >
-                <span className="flex flex-col">
-                  <span>{option.label}</span>
-                  {option.hint && <span className="text-12 text-text-3">{option.hint}</span>}
-                </span>
-                <RadixMenu.ItemIndicator className="mt-[3px] inline-flex text-ink">
-                  <Icon name="check" size={14} />
-                </RadixMenu.ItemIndicator>
-              </RadixMenu.RadioItem>
-            ))}
-          </RadixMenu.RadioGroup>
-          {onRemove && (
-            <>
-              <RadixMenu.Separator className="my-1 h-px bg-line" />
-              <RadixMenu.Item
-                onSelect={onRemove}
-                className="flex h-[30px] cursor-pointer items-center rounded-[6px] px-2.5 text-13 text-text outline-none data-[highlighted]:bg-subtle"
-              >
-                {t("sharing.remove")}
-              </RadixMenu.Item>
-            </>
-          )}
-        </RadixMenu.Content>
-      </RadixMenu.Portal>
-    </RadixMenu.Root>
-  );
-}
 
 function Row({
   avatar,
@@ -143,11 +72,6 @@ export function ShareDialog({ kb, onClose }: { kb: KbSummary; onClose: () => voi
   const [addRole, setAddRole] = useState<BaseRole>("editor");
   const [copied, setCopied] = useState(false);
 
-  const roles: Option[] = ROLES.map((role) => ({
-    value: role,
-    label: t(`sharing.role.${role}`),
-    hint: t(`sharing.role.${role}.hint`),
-  }));
   const failed = [setGeneral, invite, setRole, remove, resend, revoke].find((change) => change.isError)?.error;
 
   const members = [...(access.data?.members ?? [])].sort(
@@ -183,9 +107,9 @@ export function ShareDialog({ kb, onClose }: { kb: KbSummary; onClose: () => voi
     >
       <RoleSelect
         label={t("sharing.role.of", { name: member.name || member.email })}
-        value={member.role}
-        options={roles}
-        onChange={(role) => setRole.mutate({ accountId: member.account_id, role: role as BaseRole })}
+        scope="base"
+        value={member.role as BaseRole}
+        onChange={(role) => setRole.mutate({ accountId: member.account_id, role })}
         onRemove={() => remove.mutate(member.account_id)}
       />
     </Row>
@@ -222,9 +146,9 @@ export function ShareDialog({ kb, onClose }: { kb: KbSummary; onClose: () => voi
           <>
             <RoleSelect
               label={t("sharing.role.of", { name: emails.trim() })}
+              scope="base"
               value={addRole}
-              options={roles}
-              onChange={(role) => setAddRole(role as BaseRole)}
+              onChange={setAddRole}
             />
             <Button type="submit" disabled={invite.isPending}>
               {t("sharing.add.submit")}
@@ -263,8 +187,8 @@ export function ShareDialog({ kb, onClose }: { kb: KbSummary; onClose: () => voi
               </Button>
               <RoleSelect
                 label={t("sharing.role.of", { name: item.email })}
-                value={item.role}
-                options={roles}
+                scope="base"
+                value={item.role as BaseRole}
                 onRemove={() => revoke.mutate(item.id)}
               />
             </Row>
@@ -297,12 +221,8 @@ function GeneralRow({
         label={t("sharing.general")}
         value={value}
         shown={everyone ? undefined : t("sharing.general.change")}
-        options={[
-          { value: "reader", label: t("sharing.role.reader"), hint: t("sharing.role.reader.hint") },
-          { value: "editor", label: t("sharing.role.editor"), hint: t("sharing.role.editor.hint") },
-          { value: "none", label: t("sharing.general.restricted") },
-        ]}
-        onChange={(next) => onChange(next as GeneralAccess)}
+        scope="general"
+        onChange={onChange}
       />
     </Row>
   );

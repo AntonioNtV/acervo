@@ -744,11 +744,12 @@
         "description": "Emails to invite, all with one role, to the organization or to one of its bases.",
         "properties": {
           "emails": {
-            "description": "Who to invite.",
+            "description": "Who to invite, at most 50.",
             "items": {
               "format": "email",
               "type": "string"
             },
+            "maxItems": 50,
             "minItems": 1,
             "title": "Emails",
             "type": "array"
@@ -5113,7 +5114,7 @@
     },
     "/v1/kbs/trash": {
       "get": {
-        "description": "Bases of the organization (the Pessoal when none) in the trash where the person is Editor or more, most\nrecently trashed first.",
+        "description": "Bases of the organization (the Pessoal when none) in the trash where the person is Admin, most\nrecently trashed first.",
         "operationId": "list_trashed_kbs_v1_kbs_trash_get",
         "parameters": [
           {

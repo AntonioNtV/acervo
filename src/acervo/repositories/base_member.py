@@ -26,6 +26,13 @@ class BaseMemberRepository(BaseRepository[BaseMember, BaseMemberRecord, BaseMemb
             query = query.where(Kb.organization_id == organization_id)
         return set(await self._session.scalars(query))
 
+    async def of_account(self, account_id: UUID) -> list[BaseMemberRecord]:
+        """Every base role the account was given, in one query."""
+        return [
+            self._to_read(added)
+            for added in await self._session.scalars(select(BaseMember).where(BaseMember.account_id == account_id))
+        ]
+
     async def delete_in_organization(self, account_id: UUID, organization_id: UUID) -> None:
         """The account's base roles on every base of the organization."""
         bases = select(Kb.id).where(Kb.organization_id == organization_id)

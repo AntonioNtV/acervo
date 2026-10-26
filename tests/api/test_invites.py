@@ -63,3 +63,14 @@ async def test_an_invited_person_joins_through_the_emailed_link(
         assert await AccessService(uow).org_role(julia.id, team.id) == "member"
     assert (await client.get(f"/v1/organizations/{team.id}/invites")).json() == []
     assert mailer.sent[-1].template == MailTemplate.INVITE_ACCEPTED
+
+
+async def test_an_invite_takes_at_most_50_emails(
+    client: httpx.AsyncClient, make_organization: MakeOrganization
+) -> None:
+    team = await make_organization(UUID((await client.get("/v1/auth/me")).json()["id"]))
+    emails = [f"pessoa{n}@example.com" for n in range(51)]
+
+    response = await client.post(f"/v1/organizations/{team.id}/invites", json={"emails": emails, "role": "member"})
+
+    assert (response.status_code, response.json()["error"]) == (422, "validation")

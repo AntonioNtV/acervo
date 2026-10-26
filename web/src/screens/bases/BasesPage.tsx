@@ -41,25 +41,27 @@ function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => v
           </Link>
           {icon.picking && <EmojiPicker onPick={icon.pick} onRemove={icon.remove} onClose={icon.close} />}
         </div>
-        <Menu
-          trigger={
-            <Button
-              variant="quiet"
-              size="sm"
-              icon
-              aria-label={t("bases.actions", { name: kb.name })}
-              className="relative -mt-1 -mr-2"
-            >
-              <Icon name="more" />
-            </Button>
-          }
-        >
-          <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
-          <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
-          <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
-          <MenuSeparator />
-          <MenuItem onSelect={() => trash.mutate(kb.id)}>{t("bases.trash")}</MenuItem>
-        </Menu>
+        {kb.my_role === "admin" && (
+          <Menu
+            trigger={
+              <Button
+                variant="quiet"
+                size="sm"
+                icon
+                aria-label={t("bases.actions", { name: kb.name })}
+                className="relative -mt-1 -mr-2"
+              >
+                <Icon name="more" />
+              </Button>
+            }
+          >
+            <MenuItem onSelect={() => onEdit({ mode: "rename", kb })}>{t("bases.rename")}</MenuItem>
+            <MenuItem onSelect={() => onEdit({ mode: "describe", kb })}>{t("bases.describe")}</MenuItem>
+            <MenuItem onSelect={icon.open}>{t("bases.icon")}</MenuItem>
+            <MenuSeparator />
+            <MenuItem onSelect={() => trash.mutate(kb.id)}>{t("bases.trash")}</MenuItem>
+          </Menu>
+        )}
       </div>
       {kb.shared_by && (
         <p className="m-0 text-12 text-text-3">{t("organizations.sharedBy", { name: kb.shared_by })}</p>
