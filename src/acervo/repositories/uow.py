@@ -2,7 +2,9 @@ from types import TracebackType
 from typing import Self
 from uuid import UUID
 
+from sqlalchemy import Connection, event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import Session, SessionTransaction
 
 from acervo.repositories.account import AccountRepository
 from acervo.repositories.base_member import BaseMemberRepository
@@ -22,6 +24,26 @@ from acervo.repositories.page_link import PageLinkRepository
 from acervo.repositories.page_version import PageVersionRepository
 from acervo.repositories.password_reset import PasswordResetRepository
 from acervo.repositories.session import SessionRepository
+
+APP_ROLE = "acervo_app"
+
+
+def _set_account(session: Session, connection: Connection) -> None:
+    account_id = session.info.get("account_id")
+    connection.execute(text("select set_config('app.account_id', :id, true)"), {"id": str(account_id or "")})
+    session.info["account_in_transaction"] = account_id
+
+
+def _as_app(session: Session, transaction: SessionTransaction, connection: Connection) -> None:
+    # Local to the transaction: it ends with it, so a connection goes back to the pool as its owner.
+    connection.exec_driver_sql(f"set local role {APP_ROLE}")
+    _set_account(session, connection)
+
+
+def _catch_up(session: Session) -> None:
+    """`act_as` may come after the transaction began (the request resolves its cookie first)."""
+    if session.in_transaction() and session.info.get("account_in_transaction") != session.info.get("account_id"):
+        _set_account(session, session.connection())
 
 
 class UnitOfWork:
@@ -51,6 +73,11 @@ class UnitOfWork:
 
     async def __aenter__(self) -> Self:
         self._session = self._session_factory()
+        # Every transaction runs under the role row-level security binds, seeing only the bases of `act_as`.
+        sync = self._session.sync_session
+        event.listen(sync, "after_begin", _as_app)
+        event.listen(sync, "do_orm_execute", lambda state: _catch_up(state.session))
+        event.listen(sync, "before_flush", lambda session, *_: _catch_up(session))
         self.kbs = KbRepository(self._session)
         self.nodes = NodeRepository(self._session)
         self.files = FileRepository(self._session)
@@ -85,7 +112,8 @@ class UnitOfWork:
         await self._session.rollback()
 
     def act_as(self, account_id: UUID) -> None:
-        """Reads that depend on who asks (a node's `favorite`) answer for this account from now on."""
+        """Reads that depend on who asks (a node's `favorite`), and the bases row-level security lets through,
+        answer for this account from now on."""
         self._session.info["account_id"] = account_id
 
     @property

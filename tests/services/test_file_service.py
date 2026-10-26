@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 from acervo.core.errors import Duplicate, SameFile, TitleTaken
 from acervo.core.settings import Settings
 from acervo.db.base import Base
-from acervo.db.models import File, Kb, Node, Organization
+from acervo.db.models import Account, File, Kb, Membership, Node, Organization
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileContent, FileNodeRead
 from acervo.services.file_service import FileService
@@ -33,9 +33,12 @@ MakeTree = Callable[..., Awaitable[Any]]
 
 
 @pytest.fixture
-async def files(uow: UnitOfWork, storage: Settings, session: AsyncSession) -> AsyncIterator[FileService]:
+async def files(
+    uow: UnitOfWork, storage: Settings, session: AsyncSession, default_account_id: uuid.UUID
+) -> AsyncIterator[FileService]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        uow.act_as(default_account_id)
         yield FileService(uow, Storage(storage))
 
 
@@ -239,6 +242,7 @@ async def test_restore_old_version_keeps_every_file(files: FileService, make_tre
 class Committed:
     sessions: async_sessionmaker[AsyncSession]
     kb_id: uuid.UUID
+    account_id: uuid.UUID
 
 
 @pytest.fixture
@@ -248,24 +252,28 @@ async def committed(test_settings: Settings) -> AsyncIterator[Committed]:
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with sessions() as session:
         organization = Organization(id=uuid.uuid4(), name="Seguros SA")
-        session.add(organization)
+        account = Account(id=uuid.uuid4(), email="paralelo@example.com", name="Ana")
+        session.add_all([organization, account])
         await session.flush()
+        session.add(Membership(organization_id=organization.id, account_id=account.id, role="owner"))
         kb = Kb(id=uuid.uuid4(), name="Uploads em paralelo", organization_id=organization.id)
         session.add(kb)
         await session.commit()
-    yield Committed(sessions, kb.id)
+    yield Committed(sessions, kb.id, account.id)
     async with sessions() as session:
         of_base = select(Node.id).where(Node.kb_id == kb.id)
         await session.execute(delete(File).where(File.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
         await session.execute(delete(Organization).where(Organization.id == organization.id))
+        await session.execute(delete(Account).where(Account.id == account.id))
         await session.commit()
     await engine.dispose()
 
 
 async def _save_committed(committed: Committed, storage: Settings, filename: str, content: bytes) -> FileNodeRead:
     async with UnitOfWork(committed.sessions) as uow:
+        uow.act_as(committed.account_id)
         return await FileService(uow, Storage(storage)).save(committed.kb_id, None, filename, io.BytesIO(content))
 
 

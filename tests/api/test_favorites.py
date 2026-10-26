@@ -104,6 +104,7 @@ async def test_favorites_are_per_account(
     emissao, sinistros, coberturas = tree["Emissão.md"], tree["Sinistros.md"], tree["Coberturas.md"]
     bia = await make_account(email="bia@example.com", name="Bia")
     async with UnitOfWork(session_factory) as uow:
+        # Shared with Bia, or row-level security hides the base from her.
         await uow.base_members.create(BaseMemberCreate(kb_id=tree.kb.id, account_id=bia.id, role="reader"))
         token = await SessionService(uow, test_settings.session_days).create(bia.id, None)
     transport = httpx.ASGITransport(app=app)

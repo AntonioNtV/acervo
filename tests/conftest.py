@@ -15,8 +15,9 @@ import pytest
 from alembic import command
 from alembic.config import Config
 from pydantic import SecretStr
-from sqlalchemy import make_url, text
+from sqlalchemy import Connection, event, make_url, text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from acervo.core.passwords import hash_password
@@ -133,7 +134,24 @@ async def connection(engine: AsyncEngine) -> AsyncIterator[AsyncConnection]:
 @pytest.fixture
 def session_factory(connection: AsyncConnection) -> async_sessionmaker[AsyncSession]:
     # Commits and rollbacks inside the test act on savepoints of the outer transaction.
-    return async_sessionmaker(bind=connection, join_transaction_mode="create_savepoint", expire_on_commit=False)
+    return async_sessionmaker(
+        bind=connection,
+        join_transaction_mode="create_savepoint",
+        expire_on_commit=False,
+        sync_session_class=_TestSession,
+    )
+
+
+class _TestSession(Session):
+    pass
+
+
+@event.listens_for(_TestSession, "after_commit")
+def _back_to_owner(session: Session) -> None:
+    # Releasing a savepoint keeps its `set local role`: the shared connection goes back to the owner, as at the end
+    # of a real transaction, so the test's own setup and checks still see every organization.
+    assert isinstance(session.bind, Connection)
+    session.bind.exec_driver_sql("reset role")
 
 
 @pytest.fixture
@@ -255,6 +273,13 @@ def make_account(session: AsyncSession) -> Callable[..., Awaitable[AccountRead]]
         return AccountRead.of(created)
 
     return make
+
+
+@pytest.fixture
+async def default_account_id(session: AsyncSession, make_account: Callable[..., Awaitable[AccountRead]]) -> UUID:
+    """The account `make_tree` builds in and the test client signs in as; a unit of work acts as it to see them."""
+    account = await AccountRepository(session).by_email(DEFAULT_EMAIL) or await make_account()
+    return account.id
 
 
 @pytest.fixture

@@ -39,9 +39,10 @@ class Bases:
 
 
 @pytest.fixture
-async def services(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Services]:
+async def services(uow: UnitOfWork, session: AsyncSession, default_account_id: UUID) -> AsyncIterator[Services]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        uow.act_as(default_account_id)
         yield Services(PageService(uow), TreeService(uow))
 
 
