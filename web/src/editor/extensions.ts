@@ -4,6 +4,13 @@ import { TaskItem, TaskList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Table, TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
+import { Columns } from "./nodes/columns";
+import { footnoteExtensions } from "./nodes/footnote";
+import { generatedExtensions } from "./nodes/generated";
+import { markExtensions } from "./nodes/marks";
+import { InlineMath } from "./nodes/math";
+import { SyncedBlock } from "./nodes/synced";
+import { ToggleHeading } from "./nodes/toggleHeading";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -170,7 +177,7 @@ export const Callout = Node.create({
 
 /** Where the `</details>` closing the one opened before `from` starts, or -1. */
 function closingDetails(src: string, from: number): number {
-  const tags = /<(\/?)details>/g;
+  const tags = /<(\/?)details(?: open)?>/g;
   tags.lastIndex = from;
   let depth = 1;
   for (let match = tags.exec(src); match; match = tags.exec(src)) {
@@ -287,7 +294,10 @@ const BoundedTable = Table.extend({
   },
 });
 
-/** The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. */
+/**
+ * The schema and the Markdown of a page: the editor and `markdown.ts` both build on exactly this list. marked tries
+ * the tokenizer registered last first, so what must win over `RawInline` and `RawBlock` comes after them.
+ */
 export const blockExtensions: AnyExtension[] = [
   TextParagraph,
   StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
@@ -295,11 +305,18 @@ export const blockExtensions: AnyExtension[] = [
   TodoItem.configure({ nested: true }),
   TableKit.configure({ table: false }),
   BoundedTable.configure({ resizable: false }),
+  ToggleHeading,
   Toggle,
   DetailsSummary.extend(noMarkdown),
   DetailsContent.extend(noMarkdown),
   Callout,
+  Columns,
+  InlineMath,
   PageLink,
   RawInline,
   RawBlock,
+  SyncedBlock,
+  ...markExtensions,
+  ...footnoteExtensions,
+  ...generatedExtensions,
 ];

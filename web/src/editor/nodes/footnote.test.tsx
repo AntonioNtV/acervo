@@ -1,16 +1,8 @@
 import { Editor } from "@tiptap/core";
-import { blockExtensions } from "../extensions";
+import { blockExtensions, RawBlock } from "../extensions";
 import { bindSource, parseMarkdown, serializeMarkdown, type Source } from "../markdown";
 import footnotePage from "../fixtures/footnote.md?raw";
 import { footnoteExtensions } from "./footnote";
-
-// markdown.ts builds its one manager from `blockExtensions`: here they are the page's with the notes last, since
-// marked tries the tokenizer registered last first.
-vi.mock("../extensions", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../extensions")>();
-  const { footnoteExtensions: notes } = await import("./footnote");
-  return { ...original, blockExtensions: [...original.blockExtensions, ...notes] };
-});
 
 // jsdom has no layout, and ProseMirror measures text ranges to scroll the selection into view.
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
@@ -39,7 +31,7 @@ const markers = (editor: Editor) =>
 
 describe("footnotes", () => {
   it("are registered after the raw nodes", () => {
-    expect(blockExtensions.slice(-2)).toEqual(footnoteExtensions);
+    expect(blockExtensions.indexOf(footnoteExtensions[0]!)).toBeGreaterThan(blockExtensions.indexOf(RawBlock));
   });
 
   it("read the fixture as markers and notes and save it byte for byte", () => {

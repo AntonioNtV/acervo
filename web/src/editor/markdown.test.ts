@@ -16,7 +16,7 @@ function open(markdown: string) {
 const rewrite = (markdown: string) => serializeMarkdown(open(markdown).node, NO_SOURCE);
 
 // Written in the canonical style, so even a rewrite gives back the same bytes.
-const canonical = ["blocks.md", "links.md", "unknown-html.md"];
+const canonical = ["blocks.md", "links.md", "planned-blocks.md", "unknown-html.md"];
 
 const raws = (markdown: string) => markdown.match(/<!--[\s\S]*?-->|<\/?[a-z][^>]*>|\[\^[^\]]+\]:?[^\n]*/gi) ?? [];
 
@@ -32,6 +32,21 @@ describe("Markdown round-trip", () => {
     // The documented normalization: same blocks, raw constructs (HTML, comments, footnotes) byte for byte.
     expect(open(rewritten).node.eq(open(markdown).node)).toBe(true);
     for (const raw of raws(markdown)) expect(rewritten).toContain(raw);
+  });
+
+  it("opens every planned form as its block, with no raw text left", () => {
+    const { node } = open(fixtures["./fixtures/planned-blocks.md"]!);
+    const kinds = new Set<string>();
+    node.descendants((child) => {
+      kinds.add(child.type.name === "heading" ? `h${child.attrs.level}` : child.type.name);
+      child.marks.forEach((mark) => kinds.add(mark.type.name));
+    });
+    expect([...kinds]).toEqual(
+      expect.arrayContaining(["h4", "h5", "h6", "underline", "highlight", "textColor", "inlineMath", "footnoteRef", "footnote"]),
+    );
+    expect([...kinds]).toEqual(expect.arrayContaining(["toggleHeading", "tableOfContents", "breadcrumb", "columns", "syncedBlock"]));
+    expect(kinds.has("rawInline") || kinds.has("rawBlock")).toBe(false);
+    expect(node.textContent).toContain("R$ 400 e R$ 500");
   });
 
   it("keeps every HTML comment of a page where it was", () => {
