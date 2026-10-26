@@ -31,6 +31,7 @@ class DigestChange(BaseModel):
     base: str
     author_id: UUID | None
     author: str | None
+    author_known: bool
 
 
 class DigestRepository:
@@ -87,6 +88,7 @@ class DigestRepository:
                 Kb.name.label("base"),
                 PageVersion.author_id,
                 Account.name.label("author"),
+                PageVersion.author_known,
             )
             .select_from(PageFollow)
             .join(Node, Node.id == PageFollow.node_id)

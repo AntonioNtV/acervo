@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { PageVersion } from "../../api/client";
 import { calls, resetApi, respond } from "../../api/testing";
 import { pageNode, renderPage, versions } from "./testing";
 
@@ -28,6 +29,34 @@ describe("History", () => {
     const rows = within(day).getAllByRole("button");
     expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent("12 min de edição");
+  });
+
+  it("says who saved each version", async () => {
+    const [timed, untimed] = versions as [PageVersion, PageVersion];
+    const by = (id: string, author_id: string | null, author: string | null, author_known = true) => ({
+      ...untimed,
+      id,
+      author_id,
+      author,
+      author_known,
+    });
+    respond("GET", "/v1/auth/me", { body: { id: "account-1", name: "Ana", preferences: { page_width: "default" } } });
+    respond("GET", "/v1/pages/page-1/versions", {
+      body: [
+        { ...timed, author_id: "account-1", author: "Ana" },
+        by("v3", "account-2", "Bruno Lima"),
+        by("v4", null, null),
+        by("v5", null, null, false),
+      ],
+    });
+    const panel = await openHistory();
+
+    const day = await within(panel).findByRole("region", { name: "14 de outubro" });
+    await waitFor(() => expect(within(day).getAllByRole("button")[0]).toHaveTextContent("você · 12 min de edição"));
+    const lines = within(day)
+      .getAllByRole("button")
+      .map((row) => row.lastElementChild?.textContent);
+    expect(lines).toEqual(["você · 12 min de edição", "Bruno Lima", "Conta excluída", ""]);
   });
 
   it("shows the selected version in the page with what came in and went out marked", async () => {

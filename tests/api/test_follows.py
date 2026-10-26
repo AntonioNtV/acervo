@@ -3,12 +3,12 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from acervo.api.cookies import SESSION_COOKIE
 from acervo.core.settings import Settings
-from acervo.db.models import PageVersion
+from acervo.db.models import Account, PageVersion
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
 from acervo.services.session_service import SessionService
@@ -90,3 +90,26 @@ async def test_a_duplicated_page_has_its_author(
 
     author = await session.scalar(select(PageVersion.author_id).where(PageVersion.node_id == copy.json()["id"]))
     assert author == default_account_id
+
+
+async def test_history_lists_each_versions_author(
+    client: httpx.AsyncClient,
+    make_tree: MakeTree,
+    session: AsyncSession,
+    make_account: Callable[..., Awaitable[AccountRead]],
+) -> None:
+    page = (await make_tree({"Emissão.md": None}))["Emissão.md"]
+    bia = await make_account(email="bia@example.com", name="Bia")
+    by_bia = PageVersion(node_id=page.id, markdown="Da Bia.\n", author_id=bia.id)
+    old = PageVersion(node_id=page.id, markdown="Antiga.\n", author_known=False)
+    session.add_all([by_bia, old])
+    await session.flush()
+
+    async def authors() -> list[tuple[Any, Any, Any]]:
+        history = (await client.get(f"/v1/pages/{page.id}/versions")).json()
+        by_id = {v["id"]: (v["author_id"], v["author"], v["author_known"]) for v in history}
+        return [by_id[str(by_bia.id)], by_id[str(old.id)]]
+
+    assert await authors() == [(str(bia.id), "Bia", True), (None, None, False)]
+    await session.execute(delete(Account).where(Account.id == bia.id))
+    assert await authors() == [(None, None, True), (None, None, False)]

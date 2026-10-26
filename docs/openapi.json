@@ -2391,6 +2391,36 @@
       "PageVersionSummary": {
         "description": "One version of a page in its history, without its text.",
         "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name of the account that saved it; null when `author_id` is.",
+            "title": "Author"
+          },
+          "author_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Account that saved it; null for versions saved before authors were recorded, or once the account is deleted.",
+            "title": "Author Id"
+          },
+          "author_known": {
+            "description": "False for versions saved before authors were recorded; a null author with this true is a deleted account.",
+            "title": "Author Known",
+            "type": "boolean"
+          },
           "created_at": {
             "description": "When it was written.",
             "format": "date-time",
@@ -2434,7 +2464,10 @@
           "id",
           "created_at",
           "edit_started_at",
-          "edit_ended_at"
+          "edit_ended_at",
+          "author_id",
+          "author",
+          "author_known"
         ],
         "title": "PageVersionSummary",
         "type": "object"

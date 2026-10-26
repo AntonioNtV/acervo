@@ -57,8 +57,13 @@ async def bruno(session: AsyncSession, make_account: MakeAccount) -> UUID:
     return await _account(session, make_account, "bruno@example.com", "Bruno Lima", "Asia/Tokyo")
 
 
-async def _save(session: AsyncSession, page: Node, author: UUID | None, at: datetime = YESTERDAY) -> None:
-    session.add(PageVersion(node_id=page.id, markdown=f"# {page.title}\n", author_id=author, created_at=at))
+async def _save(
+    session: AsyncSession, page: Node, author: UUID | None, at: datetime = YESTERDAY, author_known: bool = True
+) -> None:
+    version = PageVersion(
+        node_id=page.id, markdown=f"# {page.title}\n", author_id=author, created_at=at, author_known=author_known
+    )
+    session.add(version)
     await session.flush()
 
 
@@ -106,6 +111,22 @@ async def test_lists_the_followed_pages_others_changed_with_authors_and_base(
     }
     assert mail.unsubscribe == Unsubscribe(ana, Notification.FOLLOWED)
     assert (await session.get_one(Account, ana, populate_existing=True)).digest_sent_on == date(2040, 3, 10)
+
+
+async def test_a_version_saved_before_authors_were_kept_adds_no_name(
+    digests: DigestService, session: AsyncSession, make_tree: MakeTree, fake_mailer: FakeMailer, ana: UUID, bruno: UUID
+) -> None:
+    tree = await make_tree(TREE, name="Jurídico")
+    for path in ("Glossário.md", "Renovação.md"):
+        await FollowRepository(session).follow(ana, tree[path].id)
+    await _save(session, tree["Glossário.md"], None, author_known=False)
+    await _save(session, tree["Glossário.md"], bruno)
+    await _save(session, tree["Renovação.md"], None, author_known=False)
+
+    await digests.send(ana, NOW)
+
+    [mail] = fake_mailer.sent
+    assert mail.values["pages"] == "Glossário\tBruno Lima\tJurídico\nRenovação\t\tJurídico"
 
 
 @pytest.mark.parametrize("case", ["only_mine", "page_trashed", "base_trashed", "unreadable", "toggle_off"])

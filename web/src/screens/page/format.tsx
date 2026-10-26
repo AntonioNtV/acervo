@@ -32,7 +32,14 @@ export function spanText(t: T, version: PageVersion): string | null {
   return minutes < 1 ? t("page.history.spanShort") : t("page.history.span", { n: minutes });
 }
 
-/** A version's line under its time: how long its editing session lasted, when it came from one. */
+/** Who saved a version: "você", their name or "Conta excluída"; null for versions from before authors were kept. */
+export function authorText(t: T, version: PageVersion, meId: string | undefined): string | null {
+  if (!version.author_known) return null;
+  if (version.author_id && version.author_id === meId) return t("page.history.you");
+  return version.author ?? t("page.history.deletedAccount");
+}
+
+/** A version's line under its time: who saved it and how long its editing session lasted, as far as known. */
 export function AuthorLine({ children }: { children?: string | null }) {
   return <span className="text-12 text-text-3">{children}</span>;
 }
