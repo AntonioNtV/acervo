@@ -94,8 +94,10 @@ def _timeout(request: httpx.Request) -> httpx.Response:
         lambda request: httpx.Response(500),
         lambda request: httpx.Response(200, headers={"content-type": "application/pdf"}, content=b"%PDF"),
         lambda request: httpx.Response(302, headers={"location": request.url.path + "x"}),
+        lambda request: httpx.Response(302, headers={"location": "http://[::1"}),
+        lambda request: _html('<meta property="og:image" content="http://[bad">'),
     ],
-    ids=["timeout", "error", "not-html", "too-many-redirects"],
+    ids=["timeout", "error", "not-html", "too-many-redirects", "malformed-redirect", "malformed-image"],
 )
 async def test_a_site_that_fails_gives_only_the_domain(
     client: httpx.AsyncClient, app: FastAPI, handler: Handler

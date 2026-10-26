@@ -38,6 +38,7 @@ async def test_upload_link_raw_and_range(client: httpx.AsyncClient, make_tree: M
     assert (raw.status_code, raw.content, raw.headers["content-type"]) == (200, PHOTO, "image/jpeg")
     assert raw.headers["content-disposition"] == "attachment; filename*=UTF-8''foto.jpg"
     assert raw.headers["cache-control"] == "private, max-age=31536000, immutable"
+    assert raw.headers["x-content-type-options"] == "nosniff"
     assert other.status_code == 404, "a link opens only the attachment it was signed for"
     assert (ranged.status_code, ranged.content) == (206, PHOTO[4:8])
     assert ranged.headers["content-range"] == f"bytes 4-7/{len(PHOTO)}"

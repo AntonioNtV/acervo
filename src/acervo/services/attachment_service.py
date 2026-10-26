@@ -84,6 +84,8 @@ class AttachmentService:
         key, size = attachment_key(attachment.sha256), attachment.size
         headers = {
             "Accept-Ranges": "bytes",
+            # The type comes from the uploaded name; the browser must not guess another one, such as HTML.
+            "X-Content-Type-Options": "nosniff",
             "Content-Disposition": f"attachment; filename*=UTF-8''{quote(attachment.name)}",
             "ETag": f'"{attachment.sha256}"',
             # Every link is a new URL and the bytes under a key never change, so the browser may keep them.

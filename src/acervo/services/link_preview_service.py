@@ -78,7 +78,8 @@ class LinkPreviewService:
                         body = await self._read(response)
                         meta = parse(_decode(body, response.charset_encoding), current)
                         return bare.model_copy(update=asdict(meta))
-        except (TimeoutError, OSError, httpx.HTTPError):
+        # ValueError: urljoin refuses a malformed redirect or image URL, such as `http://[bad`.
+        except (TimeoutError, OSError, ValueError, httpx.HTTPError):
             pass
         return bare
 

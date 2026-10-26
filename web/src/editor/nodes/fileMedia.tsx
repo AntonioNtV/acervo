@@ -80,7 +80,7 @@ function pickFile(accept: string, onFile: (file: File) => void) {
   input.click();
 }
 
-export function AttachmentFileView({ editor, node, getPos }: ReactNodeViewProps) {
+export function AttachmentFileView({ editor, node, getPos, updateAttributes }: ReactNodeViewProps) {
   const { t, lang } = useI18n();
   const errorText = useErrorText();
   const pageId = useContext(PageContext)?.nodeId ?? null;
@@ -132,7 +132,8 @@ export function AttachmentFileView({ editor, node, getPos }: ReactNodeViewProps)
           name={sent.current?.name}
           error={error ? t(error === "attachment_too_large" ? "editor.media.tooLarge" : "media.failed") : undefined}
           onFiles={upload}
-          onRetry={() => upload(sent.current ? [sent.current] : [])}
+          // A pasted or dropped file is not held here: retrying clears the error and shows Enviar again.
+          onRetry={() => (sent.current ? upload([sent.current]) : updateAttributes({ error: null }))}
         />
       </NodeViewWrapper>
     );

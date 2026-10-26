@@ -124,7 +124,10 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     editorProps: {
       attributes: { class: "block-editor", "aria-label": t("editor.label") },
       // A file pasted or dropped into the page is uploaded as its attachment, where it lands.
-      handlePaste: (view, event) => attach(view, Array.from(event.clipboardData?.files ?? []), latest.current.pageId),
+      // Rich text that also carries a picture of itself (cells copied from a spreadsheet) pastes as text.
+      handlePaste: (view, event) =>
+        !event.clipboardData?.types.some((type) => type === "text/html" || type === "text/plain") &&
+        attach(view, Array.from(event.clipboardData?.files ?? []), latest.current.pageId),
       handleDrop: (view, event) => {
         const files = Array.from(event.dataTransfer?.files ?? []);
         const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
