@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 
-from acervo.core.errors import ForbiddenError
+from acervo.core.errors import PersonalOrg
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRecord
 from acervo.schemas.organization import OrganizationRecord
@@ -12,12 +12,6 @@ from acervo.services.mailer import Mailer, MailTemplate
 from acervo.services.storage import Storage
 
 logger = logging.getLogger(__name__)
-
-
-class PersonalOrg(ForbiddenError):
-    """A Pessoal goes only with its account."""
-
-    code = "personal_org"
 
 
 class DeletionService:

@@ -1,44 +1,23 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 from sqlalchemy import func, or_, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.db.models.account import Account
 from acervo.db.models.kb import Kb
 from acervo.db.models.node import Node
 from acervo.db.models.page_follow import PageFollow
 from acervo.db.models.page_version import PageVersion
-from acervo.schemas.account import Language
+from acervo.repositories.base import BaseRepository
+from acervo.schemas.digest import DigestAccount, DigestChange
 
 
-class DigestAccount(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    email: str
-    language: Language
-    timezone: str
-    digest_sent_on: date | None
-
-
-class DigestChange(BaseModel):
-    """A version saved in the window, on a followed page, with what the digest lists of it."""
-
-    node_id: UUID
-    title: str
-    base: str
-    author_id: UUID | None
-    author: str | None
-    author_known: bool
-
-
-class DigestRepository:
+class DigestRepository(BaseRepository[Account, DigestAccount, BaseModel, BaseModel]):
     """What the daily digest reads and marks, across `account`, `page_follow` and `page_version`."""
 
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
+    orm_model = Account
+    read_schema = DigestAccount
 
     async def due(self, now: datetime) -> list[UUID]:
         """Accounts with the digest on, at 8:xx in their time zone and with no digest yet on their local today."""
@@ -49,10 +28,6 @@ class DigestRepository:
             or_(Account.digest_sent_on.is_(None), Account.digest_sent_on < func.date(local)),
         )
         return list(await self._session.scalars(query))
-
-    async def account(self, account_id: UUID) -> DigestAccount | None:
-        account = await self._session.get(Account, account_id)
-        return None if account is None else DigestAccount.model_validate(account)
 
     async def claim(self, account_id: UUID, today: date) -> bool:
         """Marks today's digest as sent unless it already was or the digest is off; one statement, so two runs

@@ -7,6 +7,7 @@ from acervo.domain import links
 from acervo.domain.diff import line_diff
 from acervo.domain.sections import sections
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.follow import FollowCreate
 from acervo.schemas.node import NodeRead, NodeWithPath
 from acervo.schemas.page import (
     Mention,
@@ -46,7 +47,7 @@ class PageService:
             links=links.resolve(wanted, await self._uow.page_links.candidates(node.kb_id, wanted), node.parent_id),
             sections=[Section(anchor=s.anchor, heading=s.heading) for s in sections(markdown)],
             following=self._uow.account_id is not None
-            and await self._uow.follows.is_following(self._uow.account_id, node.id),
+            and await self._uow.follows.get_by(account_id=self._uow.account_id, node_id=node.id) is not None,
         )
 
     async def put_text(self, node_id: UUID, data: PageTextPut, idle_seconds: int) -> PageTextSaved:
@@ -104,11 +105,11 @@ class PageService:
         return await self.read(node.id)
 
     async def follow(self, account_id: UUID, node_id: UUID) -> None:
-        await self._uow.follows.follow(account_id, (await self._page(node_id)).id)
+        await self._uow.follows.follow(FollowCreate(account_id=account_id, node_id=(await self._page(node_id)).id))
         await self._uow.commit()
 
     async def unfollow(self, account_id: UUID, node_id: UUID) -> None:
-        await self._uow.follows.unfollow(account_id, (await self._page(node_id)).id)
+        await self._uow.follows.unfollow(FollowCreate(account_id=account_id, node_id=(await self._page(node_id)).id))
         await self._uow.commit()
 
     async def mentions(self, node_id: UUID) -> list[Mention]:

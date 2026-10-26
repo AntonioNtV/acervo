@@ -1,9 +1,15 @@
+from collections.abc import Awaitable, Callable
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.core.errors import ConflictError
 from acervo.repositories.account import AccountRepository
-from acervo.schemas.account import AccountCreate, AccountUpdate
+from acervo.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from acervo.schemas.organization import OrganizationRecord
+
+MakeAccount = Callable[..., Awaitable[AccountRead]]
+MakeOrganization = Callable[..., Awaitable[OrganizationRecord]]
 
 
 @pytest.fixture
@@ -32,3 +38,14 @@ async def test_google_sub_is_unique(accounts: AccountRepository, session: AsyncS
             await accounts.update(bia.id, AccountUpdate(google_sub="sub-1"))
     assert refused.value.details == {"constraint": "uq_account_google_sub"}
     assert await accounts.get_by(google_sub="sub-1") == ana
+
+
+async def test_sole_owned_lists_the_teams_where_the_account_is_the_only_owner(
+    session: AsyncSession, make_account: MakeAccount, make_organization: MakeOrganization
+) -> None:
+    ana, bia = await make_account(), await make_account(email="bia@example.com")
+    alone = await make_organization(ana.id, name="Só da Ana", members={bia.id: "admin"})
+    await make_organization(ana.id, name="Duas owners", members={bia.id: "owner"})
+    await make_organization(bia.id, name="Da Bia", members={ana.id: "member"})
+
+    assert await AccountRepository(session).sole_owned(ana.id) == [alone.id]

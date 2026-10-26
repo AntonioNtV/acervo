@@ -2,9 +2,9 @@ from datetime import datetime, time, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from acervo.repositories.digest import DigestChange
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import Language
+from acervo.schemas.digest import DigestChange
 from acervo.schemas.notification import Notification
 from acervo.services.mail_templates import join_names
 from acervo.services.mailer import Mailer, MailTemplate, Unsubscribe
@@ -28,7 +28,7 @@ class DigestService:
         """Sends the account's digest for the day before its local `now`, once a day; with nothing changed, the
         day is marked and no email goes out. A deleted account is skipped. A mail that fails gives the day back and
         raises, for the caller to retry."""
-        account = await self._uow.digests.account(account_id)
+        account = await self._uow.digests.get_by(id=account_id)
         if account is None:
             return
         zone = ZoneInfo(account.timezone)

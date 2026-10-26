@@ -11,6 +11,7 @@ from acervo.repositories.follow import FollowRepository
 from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
+from acervo.schemas.follow import FollowCreate
 from acervo.schemas.notification import Notification
 from acervo.services.digest_service import DigestService
 from acervo.services.mailer import FakeMailer, MailTemplate, Unsubscribe
@@ -94,7 +95,7 @@ async def test_lists_the_followed_pages_others_changed_with_authors_and_base(
     tree = await make_tree(TREE, name="Jurídico")
     follows = FollowRepository(session)
     for path in TREE:
-        await follows.follow(ana, tree[path].id)
+        await follows.follow(FollowCreate(account_id=ana, node_id=tree[path].id))
     await _save(session, tree["Glossário.md"], ana)
     await _save(session, tree["Glossário.md"], bruno)
     await _save(session, tree["Renovação.md"], None)
@@ -118,7 +119,7 @@ async def test_a_version_saved_before_authors_were_kept_adds_no_name(
 ) -> None:
     tree = await make_tree(TREE, name="Jurídico")
     for path in ("Glossário.md", "Renovação.md"):
-        await FollowRepository(session).follow(ana, tree[path].id)
+        await FollowRepository(session).follow(FollowCreate(account_id=ana, node_id=tree[path].id))
     await _save(session, tree["Glossário.md"], None, author_known=False)
     await _save(session, tree["Glossário.md"], bruno)
     await _save(session, tree["Renovação.md"], None, author_known=False)
@@ -146,7 +147,7 @@ async def test_sends_nothing(
         organization = personal.id
     tree = await make_tree(TREE, organization=organization)
     page = tree["Glossário.md"]
-    await FollowRepository(session).follow(ana, page.id)
+    await FollowRepository(session).follow(FollowCreate(account_id=ana, node_id=page.id))
     await _save(session, page, ana if case == "only_mine" else bruno)
     if case == "page_trashed":
         page.deleted_at = YESTERDAY
@@ -167,7 +168,7 @@ async def test_one_digest_a_day(
     digests: DigestService, session: AsyncSession, make_tree: MakeTree, fake_mailer: FakeMailer, ana: UUID, bruno: UUID
 ) -> None:
     tree = await make_tree(TREE)
-    await FollowRepository(session).follow(ana, tree["Glossário.md"].id)
+    await FollowRepository(session).follow(FollowCreate(account_id=ana, node_id=tree["Glossário.md"].id))
     await _save(session, tree["Glossário.md"], bruno)
 
     for account_id in await digests.due(NOW):
@@ -184,7 +185,7 @@ async def test_a_failed_mail_gives_the_day_back(
     digests: DigestService, session: AsyncSession, make_tree: MakeTree, fake_mailer: FakeMailer, ana: UUID, bruno: UUID
 ) -> None:
     tree = await make_tree(TREE)
-    await FollowRepository(session).follow(ana, tree["Glossário.md"].id)
+    await FollowRepository(session).follow(FollowCreate(account_id=ana, node_id=tree["Glossário.md"].id))
     await _save(session, tree["Glossário.md"], bruno)
     send = fake_mailer.send
 
