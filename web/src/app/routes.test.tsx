@@ -81,6 +81,21 @@ describe("routes", () => {
     expect(localStorage.getItem("acervo.recent.kb-1")).toBeNull();
   });
 
+  it("a 401 sends the theme and language back to the browser's", async () => {
+    fakeBases([summary({ id: "kb-1", name: "Seguros" })]);
+    localStorage.setItem("acervo.theme", "dark");
+    localStorage.setItem("acervo.lang", "en");
+    respond("GET", "/v1/nodes/renovacao", { status: 401, body: { error: "unauthorized", message: "no session" } });
+
+    const router = renderHome("/kbs/kb-1/n/renovacao");
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
+    expect(await screen.findByRole("heading", { name: "Entrar no Acervo" })).toBeInTheDocument();
+    expect(localStorage.getItem("acervo.theme")).toBe("system");
+    expect(localStorage.getItem("acervo.lang")).toBe("ptBR");
+    expect(document.documentElement).not.toHaveClass("dark");
+  });
+
   it("with no base, / offers a new one", async () => {
     fakeBases([]);
 

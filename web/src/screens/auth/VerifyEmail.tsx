@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
+import { useForgetAccount } from "../../app/lastPage";
 import { useResendCode, useVerifyEmail } from "../../data/account";
 import { useI18n } from "../../i18n";
 import { Button } from "../../ui/Button";
@@ -23,6 +24,7 @@ export function VerifyEmail() {
   const { t } = useI18n();
   const errorText = useErrorText();
   const navigate = useNavigate();
+  const forget = useForgetAccount();
   const next = useNext();
   const email = (useLocation().state as { email?: string } | null)?.email;
   const [code, setCode] = useState("");
@@ -71,7 +73,17 @@ export function VerifyEmail() {
           setCode(value);
           if (verify.isError) verify.reset();
         }}
-        onComplete={(value) => verify.mutate({ email, code: value }, { onSuccess: () => navigate(next, { replace: true }) })}
+        onComplete={(value) =>
+          verify.mutate(
+            { email, code: value },
+            {
+              onSuccess: () => {
+                forget();
+                navigate(next, { replace: true });
+              },
+            },
+          )
+        }
         sent={t("auth.verify.sent", { email: mask(email) })}
         checking={verify.isPending}
         error={verify.isError ? errorText(verify.error) : undefined}

@@ -54,6 +54,22 @@ describe("SignIn", () => {
     expect(calls.find((call) => call.path === SIGN_IN)?.body).toEqual({ email: "antonio@segura.com.br", password: "correto-cavalo" });
   });
 
+  it("signing in as another account forgets the last one's pages and lands on Bases", async () => {
+    localStorage.setItem("acervo.lastPage", "/kbs/kb-1/n/renovacao");
+    localStorage.setItem("acervo.recent.kb-1", JSON.stringify(["renovacao"]));
+    localStorage.setItem("acervo.account", "acc-a");
+    respond("POST", SIGN_IN, { body: {} });
+    const router = renderAuth("/entrar");
+
+    await signIn("bruna@segura.com.br", "correto-cavalo");
+
+    expect(await screen.findByText("Dentro")).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/bases");
+    expect(localStorage.getItem("acervo.lastPage")).toBeNull();
+    expect(localStorage.getItem("acervo.recent.kb-1")).toBeNull();
+    expect(localStorage.getItem("acervo.account")).toBeNull();
+  });
+
   it("a next on another site is ignored", async () => {
     respond("POST", SIGN_IN, { body: {} });
     const router = renderAuth("/entrar?next=%2F%2Fexample.com");

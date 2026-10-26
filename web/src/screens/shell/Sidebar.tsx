@@ -1,12 +1,11 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Brand } from "../../app/Brand";
-import { forgetPages } from "../../app/lastPage";
+import { useForgetAccount } from "../../app/lastPage";
 import { useTheme } from "../../app/theme";
 import { useMe, useSignOut } from "../../data/account";
 import { useKbs } from "../../data/kbs";
-import { browserLang, locale, useI18n } from "../../i18n";
+import { locale, useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { cx } from "../../ui/cx";
 import { Icon, type IconName } from "../../ui/Icon";
@@ -62,13 +61,12 @@ function Switch<T extends string>({
 
 /** The person at the foot: photo or initials and name, opening Conta and Sair. */
 function AccountRow() {
-  const { t, setLang } = useI18n();
-  const { setTheme } = useTheme();
+  const { t } = useI18n();
+  const forget = useForgetAccount();
   const account = useMe().data;
   const signOut = useSignOut();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
-  const queryClient = useQueryClient();
   if (!account) return null;
   return (
     <Menu
@@ -92,13 +90,9 @@ function AccountRow() {
         onSelect={() =>
           signOut.mutate(undefined, {
             onSuccess: () => {
-              // Replaced, and the cache dropped, so Back cannot show the account's pages again.
+              // Replaced, and the account forgotten, so Back cannot show its pages again.
               navigate("/entrar", { replace: true });
-              forgetPages();
-              queryClient.clear();
-              // Signed out, the screens follow the browser again, not the last account's preferences.
-              setTheme("system");
-              setLang(browserLang());
+              forget();
             },
           })
         }

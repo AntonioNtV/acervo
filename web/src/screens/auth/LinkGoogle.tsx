@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
+import { useForgetAccount } from "../../app/lastPage";
 import { useLinkGoogle } from "../../data/account";
 import { ApiError } from "../../data/request";
 import { useI18n } from "../../i18n";
@@ -16,6 +17,7 @@ export function LinkGoogle() {
   const { t } = useI18n();
   const errorText = useErrorText();
   const navigate = useNavigate();
+  const forget = useForgetAccount();
   const next = useNext();
   const [params] = useSearchParams();
   const [password, setPassword] = useState("");
@@ -36,7 +38,12 @@ export function LinkGoogle() {
       onSubmit={() =>
         link.mutate(
           { token: params.get("token") ?? "", password },
-          { onSuccess: () => navigate(next, { replace: true }) },
+          {
+            onSuccess: () => {
+              forget();
+              navigate(next, { replace: true });
+            },
+          },
         )
       }
     >

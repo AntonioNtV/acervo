@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
+import { useForgetAccount } from "../../app/lastPage";
 import { useSignIn } from "../../data/account";
 import { ApiError } from "../../data/request";
 import { useI18n } from "../../i18n";
@@ -13,6 +14,7 @@ export function SignIn() {
   const { t } = useI18n();
   const errorText = useErrorText();
   const navigate = useNavigate();
+  const forget = useForgetAccount();
   const next = useNext();
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
@@ -25,7 +27,10 @@ export function SignIn() {
     signIn.mutate(
       { email: email.trim(), password },
       {
-        onSuccess: () => navigate(next, { replace: true }),
+        onSuccess: () => {
+          forget();
+          navigate(next, { replace: true });
+        },
         onError: (error) => {
           // The API sent a new code: the account only needs its email confirmed.
           if (error instanceof ApiError && error.code === "email_not_verified")

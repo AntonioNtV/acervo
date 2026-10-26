@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
+import { useForgetAccount } from "../../app/lastPage";
 import { useConfirmReset, useRequestReset } from "../../data/account";
 import { ApiError } from "../../data/request";
 import { useI18n } from "../../i18n";
@@ -58,6 +59,7 @@ export function NewPassword() {
   const { t } = useI18n();
   const errorText = useErrorText();
   const navigate = useNavigate();
+  const forget = useForgetAccount();
   const { token = "" } = useParams();
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -78,7 +80,16 @@ export function NewPassword() {
 
   function submit() {
     setMismatch(password !== repeat);
-    if (password === repeat) confirm.mutate({ token, password }, { onSuccess: () => navigate("/bases", { replace: true }) });
+    if (password === repeat)
+      confirm.mutate(
+        { token, password },
+        {
+          onSuccess: () => {
+            forget();
+            navigate("/bases", { replace: true });
+          },
+        },
+      );
   }
 
   return (

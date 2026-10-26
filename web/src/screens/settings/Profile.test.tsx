@@ -49,10 +49,14 @@ describe("Profile", () => {
     const email = await screen.findByLabelText("Email");
     await userEvent.clear(email);
     await userEvent.type(email, "antonio@novo.com.br");
+    await userEvent.type(screen.getByLabelText("Senha"), "correto-cavalo");
     await userEvent.click(screen.getByRole("button", { name: "Enviar código" }));
 
     expect(await screen.findByText(/Enviamos um código para antonio@novo.com.br/)).toBeInTheDocument();
-    expect(calls.find((call) => call.path === "/v1/account/email")?.body).toEqual({ new_email: "antonio@novo.com.br" });
+    expect(calls.find((call) => call.path === "/v1/account/email")?.body).toEqual({
+      new_email: "antonio@novo.com.br",
+      password: "correto-cavalo",
+    });
     await userEvent.type(screen.getByLabelText("Código de 6 dígitos"), "111111");
     expect(await screen.findByRole("alert")).toHaveTextContent("Código incorreto ou vencido.");
 
@@ -60,5 +64,21 @@ describe("Profile", () => {
     await userEvent.type(screen.getByLabelText("Código de 6 dígitos"), "482913");
 
     await waitFor(() => expect(screen.getByLabelText("Email")).toHaveValue("antonio@novo.com.br"));
+  });
+
+  it("a wrong current password is told under it and no code is sent", async () => {
+    signedIn();
+    respond("POST", "/v1/account/email", { status: 401, body: { error: "invalid_credentials", message: "no" } });
+    renderWithApi(<Profile />);
+
+    const email = await screen.findByLabelText("Email");
+    await userEvent.clear(email);
+    await userEvent.type(email, "antonio@novo.com.br");
+    await userEvent.type(screen.getByLabelText("Senha"), "errada-mesmo");
+    await userEvent.click(screen.getByRole("button", { name: "Enviar código" }));
+
+    expect(await screen.findByText("Senha incorreta.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Senha")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByText(/Enviamos um código/)).not.toBeInTheDocument();
   });
 });
