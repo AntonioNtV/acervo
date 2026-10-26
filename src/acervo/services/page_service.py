@@ -45,6 +45,8 @@ class PageService:
             saved_at=version.created_at if text is None else text.updated_at,
             links=links.resolve(wanted, await self._uow.page_links.candidates(node.kb_id, wanted), node.parent_id),
             sections=[Section(anchor=s.anchor, heading=s.heading) for s in sections(markdown)],
+            following=self._uow.account_id is not None
+            and await self._uow.follows.is_following(self._uow.account_id, node.id),
         )
 
     async def put_text(self, node_id: UUID, data: PageTextPut, idle_seconds: int) -> PageTextSaved:
@@ -100,6 +102,14 @@ class PageService:
         await self._settle(node, version.markdown, latest, await self._uow.page_drafts.get_by(node_id=node.id))
         await self._uow.commit()
         return await self.read(node.id)
+
+    async def follow(self, account_id: UUID, node_id: UUID) -> None:
+        await self._uow.follows.follow(account_id, (await self._page(node_id)).id)
+        await self._uow.commit()
+
+    async def unfollow(self, account_id: UUID, node_id: UUID) -> None:
+        await self._uow.follows.unfollow(account_id, (await self._page(node_id)).id)
+        await self._uow.commit()
 
     async def mentions(self, node_id: UUID) -> list[Mention]:
         """Each live page of the base whose link opens this page, once, with the first line holding the link,
@@ -213,7 +223,13 @@ class PageService:
     async def _add(
         self, node: NodeRead, markdown: str, started_at: datetime | None = None, ended_at: datetime | None = None
     ) -> PageVersionRead:
-        data = PageVersionCreate(node_id=node.id, markdown=markdown, edit_started_at=started_at, edit_ended_at=ended_at)
+        data = PageVersionCreate(
+            node_id=node.id,
+            markdown=markdown,
+            edit_started_at=started_at,
+            edit_ended_at=ended_at,
+            author_id=self._uow.account_id,
+        )
         return await self._uow.page_versions.add(data)
 
     async def _page(self, node_id: UUID) -> NodeRead:
