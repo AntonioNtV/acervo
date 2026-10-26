@@ -1549,7 +1549,8 @@ export interface paths {
         put?: never;
         /**
          * Registration Options
-         * @description Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie.
+         * @description Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie. Without a recent
+         *     sign-in it is 403 `reauthentication_required`.
          */
         post: operations["registration_options_v1_passkeys_register_options_post"];
         delete?: never;
@@ -1569,9 +1570,9 @@ export interface paths {
         put?: never;
         /**
          * Sign In
-         * @description Signs in with a passkey, no second step. On a session of the same account it confirms it instead (a recent
-         *     sign-in for sensitive changes). A passkey that does not verify is 401 `invalid_credentials`; an expired prompt
-         *     is 422 `code_invalid`.
+         * @description Signs in with a passkey, no second step. On a live session it confirms it instead (a recent sign-in for
+         *     sensitive changes), and a passkey of another account is 401 `invalid_credentials`, like one that does not
+         *     verify; an expired prompt is 422 `code_invalid`.
          */
         post: operations["sign_in_v1_passkeys_sign_in_post"];
         delete?: never;
@@ -1635,6 +1636,26 @@ export interface paths {
          * @description Conta › Atividade: the account's last 90 days, newest first.
          */
         get: operations["activity_v1_security_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/security/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Options
+         * @description What Conta › Segurança and "2FA exigido" may offer.
+         */
+        get: operations["options_v1_security_options_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1737,6 +1758,8 @@ export interface paths {
         /**
          * Start Two Factor
          * @description Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.
+         *     WhatsApp needs a recent sign-in (403 `reauthentication_required`), and is 422 `validation` when this server
+         *     sends no WhatsApp.
          */
         post: operations["start_two_factor_v1_two_factor_post"];
         /**
@@ -3450,6 +3473,17 @@ export interface components {
              * @description From the user agent of the request; null when unknown.
              */
             system: string | null;
+        };
+        /**
+         * SecurityOptions
+         * @description What this server can offer for two-step verification.
+         */
+        SecurityOptions: {
+            /**
+             * Whatsapp Enabled
+             * @description Whether WhatsApp codes can be sent; false hides WhatsApp.
+             */
+            whatsapp_enabled: boolean;
         };
         /**
          * SessionRead
@@ -8937,6 +8971,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -9193,6 +9236,46 @@ export interface operations {
             };
         };
     };
+    options_v1_security_options_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecurityOptions"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_sessions_v1_sessions_get: {
         parameters: {
             query?: never;
@@ -9399,6 +9482,15 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

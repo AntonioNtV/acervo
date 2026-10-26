@@ -6,6 +6,7 @@ from sqlalchemy.orm import undefer
 from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.db.models.account import Account
+from acervo.db.models.membership import Membership
 from acervo.repositories.base import BaseRepository
 from acervo.schemas.account import AccountCreate, AccountRecord, AccountUpdate
 
@@ -22,6 +23,19 @@ class AccountRepository(BaseRepository[Account, AccountRecord, AccountCreate, Ac
         """The account of `email`, ignoring case."""
         account = await self._session.scalar(self._select().where(func.lower(Account.email) == email.lower()))
         return None if account is None else self._to_read(account)
+
+    async def password_only(self, organization_id: UUID) -> list[AccountRecord]:
+        """The organization's members with neither a passkey nor two-step verification."""
+        query = (
+            self._select()
+            .join(Membership, Membership.account_id == Account.id)
+            .where(
+                Membership.organization_id == organization_id,
+                Account.two_factor == "none",
+                ~Account.has_passkey,  # type: ignore[attr-defined]
+            )
+        )
+        return [self._to_read(account) for account in await self._session.scalars(query)]
 
     async def delete(self, account_id: UUID) -> None:
         """Removes the account with its sessions, codes, reset links and favorites."""

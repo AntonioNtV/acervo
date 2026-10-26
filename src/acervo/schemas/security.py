@@ -76,7 +76,7 @@ class PasskeyRead(BaseModel):
 
 
 class PasskeyRename(BaseModel):
-    name: str = Field(min_length=1, description="New name of the passkey.")
+    name: str = Field(min_length=1, max_length=100, description="New name of the passkey.")
 
 
 class WebAuthnOptions(BaseModel):
@@ -89,7 +89,15 @@ class WebAuthnCredential(BaseModel):
     """What the browser's WebAuthn call gave, passed to py_webauthn as is."""
 
     credential: dict[str, Any] = Field(description="The PublicKeyCredential, as JSON.")
-    name: str | None = Field(default=None, min_length=1, description="Name for a new passkey; else from the AAGUID.")
+    name: str | None = Field(
+        default=None, min_length=1, max_length=100, description="Name for a new passkey; else from the AAGUID."
+    )
+
+
+class SecurityOptions(BaseModel):
+    """What this server can offer for two-step verification."""
+
+    whatsapp_enabled: bool = Field(description="Whether WhatsApp codes can be sent; false hides WhatsApp.")
 
 
 class TwoFactorStart(BaseModel):

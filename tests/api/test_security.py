@@ -6,10 +6,13 @@ from typing import Any
 import httpx
 import pytest
 from fastapi import FastAPI
+from pydantic import SecretStr
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.api.cookies import SESSION_COOKIE
 from acervo.core.settings import Settings
+from acervo.repositories.organization import OrganizationRepository
 from acervo.repositories.passkey import PasskeyRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
@@ -17,6 +20,7 @@ from acervo.schemas.organization import OrganizationRecord
 from acervo.schemas.security import PasskeyCreate
 from acervo.services.mailer import MailTemplate
 from acervo.services.session_service import SessionService
+from acervo.services.whatsapp import FakeWhatsApp
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 MakeOrganization = Callable[..., Awaitable[OrganizationRecord]]
@@ -130,3 +134,69 @@ async def test_a_new_browser_is_emailed_once(
         ("signed_in", {"method": "password"}, "Chrome"),
         ("signed_in", {"method": "password"}, "Safari"),
     ]
+
+
+async def test_a_newer_version_of_the_same_browser_is_not_a_new_browser(
+    app: FastAPI, anon_client: httpx.AsyncClient, make_account: MakeAccount
+) -> None:
+    await make_account()
+    credentials = {"email": "ana@example.com", "password": "senha-de-teste"}
+
+    for user_agent in (CHROME_MAC, CHROME_MAC.replace("Chrome/130", "Chrome/131")):
+        signed = await anon_client.post("/v1/auth/sign-in", json=credentials, headers={"User-Agent": user_agent})
+        assert signed.status_code == 200, signed.text
+
+    assert _sent(app, MailTemplate.NEW_SIGN_IN) == []
+
+
+async def test_a_required_two_factor_hides_the_members_favorites_of_its_bases(
+    sign_in: SignIn,
+    make_account: MakeAccount,
+    make_organization: MakeOrganization,
+    make_tree: Any,
+    session: AsyncSession,
+) -> None:
+    ana, bia = await make_account(), await make_account(email="bia@example.com", name="Bia")
+    seguros = await make_organization(ana.id, members={bia.id: "member"})
+    team = await make_tree({"Emissão.md": None}, organization=seguros.id)
+    pessoal = await OrganizationRepository(session).get_by(personal_of=bia.id)
+    assert pessoal is not None
+    mine = await make_tree({"Notas.md": None}, organization=pessoal.id)
+    owner, member = await sign_in(ana), await sign_in(bia)
+    for node_id in (team["Emissão.md"].id, mine["Notas.md"].id):
+        assert (await member.put(f"/v1/nodes/{node_id}/favorite", json={})).status_code == 200
+
+    await owner.patch(f"/v1/organizations/{seguros.id}", json={"require_two_factor": True})
+    listed = await member.get("/v1/favorites")
+
+    assert listed.status_code == 200, listed.text
+    assert [node["title"] for node in listed.json()] == ["Notas"]
+
+
+async def test_adding_a_passkey_or_a_whatsapp_number_needs_a_recent_sign_in(
+    app: FastAPI, client: httpx.AsyncClient, session: AsyncSession, test_settings: Settings
+) -> None:
+    app.state.settings = test_settings.model_copy(
+        update={"whatsapp_token": SecretStr("token"), "whatsapp_phone_number_id": "1"}
+    )
+    app.state.whatsapp = FakeWhatsApp()
+    await session.execute(text("update session set created_at = created_at - interval '11 minutes'"))
+    whatsapp = {"method": "whatsapp", "phone": "+5511912345678"}
+
+    refused = [await client.post("/v1/passkeys/register/options"), await client.post("/v1/two-factor", json=whatsapp)]
+    options = await client.get("/v1/security/options")
+    await client.post("/v1/sessions/reauthenticate", json={"password": "senha-de-teste"})
+    allowed = [await client.post("/v1/passkeys/register/options"), await client.post("/v1/two-factor", json=whatsapp)]
+
+    assert [(r.status_code, r.json()["error"]) for r in refused] == [(403, "reauthentication_required")] * 2
+    assert options.json() == {"whatsapp_enabled": True}
+    assert [r.status_code for r in allowed] == [200, 200]
+    assert len(app.state.whatsapp.sent) == 1
+
+
+async def test_without_a_whatsapp_sender_whatsapp_is_not_offered(client: httpx.AsyncClient) -> None:
+    started = await client.post("/v1/two-factor", json={"method": "whatsapp", "phone": "+5511912345678"})
+    options = await client.get("/v1/security/options")
+
+    assert (started.status_code, started.json()["error"]) == (422, "validation")
+    assert options.json() == {"whatsapp_enabled": False}

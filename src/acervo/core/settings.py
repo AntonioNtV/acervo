@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     whatsapp_template: str = "acervo_codigo"
     whatsapp_language: str = "pt_BR"
 
+    @property
+    def whatsapp_enabled(self) -> bool:
+        return bool(self.whatsapp_token and self.whatsapp_phone_number_id)
+
     @field_validator("session_secret")
     @classmethod
     def _secret_is_set(cls, value: SecretStr, info: ValidationInfo) -> SecretStr:

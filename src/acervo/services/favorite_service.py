@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from acervo.core.errors import ValidationError
+from acervo.core.errors import TwoFactorRequired, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.favorite import FavoritePlace
 from acervo.schemas.node import NodeRead, NodeWithPath
+from acervo.services.access_service import AccessService
 
 
 class FavoriteService:
@@ -16,6 +17,12 @@ class FavoriteService:
     async def listed(self, account_id: UUID) -> list[NodeWithPath]:
         # Hidden, not deleted: they come back when access does.
         visible = await self._uow.base_members.visible_kb_ids(account_id)
+        access = AccessService(self._uow)
+        for membership in await self._uow.memberships.of_account(account_id):
+            try:
+                await access.require_two_factor(account_id, membership.organization_id)
+            except TwoFactorRequired:
+                visible -= await self._uow.base_members.visible_kb_ids(account_id, membership.organization_id)
         nodes = [node for node in await self._uow.favorites.listed(account_id) if node.kb_id in visible]
         found = await self._uow.nodes.paths([node.id for node in nodes])
         return [NodeWithPath(**node.model_dump(), path=found[node.id]) for node in nodes]

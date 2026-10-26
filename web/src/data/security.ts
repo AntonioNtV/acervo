@@ -32,6 +32,11 @@ export function usePasskeySignIn() {
   return useMutation({ mutationFn: () => passkeySignIn() });
 }
 
+/** What this server offers: no WhatsApp without a sender configured. */
+export function useSecurityOptions() {
+  return useQuery({ queryKey: ["security-options"], queryFn: () => call(api.GET("/v1/security/options")) });
+}
+
 export function usePasskeys() {
   return useQuery({ queryKey: ["passkeys"], queryFn: () => call(api.GET("/v1/passkeys")) });
 }
@@ -42,7 +47,7 @@ function usePasskeyChange<T>(request: (input: T) => Promise<unknown>) {
   return useMutation({ mutationFn: request, onSuccess: () => invalidate(queryClient, ["passkeys"], ["me"]) });
 }
 
-/** Runs the browser's prompt for a new passkey and keeps it. */
+/** Runs the browser's prompt for a new passkey and keeps it; needs a recent sign-in. */
 export function useAddPasskey() {
   return usePasskeyChange(async () => {
     const { options } = await call(api.POST("/v1/passkeys/register/options"));
@@ -64,7 +69,7 @@ export function useRemovePasskey() {
   );
 }
 
-/** Email turns on at once; WhatsApp sends a code to `phone` and turns on once it is confirmed. */
+/** Email turns on at once; WhatsApp needs a recent sign-in, sends a code to `phone` and turns on once confirmed. */
 export function useStartTwoFactor() {
   return useAccountChange((body: { method: "email" | "whatsapp"; phone?: string }) =>
     call(api.POST("/v1/two-factor", { body })),

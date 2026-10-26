@@ -55,6 +55,8 @@ export function eventText(t: T, kind: Kind, data: Record<string, unknown>, actor
     case "role_changed":
       return t("activity.role_changed", { ...vars, old: t(`settings.role.org.${text("old_role")}`) });
     case "access_changed":
+      if ("new_base_access" in data)
+        return t("activity.access_changed.new_base", { ...vars, access: t(`settings.access.${text("new_base_access")}`) });
       if ("general_access" in data)
         return t("activity.access_changed.general", { ...vars, access: t(`settings.access.${text("general_access")}`) });
       return t(data.role ? "activity.access_changed.member" : "activity.access_changed.removed", vars);

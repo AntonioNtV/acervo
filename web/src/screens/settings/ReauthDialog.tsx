@@ -16,7 +16,7 @@ export function usePasskeyError() {
   const { t } = useI18n();
   const errorText = useErrorText();
   return (error: unknown): string | undefined => {
-    if (!error || cancelled(error)) return undefined;
+    if (!error || cancelled(error) || needsReauth(error)) return undefined;
     if (!(error instanceof ApiError)) return t("security.passkey.failed");
     return errorText(error, {
       invalid_credentials: t("security.passkey.failed"),
@@ -26,8 +26,9 @@ export function usePasskeyError() {
 }
 
 /**
- * For the sensitive changes (password, 2FA off, removing a passkey, unlinking Google, the email): `ask` in a change's
- * `onError` opens the dialog when the API wants a recent sign-in, and runs `retry` once the person confirmed.
+ * For the sensitive changes (password, 2FA off or by WhatsApp, adding or removing a passkey, unlinking Google, the
+ * email): `ask` in a change's `onError` opens the dialog when the API wants a recent sign-in, and runs `retry` once
+ * the person confirmed.
  */
 export function useReauth(): { ask: (error: unknown, retry: () => void) => void; dialog: ReactNode } {
   const [retry, setRetry] = useState<(() => void) | null>(null);

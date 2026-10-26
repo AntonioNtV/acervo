@@ -7,7 +7,6 @@ from uuid import UUID
 
 from acervo.core.errors import ForbiddenError, LastOwner, NotFoundError, ValidationError
 from acervo.repositories.uow import UnitOfWork
-from acervo.schemas.account import AccountRecord
 from acervo.schemas.organization import (
     MemberRead,
     MembershipCreate,
@@ -74,6 +73,13 @@ class OrganizationService:
         if change.name is not None:
             change.name = _name(change.name)
         organization = await self._uow.organizations.update(organization_id, change)
+        if organization.new_base_access != before.new_base_access:
+            await SecurityLog(self._uow).record(
+                SecurityEventKind.ACCESS_CHANGED,
+                organization_id=organization_id,
+                actor_id=account_id,
+                data={"new_base_access": organization.new_base_access},
+            )
         required = organization.require_two_factor != before.require_two_factor
         if required:
             await SecurityLog(self._uow).record(
@@ -85,7 +91,7 @@ class OrganizationService:
         await self._uow.commit()
         if required and organization.require_two_factor:
             actor = await self._uow.accounts.get(account_id)
-            for member in await self._password_only(organization_id):
+            for member in await self._uow.accounts.password_only(organization_id):
                 values = {
                     "name": member.name,
                     "actor": actor.name,
@@ -212,19 +218,11 @@ class OrganizationService:
         )
         await self._uow.commit()
 
-    async def _password_only(self, organization_id: UUID) -> list[AccountRecord]:
-        """The members with neither a passkey nor two-step verification."""
-        accounts = [
-            await self._uow.accounts.get(m.account_id)
-            for m in await self._uow.memberships.of_organization(organization_id)
-        ]
-        return [a for a in accounts if a.two_factor == "none" and not a.has_passkey]
-
     async def _read(self, organization: OrganizationRecord, role: OrgRole) -> OrganizationRead:
         """The organization as `role` sees it; its Owners and Admins also see how many sign in with a password only."""
         password_only = None
         if organization.personal_of is None and role != "member":
-            password_only = len(await self._password_only(organization.id))
+            password_only = len(await self._uow.accounts.password_only(organization.id))
         return OrganizationRead.of(organization, role, password_only)
 
     async def _replace_logo(self, organization_id: UUID, key: str | None, role: OrgRole) -> OrganizationRead:

@@ -10,6 +10,7 @@ import {
   usePasskeys,
   useRemovePasskey,
   useRenamePasskey,
+  useSecurityOptions,
   useSetPassword,
   useStartTwoFactor,
   useUnlinkGoogle,
@@ -42,7 +43,17 @@ function Failure({ error, known }: { error: unknown; known?: Partial<Record<stri
 }
 
 /** The number for WhatsApp, then the code it got; WhatsApp is on once the code is right. */
-export function WhatsAppForm({ onDone, onSent, cancel }: { onDone: () => void; onSent?: (sent: boolean) => void; cancel?: ReactNode }) {
+export function WhatsAppForm({
+  ask,
+  onDone,
+  onSent,
+  cancel,
+}: {
+  ask: Ask;
+  onDone: () => void;
+  onSent?: (sent: boolean) => void;
+  cancel?: ReactNode;
+}) {
   const { t } = useI18n();
   const errorText = useErrorText();
   const start = useStartTwoFactor();
@@ -51,6 +62,11 @@ export function WhatsAppForm({ onDone, onSent, cancel }: { onDone: () => void; o
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const number = e164(phone);
+  const send = (to: string) =>
+    start.mutate(
+      { method: "whatsapp", phone: to },
+      { onSuccess: () => back(true), onError: (error) => ask(error, () => send(to)) },
+    );
 
   const back = (to: boolean) => {
     setSent(to);
@@ -89,7 +105,7 @@ export function WhatsAppForm({ onDone, onSent, cancel }: { onDone: () => void; o
       className="m-0 flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
-        if (number) start.mutate({ method: "whatsapp", phone: number }, { onSuccess: () => back(true) });
+        if (number) send(number);
       }}
     >
       <PhoneField
@@ -98,7 +114,11 @@ export function WhatsAppForm({ onDone, onSent, cancel }: { onDone: () => void; o
           setPhone(value);
           if (start.isError) start.reset();
         }}
-        error={start.isError ? errorText(start.error, { validation: t("security.phone.invalid") }) : undefined}
+        error={
+          start.isError && !needsReauth(start.error)
+            ? errorText(start.error, { validation: t("security.phone.invalid") })
+            : undefined
+        }
       />
       <Button type="submit" variant="ink" disabled={!number || start.isPending}>
         {t("security.whatsapp.send")}
@@ -239,13 +259,14 @@ function Passkeys({ ask }: { ask: Ask }) {
   const add = useAddPasskey();
   const remove = useRemovePasskey();
   const [renaming, setRenaming] = useState<Passkey | null>(null);
+  const doAdd = () => add.mutate(undefined, { onError: (error) => ask(error, doAdd) });
   const doRemove = (id: string) => remove.mutate(id, { onError: (error) => ask(error, () => doRemove(id)) });
   const date = (iso: string) => new Date(iso).toLocaleDateString(locale(lang), { day: "numeric", month: "long" });
   return (
     <SettingsSection
       title={t("security.passkeys")}
       desc={t("security.passkeys.desc")}
-      action={{ label: add.isPending ? t("security.waiting") : t("security.passkey.add"), onClick: () => add.mutate(), disabled: add.isPending }}
+      action={{ label: add.isPending ? t("security.waiting") : t("security.passkey.add"), onClick: doAdd, disabled: add.isPending }}
     >
       {passkeys?.length === 0 && <p className="m-0 border-b border-line py-4 text-13 text-text-3">{t("security.passkeys.none")}</p>}
       {passkeys?.map((passkey) => (
@@ -282,6 +303,7 @@ function TwoFactor({ account, ask }: { account: Account; ask: Ask }) {
   const { t } = useI18n();
   const start = useStartTwoFactor();
   const disable = useDisableTwoFactor();
+  const offered = useSecurityOptions().data?.whatsapp_enabled;
   const [whatsapp, setWhatsapp] = useState(false);
   const doDisable = () => disable.mutate(undefined, { onError: (error) => ask(error, doDisable) });
   const action = (method: "email" | "whatsapp", turnOn: () => void) =>
@@ -296,17 +318,20 @@ function TwoFactor({ account, ask }: { account: Account; ask: Ask }) {
     );
   return (
     <SettingsSection title={t("security.twoFactor")} desc={t("security.twoFactor.desc")}>
-      <SecurityMethodRow
-        icon="chat"
-        name="WhatsApp"
-        detail={t(account.two_factor === "whatsapp" ? "security.whatsapp.detail" : "security.notSet")}
-        on={account.two_factor === "whatsapp"}
-      >
-        {action("whatsapp", () => setWhatsapp(true))}
-      </SecurityMethodRow>
+      {(offered || account.two_factor === "whatsapp") && (
+        <SecurityMethodRow
+          icon="chat"
+          name="WhatsApp"
+          detail={t(account.two_factor === "whatsapp" ? "security.whatsapp.detail" : "security.notSet")}
+          on={account.two_factor === "whatsapp"}
+        >
+          {action("whatsapp", () => setWhatsapp(true))}
+        </SecurityMethodRow>
+      )}
       {whatsapp && account.two_factor !== "whatsapp" && (
         <div className="w-80 max-w-full border-b border-line py-4">
           <WhatsAppForm
+            ask={ask}
             onDone={() => setWhatsapp(false)}
             cancel={
               <Button variant="quiet" onClick={() => setWhatsapp(false)}>

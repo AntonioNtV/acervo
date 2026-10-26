@@ -2479,6 +2479,7 @@
         "properties": {
           "name": {
             "description": "New name of the passkey.",
+            "maxLength": 100,
             "minLength": 1,
             "title": "Name",
             "type": "string"
@@ -2923,6 +2924,21 @@
         "title": "SecurityEventRead",
         "type": "object"
       },
+      "SecurityOptions": {
+        "description": "What this server can offer for two-step verification.",
+        "properties": {
+          "whatsapp_enabled": {
+            "description": "Whether WhatsApp codes can be sent; false hides WhatsApp.",
+            "title": "Whatsapp Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "whatsapp_enabled"
+        ],
+        "title": "SecurityOptions",
+        "type": "object"
+      },
       "SessionRead": {
         "description": "A signed-in browser as Conta \u203a Sess\u00f5es lists it.",
         "properties": {
@@ -3338,6 +3354,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "minLength": 1,
                 "type": "string"
               },
@@ -11545,7 +11562,7 @@
     },
     "/v1/passkeys/register/options": {
       "post": {
-        "description": "Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie.",
+        "description": "Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie. Without a recent\nsign-in it is 403 `reauthentication_required`.",
         "operationId": "registration_options_v1_passkeys_register_options_post",
         "parameters": [
           {
@@ -11586,6 +11603,16 @@
             },
             "description": "Unauthorized"
           },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -11605,7 +11632,7 @@
     },
     "/v1/passkeys/sign-in": {
       "post": {
-        "description": "Signs in with a passkey, no second step. On a session of the same account it confirms it instead (a recent\nsign-in for sensitive changes). A passkey that does not verify is 401 `invalid_credentials`; an expired prompt\nis 422 `code_invalid`.",
+        "description": "Signs in with a passkey, no second step. On a live session it confirms it instead (a recent sign-in for\nsensitive changes), and a passkey of another account is 401 `invalid_credentials`, like one that does not\nverify; an expired prompt is 422 `code_invalid`.",
         "operationId": "sign_in_v1_passkeys_sign_in_post",
         "parameters": [
           {
@@ -11975,6 +12002,66 @@
         ]
       }
     },
+    "/v1/security/options": {
+      "get": {
+        "description": "What Conta \u203a Seguran\u00e7a and \"2FA exigido\" may offer.",
+        "operationId": "options_v1_security_options_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Options",
+        "tags": [
+          "security"
+        ]
+      }
+    },
     "/v1/sessions": {
       "get": {
         "description": "Every open session of the account, the last used first.",
@@ -12324,7 +12411,7 @@
         ]
       },
       "post": {
-        "description": "Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.",
+        "description": "Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.\nWhatsApp needs a recent sign-in (403 `reauthentication_required`), and is 422 `validation` when this server\nsends no WhatsApp.",
         "operationId": "start_two_factor_v1_two_factor_post",
         "parameters": [
           {
@@ -12390,6 +12477,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "422": {
             "content": {

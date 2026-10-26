@@ -33,7 +33,7 @@ from acervo.db.session import create_engine, create_session_factory
 from acervo.services.mailer import FakeMailer
 from acervo.services.smtp_mailer import SmtpMailer
 from acervo.services.storage import Storage
-from acervo.services.whatsapp import CloudApiSender, FakeWhatsApp
+from acervo.services.whatsapp import CloudApiSender, NoWhatsApp
 
 
 @asynccontextmanager
@@ -51,8 +51,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         token = settings.whatsapp_token.get_secret_value()
         app.state.whatsapp = CloudApiSender(token, settings.whatsapp_phone_number_id, settings.whatsapp_template)
     else:
-        logging.getLogger(__name__).warning("WHATSAPP_TOKEN is not set: WhatsApp codes are not sent.")
-        app.state.whatsapp = FakeWhatsApp()
+        logging.getLogger(__name__).warning("WHATSAPP_TOKEN is not set: WhatsApp is not offered.")
+        app.state.whatsapp = NoWhatsApp()
     try:
         yield
     finally:

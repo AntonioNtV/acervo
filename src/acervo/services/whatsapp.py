@@ -40,6 +40,13 @@ class CloudApiSender:
             response.raise_for_status()
 
 
+class NoWhatsApp:
+    """No Meta account configured: every send fails, so a sign-in code goes by email instead."""
+
+    async def send_code(self, phone: str, code: str, language: str) -> None:
+        raise RuntimeError("WhatsApp is not configured (WHATSAPP_TOKEN)")
+
+
 @dataclass(frozen=True)
 class SentCode:
     phone: str
@@ -49,7 +56,7 @@ class SentCode:
 
 @dataclass
 class FakeWhatsApp:
-    """Keeps what it would send, for the tests and for running without a Meta account."""
+    """Keeps what it would send, for the tests."""
 
     sent: list[SentCode] = field(default_factory=list)
 

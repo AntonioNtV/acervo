@@ -101,7 +101,7 @@ class PasskeyService:
             # Discoverable, so Entrar can offer it with no email typed.
             authenticator_selection=AuthenticatorSelectionCriteria(
                 resident_key=ResidentKeyRequirement.REQUIRED,
-                user_verification=UserVerificationRequirement.PREFERRED,
+                user_verification=UserVerificationRequirement.REQUIRED,
             ),
         )
         cookie = self._seal("passkey_register", challenge=_b64(challenge), account=str(account.id))
@@ -126,6 +126,7 @@ class PasskeyService:
                 expected_challenge=_unb64(started["challenge"]),
                 expected_rp_id=self._rp_id,
                 expected_origin=self._origin,
+                require_user_verification=True,
             )
         except WebAuthnException as error:
             raise CodeInvalid("The passkey could not be verified.") from error
@@ -158,6 +159,8 @@ class PasskeyService:
         """Removes a passkey of the account, unless it is the last way to sign in; logs and emails it."""
         # Locked, so two removals at once cannot both see the other passkey left.
         passkeys = await self._uow.passkeys.of_account(account.id, lock=True)
+        # Read again once locked: a Google unlink that held the lock may have just taken a way in away.
+        account = AccountRead.of(await self._uow.accounts.get(account.id))
         passkey = next((p for p in passkeys if p.id == passkey_id), None)
         if passkey is None:
             raise NotFoundError(f"passkey {passkey_id} not found", {"id": str(passkey_id)})
@@ -171,7 +174,7 @@ class PasskeyService:
         the value of the short-lived cookie `sign_in` checks."""
         challenge = secrets.token_bytes(32)
         options = generate_authentication_options(
-            rp_id=self._rp_id, challenge=challenge, user_verification=UserVerificationRequirement.PREFERRED
+            rp_id=self._rp_id, challenge=challenge, user_verification=UserVerificationRequirement.REQUIRED
         )
         cookie = self._seal("passkey_sign_in", challenge=_b64(challenge), issued=str(self._now()))
         return json.loads(options_to_json(options)), cookie
@@ -180,7 +183,8 @@ class PasskeyService:
         self, credential: dict[str, Any], cookie: str | None, user_agent: str | None, current_token: str | None
     ) -> tuple[AccountRead, str]:
         """Signs in the account of the passkey; on a live session of that same account it marks it reauthenticated
-        instead, keeping its token. A counter going back is refused and logged."""
+        instead, keeping its token, and on one of another account it refuses. A counter going back is refused and
+        logged."""
         started = self._unseal("passkey_sign_in", cookie)
         if started is None:
             raise CodeInvalid("The passkey prompt expired; try again.")
@@ -204,6 +208,7 @@ class PasskeyService:
                 expected_origin=self._origin,
                 credential_public_key=passkey.public_key,
                 credential_current_sign_count=0,
+                require_user_verification=True,
             )
         except WebAuthnException as error:
             raise InvalidCredentials("The passkey was not accepted.") from error
@@ -218,6 +223,8 @@ class PasskeyService:
             raise InvalidCredentials("The passkey was not accepted.")
         now = self._utc()
         await self._uow.passkeys.update(passkey.id, PasskeyUpdate(sign_count=verified.new_sign_count, last_used_at=now))
+        # Kept even when the session refuses it below, so the same answer cannot be sent again.
+        await self._uow.commit()
         token = await self._session(passkey.account_id, now, user_agent, current_token)
         await self._uow.commit()
         return AccountRead.of(await self._uow.accounts.get(passkey.account_id)), token
@@ -225,7 +232,10 @@ class PasskeyService:
     async def _session(self, account_id: UUID, now: datetime, user_agent: str | None, current: str | None) -> str:
         if current is not None:
             session = await self._uow.sessions.get_by(token_hash=token_hash(current))
-            if session is not None and session.account_id == account_id and session.expires_at > now:
+            if session is not None and session.expires_at > now:
+                # A live session only ever confirms itself: a passkey of another account never switches it.
+                if session.account_id != account_id:
+                    raise InvalidCredentials("The passkey was not accepted.")
                 await self._uow.sessions.update(session.id, SessionUpdate(reauthenticated_at=now))
                 return current
         return await self._sessions.create(account_id, user_agent, "passkey")
