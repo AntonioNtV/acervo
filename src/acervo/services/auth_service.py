@@ -55,13 +55,11 @@ class AuthService:
         uow: UnitOfWork,
         sessions: SessionService,
         mailer: Mailer,
-        public_url: str,
         now: Callable[[], datetime] = _now,
     ) -> None:
         self._uow = uow
         self._sessions = sessions
         self._mailer = mailer
-        self._public_url = public_url
         self._now = now
 
     async def sign_up(self, data: SignUp) -> AccountRead:
@@ -146,7 +144,8 @@ class AuthService:
         )
         await self._uow.password_resets.create(reset)
         await self._uow.commit()
-        values = {"link": f"{self._public_url}/redefinir-senha/{token}", "name": account.name}
+        # The template builds the URL around the token, from the app's public URL.
+        values = {"link": token, "name": account.name}
         await self._mailer.send(account.email, MailTemplate.RESET_LINK, account.language, values)
 
     async def confirm_reset(self, data: ResetConfirm, user_agent: str | None) -> tuple[AccountRead, str]:

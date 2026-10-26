@@ -38,7 +38,7 @@ async def auth(
 ) -> AsyncIterator[AuthService]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
-        yield AuthService(uow, SessionService(uow, 30, clock), fake_mailer, "http://app.test", clock)
+        yield AuthService(uow, SessionService(uow, 30, clock), fake_mailer, clock)
 
 
 async def test_five_wrong_passwords_lock_the_email_for_15_minutes(
@@ -90,7 +90,7 @@ async def test_a_code_expires_after_10_minutes_and_after_5_wrong_tries(
 async def test_a_reset_link_works_once(auth: AuthService, make_account: MakeAccount, fake_mailer: FakeMailer) -> None:
     await make_account(email="ana@example.com", password=PASSWORD)
     await auth.request_reset("ana@example.com")
-    token = fake_mailer.sent[-1].values["link"].rsplit("/", 1)[-1]
+    token = fake_mailer.sent[-1].values["link"]
 
     await auth.confirm_reset(ResetConfirm(token=token, password="nova-senha-longa"), None)
     with pytest.raises(CodeInvalid):
