@@ -2,6 +2,7 @@ import asyncio
 import smtplib
 from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
+from email import policy
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
@@ -51,7 +52,9 @@ class SmtpMailer:
         )
         link = f"{public_url}/descadastro/{token}" if token else None
         mail = render(template, language, to, values, self._settings.public_url, self._now(), link)
-        message = EmailMessage()
+        # Lines up to RFC 5322's 998: the one-click URL is longer than 78, and folding would MIME-encode it, which
+        # mail providers do not read as a List-Unsubscribe URL.
+        message = EmailMessage(policy=policy.SMTP.clone(max_line_length=998))
         message["From"] = self._settings.mail_from
         message["To"] = to
         message["Subject"] = mail.subject

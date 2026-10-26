@@ -190,3 +190,5 @@ async def test_an_email_that_can_be_turned_off_carries_the_one_click_headers() -
     sealed = signing.unseal("s", "unsubscribe", token, datetime(9000, 1, 1).timestamp())
     assert sealed is not None
     assert (sealed["account"], sealed["notification"]) == (str(account_id), "invites")
+    # As it goes over the wire: a plain URL, not MIME-encoded, or providers ignore it.
+    assert f"List-Unsubscribe: <https://acervo.app/v1/auth/unsubscribe/{token}>".encode() in message.as_bytes()
