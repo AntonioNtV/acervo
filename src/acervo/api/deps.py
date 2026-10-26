@@ -1,10 +1,10 @@
-import hmac
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Cookie, Depends, Header, Query, Request, Response
+from fastapi import Cookie, Depends, Query, Request, Response
 
 from acervo.api.cookies import SESSION_COOKIE, set_session_cookie
 from acervo.core import signing
@@ -22,7 +22,7 @@ from acervo.services.file_service import FileService
 from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.mailer import Mailer
 from acervo.services.page_service import PageService
-from acervo.services.session_service import SessionService
+from acervo.services.session_service import SessionService, token_hash
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
 
@@ -40,42 +40,6 @@ def get_storage(request: Request) -> Storage:
 def get_mailer(request: Request) -> Mailer:
     mailer: Mailer = request.app.state.mailer
     return mailer
-
-
-async def require_api_key(
-    settings: Annotated[Settings, Depends(get_settings)],
-    x_api_key: Annotated[str | None, Header()] = None,
-) -> None:
-    expected = settings.api_key.get_secret_value().encode()
-    if x_api_key is None or not hmac.compare_digest(x_api_key.encode(), expected):
-        raise AuthError("Missing or invalid X-API-Key header.")
-
-
-KEY = [Depends(require_api_key)]
-
-
-def key_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:
-    """The key, or a link signed for `purpose` of exactly this content of the node and not yet expired."""
-
-    async def dependency(
-        node_id: UUID,
-        settings: Annotated[Settings, Depends(get_settings)],
-        # Out of the schema: only the file route takes a version, and it declares the parameter itself.
-        version_id: Annotated[UUID | None, Query(include_in_schema=False)] = None,
-        expires: int | None = None,
-        signature: str | None = None,
-        x_api_key: Annotated[str | None, Header()] = None,
-    ) -> None:
-        secret = settings.api_key.get_secret_value()
-        if (
-            expires is not None
-            and signature is not None
-            and signing.verify(secret, purpose, node_id, version_id, expires, signature, time.time())
-        ):
-            return
-        await require_api_key(settings, x_api_key)
-
-    return dependency
 
 
 async def get_uow(request: Request) -> AsyncIterator[UnitOfWork]:
@@ -157,3 +121,49 @@ async def current_account(
 
 
 CurrentAccount = Annotated[AccountRead, Depends(current_account)]
+
+SIGNED_IN = [Depends(current_account)]
+
+
+async def current_session_id(
+    _: CurrentAccount,
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> UUID:
+    """The session of the request, which the links it mints are bound to."""
+    session = await uow.sessions.get_by(token_hash=token_hash(token or ""))
+    if session is None:
+        raise AuthError("Missing or ended session.")
+    return session.id
+
+
+def session_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:
+    """A session, or a link signed in a still live session for `purpose` of exactly this content of the node and
+    not yet expired."""
+
+    async def dependency(
+        node_id: UUID,
+        response: Response,
+        uow: Annotated[UnitOfWork, Depends(get_uow)],
+        sessions: Annotated[SessionService, Depends(get_session_service)],
+        settings: Annotated[Settings, Depends(get_settings)],
+        # Out of the schema: only the file route takes a version, and it declares the parameter itself.
+        version_id: Annotated[UUID | None, Query(include_in_schema=False)] = None,
+        session: UUID | None = None,
+        expires: int | None = None,
+        signature: str | None = None,
+        token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    ) -> None:
+        secret = settings.session_secret.get_secret_value()
+        if (
+            session is not None
+            and expires is not None
+            and signature is not None
+            and signing.verify(secret, purpose, node_id, version_id, session, expires, signature, time.time())
+        ):
+            live = await uow.sessions.get_by(id=session)
+            if live is not None and live.expires_at > datetime.now(UTC):
+                return
+        await current_account(response, sessions, settings, token)
+
+    return dependency

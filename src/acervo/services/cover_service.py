@@ -62,10 +62,10 @@ class CoverService:
         await self._uow.commit()
         return node
 
-    async def link(self, node_id: UUID, secret: str, raw_url: str) -> FileLink:
-        """`raw_url` signed for the node's cover, so it opens without the key for a short while."""
+    async def link(self, node_id: UUID, secret: str, session_id: UUID, raw_url: str) -> FileLink:
+        """`raw_url` signed for the node's cover, so it opens without the cookie for a short while."""
         await self._image_key(node_id)
-        return signed_link(secret, "cover", node_id, None, raw_url)
+        return signed_link(secret, "cover", node_id, None, session_id, raw_url)
 
     async def open(self, node_id: UUID) -> CoverImage:
         """The node's cover image with the media type read from its first bytes."""

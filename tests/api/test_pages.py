@@ -148,15 +148,16 @@ async def test_history_has_no_text(client: httpx.AsyncClient) -> None:
     assert [set(version) for version in versions] == [{"id", "created_at", "edit_started_at", "edit_ended_at"}] * 2
 
 
-async def test_401_without_the_key(client: httpx.AsyncClient, session: AsyncSession) -> None:
+async def test_401_without_a_session(
+    client: httpx.AsyncClient, anon_client: httpx.AsyncClient, session: AsyncSession
+) -> None:
     _, node_id = await _page(client)
-    del client.headers["X-API-Key"]
 
     responses = [
-        await client.get(f"/v1/pages/{node_id}"),
-        await client.put(f"/v1/pages/{node_id}/text", json={"markdown": "Outra\n", "revision": 0}),
-        await client.post(f"/v1/pages/{node_id}/leave"),
-        await client.get(f"/v1/nodes/{node_id}"),
+        await anon_client.get(f"/v1/pages/{node_id}"),
+        await anon_client.put(f"/v1/pages/{node_id}/text", json={"markdown": "Outra\n", "revision": 0}),
+        await anon_client.post(f"/v1/pages/{node_id}/leave"),
+        await anon_client.get(f"/v1/nodes/{node_id}"),
     ]
 
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(401, "unauthorized")] * 4

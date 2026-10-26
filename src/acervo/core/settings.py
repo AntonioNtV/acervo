@@ -9,7 +9,6 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    api_key: SecretStr
     # Signs the links and short-lived cookies the API hands out.
     session_secret: SecretStr
     # Where the web app is served: links in emails point there, and the session cookie is Secure under https.
@@ -39,7 +38,7 @@ class Settings(BaseSettings):
     link_preview_timeout_seconds: float = 5
     link_preview_max_bytes: int = 1024 * 1024
 
-    @field_validator("api_key", "session_secret")
+    @field_validator("session_secret")
     @classmethod
     def _secret_is_set(cls, value: SecretStr, info: ValidationInfo) -> SecretStr:
         if not value.get_secret_value():

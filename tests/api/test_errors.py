@@ -6,7 +6,7 @@ import pytest
 from fastapi import APIRouter, Depends, FastAPI, Query
 from pydantic import BaseModel, SecretStr
 
-from acervo.api.deps import require_api_key
+from acervo.api.deps import current_account
 from acervo.api.main import create_app
 from acervo.core.errors import (
     AcervoError,
@@ -41,7 +41,7 @@ class Body(BaseModel):
     name: str
 
 
-router = APIRouter(prefix="/v1/test-errors", dependencies=[Depends(require_api_key)])
+router = APIRouter(prefix="/v1/test-errors", dependencies=[Depends(current_account)])
 
 
 @router.get("/{code}")
@@ -100,20 +100,42 @@ async def test_invalid_query_is_422_validation(client: httpx.AsyncClient) -> Non
     assert (response.status_code, response.json()["error"]) == (422, "validation")
 
 
-@pytest.mark.parametrize("headers", [{}, {"X-API-Key": "wrong"}])
-async def test_route_without_the_right_key_is_401(client: httpx.AsyncClient, headers: dict[str, str]) -> None:
-    del client.headers["X-API-Key"]
-
-    response = await client.get("/v1/test-errors/not_found", headers=headers)
+@pytest.mark.parametrize("headers", [{}, {"Cookie": "acervo_session=wrong"}])
+async def test_route_without_a_live_session_is_401(anon_client: httpx.AsyncClient, headers: dict[str, str]) -> None:
+    response = await anon_client.get("/v1/test-errors/not_found", headers=headers)
 
     assert response.status_code == 401
-    assert response.json() == {
-        "error": "unauthorized",
-        "message": "Missing or invalid X-API-Key header.",
-        "details": {},
+    assert response.json() == {"error": "unauthorized", "message": "Missing or ended session.", "details": {}}
+
+
+# Health and everything that signs a person in or out answer without a session.
+PUBLIC = ("/v1/health", "/v1/auth/")
+
+
+async def test_routes_need_a_session(app: FastAPI, anon_client: httpx.AsyncClient) -> None:
+    routes = [
+        (method, path)
+        for path, operations in app.openapi()["paths"].items()
+        if not path.startswith(PUBLIC) and not path.startswith("/v1/test-errors")
+        for method in operations
+    ]
+    assert routes
+
+    statuses = {
+        (method, path): (await anon_client.request(method, path.format_map(_AnyParam()))).status_code
+        for method, path in routes
     }
 
+    assert {route: status for route, status in statuses.items() if status != 401} == {}
 
-def test_empty_api_key_is_refused_at_startup() -> None:
-    with pytest.raises(pydantic.ValidationError, match="API_KEY cannot be empty"):
-        create_app(Settings(_env_file=None, api_key=SecretStr("")))  # type: ignore[call-arg]
+
+class _AnyParam(dict[str, str]):
+    """Fills every path parameter with an id, so the request reaches the route's dependencies."""
+
+    def __missing__(self, key: str) -> str:
+        return "00000000-0000-0000-0000-000000000000"
+
+
+def test_empty_session_secret_is_refused_at_startup() -> None:
+    with pytest.raises(pydantic.ValidationError, match="SESSION_SECRET cannot be empty"):
+        create_app(Settings(_env_file=None, session_secret=SecretStr("")))

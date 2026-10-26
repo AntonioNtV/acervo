@@ -40,14 +40,10 @@ async def _upload(client: httpx.AsyncClient, kb_id: str, parent_id: str, name: s
 
 
 async def _export(client: httpx.AsyncClient, node_id: str) -> httpx.Response:
-    """Downloads the zip by its signed link, without the key."""
+    """Downloads the zip by its signed link, without the cookie."""
     link = await client.post(f"/v1/nodes/{node_id}/export/link")
     assert link.status_code == 200, link.text
-    key = client.headers.pop("X-API-Key")
-    try:
-        return await client.get(link.json()["url"])
-    finally:
-        client.headers["X-API-Key"] = key
+    return await client.get(link.json()["url"], headers={"Cookie": ""})
 
 
 async def test_zip_holds_pages_sub_pages_and_files(client: httpx.AsyncClient) -> None:
@@ -112,22 +108,27 @@ async def test_a_file_and_a_folder_of_the_same_name_do_not_clash(client: httpx.A
     ]
 
 
-async def test_bad_signature_is_401(client: httpx.AsyncClient, test_settings: Settings) -> None:
+async def test_bad_signature_is_401(
+    client: httpx.AsyncClient, anon_client: httpx.AsyncClient, test_settings: Settings
+) -> None:
     kb_id = await _kb(client)
     page = await _node(client, kb_id, "page", "A")
-    secret = test_settings.api_key.get_secret_value()
+    session = httpx.URL((await client.post(f"/v1/nodes/{page}/export/link")).json()["url"]).params["session"]
+    secret = test_settings.session_secret.get_secret_value()
     expires = int(time.time()) + signing.LINK_SECONDS
-    del client.headers["X-API-Key"]
 
     signed = [
         (expires, "0" * 64),
-        (expires, signing.sign(secret, "file", UUID(page), None, expires)),
-        (expires - 120, signing.sign(secret, "export", UUID(page), None, expires - 120)),
+        (expires, signing.sign(secret, "file", UUID(page), None, UUID(session), expires)),
+        (expires - 120, signing.sign(secret, "export", UUID(page), None, UUID(session), expires - 120)),
     ]
 
     responses = [
-        *[await client.get(f"/v1/nodes/{page}/export", params={"expires": e, "signature": s}) for e, s in signed],
-        await client.post(f"/v1/nodes/{page}/export/link"),
+        *[
+            await anon_client.get(f"/v1/nodes/{page}/export", params={"session": session, "expires": e, "signature": s})
+            for e, s in signed
+        ],
+        await anon_client.post(f"/v1/nodes/{page}/export/link"),
     ]
 
     assert [(r.status_code, r.json()["error"]) for r in responses] == [(401, "unauthorized")] * 4

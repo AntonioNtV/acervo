@@ -7,7 +7,8 @@ on:
   workflow_call:
 
 env:
-  API_KEY: ci-api-key
+  # Settings refuses to start without it; the web job's `make openapi` imports the app.
+  SESSION_SECRET: ci-session-secret
 
 jobs:
   python:

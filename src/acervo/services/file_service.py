@@ -65,12 +65,14 @@ def read_hash(source: BinaryIO, max_bytes: int | None = None) -> tuple[str, int,
 
 
 def signed_link(
-    secret: str, purpose: signing.Purpose, node_id: UUID, version_id: UUID | None, raw_url: str
+    secret: str, purpose: signing.Purpose, node_id: UUID, version_id: UUID | None, session_id: UUID, raw_url: str
 ) -> FileLink:
-    """`raw_url` signed for `purpose` of this content of the node, so it opens without the key for a short while."""
+    """`raw_url` signed for `purpose` of this content of the node, so it opens without the cookie for a short while
+    and only while session `session_id` lasts."""
     expires = int(time.time()) + signing.LINK_SECONDS
     query: dict[str, object] = {"version_id": version_id} if version_id is not None else {}
-    query |= {"expires": expires, "signature": signing.sign(secret, purpose, node_id, version_id, expires)}
+    signature = signing.sign(secret, purpose, node_id, version_id, session_id, expires)
+    query |= {"session": session_id, "expires": expires, "signature": signature}
     return FileLink(url=f"{raw_url}?{urlencode(query)}", expires_at=datetime.fromtimestamp(expires, UTC))
 
 
@@ -170,12 +172,14 @@ class FileService:
         await self._uow.rollback()
         return node, content
 
-    async def link(self, node_id: UUID, version_id: UUID | None, secret: str, raw_url: str) -> FileLink:
-        """`raw_url` signed for this content of the file, so it opens without the key for a short while."""
+    async def link(
+        self, node_id: UUID, version_id: UUID | None, secret: str, session_id: UUID, raw_url: str
+    ) -> FileLink:
+        """`raw_url` signed for this content of the file, so it opens without the cookie for a short while."""
         node = await self._file_node(node_id)
         if version_id is not None:
             await self._version(node.id, version_id)
-        return signed_link(secret, "file", node.id, version_id, raw_url)
+        return signed_link(secret, "file", node.id, version_id, session_id, raw_url)
 
     async def download(self, node_id: UUID, version_id: UUID | None, range_header: str | None) -> Download:
         """The file byte for byte under its own name, or the one `Range` of bytes asked for."""

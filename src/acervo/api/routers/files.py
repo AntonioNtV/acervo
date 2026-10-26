@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Form, Header, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import KEY, get_file_service, get_settings, key_or_signature
+from acervo.api.deps import SIGNED_IN, current_session_id, get_file_service, get_settings, session_or_signature
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.file import FileLink, FileNodeRead, FileVersionResponse
@@ -16,6 +16,7 @@ router = APIRouter(prefix="/v1", tags=["files"], responses={401: ERROR, 422: ERR
 
 Service = Annotated[FileService, Depends(get_file_service)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
+SessionId = Annotated[UUID, Depends(current_session_id)]
 
 
 @router.post(
@@ -23,7 +24,7 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
     status_code=201,
     response_model=FileNodeRead,
     responses={404: ERROR, 409: ERROR},
-    dependencies=KEY,
+    dependencies=SIGNED_IN,
 )
 async def upload_file(
     kb_id: UUID,
@@ -34,13 +35,18 @@ async def upload_file(
     return await service.save(kb_id, parent_id, file.filename, file.file)
 
 
-@router.post("/nodes/{node_id}/file", response_model=FileNodeRead, responses={404: ERROR, 409: ERROR}, dependencies=KEY)
+@router.post(
+    "/nodes/{node_id}/file", response_model=FileNodeRead, responses={404: ERROR, 409: ERROR}, dependencies=SIGNED_IN
+)
 async def replace_file(node_id: UUID, file: UploadFile, service: Service) -> FileNodeRead:
     return await service.replace(node_id, file.file)
 
 
 @router.get(
-    "/files/{node_id}/versions", response_model=list[FileVersionResponse], responses={404: ERROR}, dependencies=KEY
+    "/files/{node_id}/versions",
+    response_model=list[FileVersionResponse],
+    responses={404: ERROR},
+    dependencies=SIGNED_IN,
 )
 async def list_file_versions(node_id: UUID, service: Service) -> list[FileVersionResponse]:
     return await service.versions(node_id)
@@ -50,25 +56,30 @@ async def list_file_versions(node_id: UUID, service: Service) -> list[FileVersio
     "/files/{node_id}/versions/{version_id}/restore",
     response_model=FileNodeRead,
     responses={404: ERROR, 409: ERROR},
-    dependencies=KEY,
+    dependencies=SIGNED_IN,
 )
 async def restore_file_version(node_id: UUID, version_id: UUID, service: Service) -> FileNodeRead:
     return await service.restore(node_id, version_id)
 
 
-@router.post("/files/{node_id}/link", response_model=FileLink, responses={404: ERROR}, dependencies=KEY)
+@router.post("/files/{node_id}/link", response_model=FileLink, responses={404: ERROR}, dependencies=SIGNED_IN)
 async def file_link(
-    node_id: UUID, request: Request, service: Service, settings: AppSettings, version_id: UUID | None = None
+    node_id: UUID,
+    request: Request,
+    service: Service,
+    settings: AppSettings,
+    session_id: SessionId,
+    version_id: UUID | None = None,
 ) -> FileLink:
-    """A link to the file's bytes, or to one older content of it, that opens without the key for 60 seconds."""
+    """A link to the file's bytes, or to one older content of it, that opens without the cookie for 60 seconds."""
     raw_url = str(request.url_for("raw_file", node_id=node_id))
-    return await service.link(node_id, version_id, settings.api_key.get_secret_value(), raw_url)
+    return await service.link(node_id, version_id, settings.session_secret.get_secret_value(), session_id, raw_url)
 
 
 @router.get(
     "/files/{node_id}/raw",
     response_class=StreamingResponse,
-    dependencies=[Depends(key_or_signature("file"))],
+    dependencies=[Depends(session_or_signature("file"))],
     responses={
         200: {"content": {"application/octet-stream": {}}, "description": "The original bytes."},
         206: {"content": {"application/octet-stream": {}}, "description": "A range of them."},
@@ -84,7 +95,7 @@ async def raw_file(
 ) -> Response:
     """The file byte for byte as uploaded, or one older content of it; one `Range` of bytes is honored.
 
-    Takes the X-API-Key header or the `expires` and `signature` of a link from `POST /v1/files/{node_id}/link`.
+    Takes the session cookie or a link from `POST /v1/files/{node_id}/link`.
     """
     download = await service.download(node_id, version_id, range)
     if download.body is None:

@@ -2,7 +2,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 
-from acervo.api.deps import KEY, get_link_preview_service
+from acervo.api.deps import SIGNED_IN, get_link_preview_service
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.link_preview import LinkPreview
 from acervo.services.link_preview_service import LinkPreviewService
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/v1", tags=["link-previews"], responses={401: ERROR, 
 Service = Annotated[LinkPreviewService, Depends(get_link_preview_service)]
 
 
-@router.get("/link-preview", response_model=LinkPreview, dependencies=KEY)
+@router.get("/link-preview", response_model=LinkPreview, dependencies=SIGNED_IN)
 async def link_preview(url: str, service: Service) -> LinkPreview:
     """The site's title, description and image, read by the server within 5 seconds and 1 MB.
 
