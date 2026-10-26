@@ -2362,6 +2362,109 @@
         "title": "PageVersionSummary",
         "type": "object"
       },
+      "PasskeyRead": {
+        "description": "A passkey as Conta \u203a Seguran\u00e7a lists it.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Passkey ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The last sign-in with it; null when never used.",
+            "title": "Last Used At"
+          },
+          "name": {
+            "description": "From the authenticator (1Password, iCloud Keychain\u2026), editable.",
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "created_at",
+          "last_used_at"
+        ],
+        "title": "PasskeyRead",
+        "type": "object"
+      },
+      "PasskeyRename": {
+        "properties": {
+          "name": {
+            "description": "New name of the passkey.",
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "PasskeyRename",
+        "type": "object"
+      },
+      "PasswordSet": {
+        "properties": {
+          "password": {
+            "description": "The new password.",
+            "minLength": 10,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "PasswordSet",
+        "type": "object"
+      },
+      "PendingSignIn": {
+        "description": "A right password on an account with two-step verification: the code is the next step, no session yet.",
+        "properties": {
+          "destination": {
+            "description": "The email or number it went to, masked: a\u2022\u2022\u2022@example.com, +55 \u2022\u2022 \u2022\u2022\u2022\u2022-1234.",
+            "title": "Destination",
+            "type": "string"
+          },
+          "method": {
+            "description": "Where the code went.",
+            "enum": [
+              "email",
+              "whatsapp"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "pending": {
+            "const": true,
+            "default": true,
+            "title": "Pending",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "method",
+          "destination"
+        ],
+        "title": "PendingSignIn",
+        "type": "object"
+      },
       "Preferences": {
         "description": "How the app looks and opens for the account, on every device.",
         "properties": {
@@ -2423,6 +2526,19 @@
           "name"
         ],
         "title": "ProfileUpdate",
+        "type": "object"
+      },
+      "Reauthenticate": {
+        "properties": {
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "title": "Reauthenticate",
         "type": "object"
       },
       "ResetConfirm": {
@@ -2644,6 +2760,80 @@
           "heading"
         ],
         "title": "Section",
+        "type": "object"
+      },
+      "SessionRead": {
+        "description": "A signed-in browser as Conta \u203a Sess\u00f5es lists it.",
+        "properties": {
+          "browser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the user agent (Chrome, Safari\u2026); null when unknown.",
+            "title": "Browser"
+          },
+          "created_at": {
+            "description": "When it signed in.",
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "current": {
+            "description": "Whether it is the session asking (Este aparelho).",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Session ID.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_seen_at": {
+            "description": "Its last request.",
+            "format": "date-time",
+            "title": "Last Seen At",
+            "type": "string"
+          },
+          "method": {
+            "description": "How it signed in.",
+            "enum": [
+              "password",
+              "google",
+              "passkey",
+              "reset"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "From the user agent (macOS, iPhone\u2026); null when unknown.",
+            "title": "System"
+          }
+        },
+        "required": [
+          "id",
+          "browser",
+          "system",
+          "created_at",
+          "last_seen_at",
+          "current",
+          "method"
+        ],
+        "title": "SessionRead",
         "type": "object"
       },
       "SignIn": {
@@ -2870,6 +3060,71 @@
         "title": "TreeNode",
         "type": "object"
       },
+      "TwoFactorConfirm": {
+        "properties": {
+          "code": {
+            "description": "The 6 digits sent by email or WhatsApp.",
+            "pattern": "^\\d{6}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "TwoFactorConfirm",
+        "type": "object"
+      },
+      "TwoFactorResend": {
+        "properties": {
+          "channel": {
+            "anyOf": [
+              {
+                "const": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "email sends it to the account email whatever the method (Receber por email).",
+            "title": "Channel"
+          }
+        },
+        "title": "TwoFactorResend",
+        "type": "object"
+      },
+      "TwoFactorStart": {
+        "properties": {
+          "method": {
+            "description": "Where the codes go: the account email, or WhatsApp.",
+            "enum": [
+              "email",
+              "whatsapp"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "pattern": "^\\+[1-9]\\d{7,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The WhatsApp number in E.164; required for whatsapp.",
+            "title": "Phone"
+          }
+        },
+        "required": [
+          "method"
+        ],
+        "title": "TwoFactorStart",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2908,6 +3163,51 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "WebAuthnCredential": {
+        "description": "What the browser's WebAuthn call gave, passed to py_webauthn as is.",
+        "properties": {
+          "credential": {
+            "additionalProperties": true,
+            "description": "The PublicKeyCredential, as JSON.",
+            "title": "Credential",
+            "type": "object"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Name for a new passkey; else from the AAGUID.",
+            "title": "Name"
+          }
+        },
+        "required": [
+          "credential"
+        ],
+        "title": "WebAuthnCredential",
+        "type": "object"
+      },
+      "WebAuthnOptions": {
+        "description": "What the browser's WebAuthn call takes, as py_webauthn writes it.",
+        "properties": {
+          "options": {
+            "additionalProperties": true,
+            "description": "PublicKeyCredentialCreationOptions or RequestOptions, as JSON.",
+            "title": "Options",
+            "type": "object"
+          }
+        },
+        "required": [
+          "options"
+        ],
+        "title": "WebAuthnOptions",
         "type": "object"
       }
     }
@@ -3046,7 +3346,7 @@
     },
     "/v1/account/email": {
       "post": {
-        "description": "Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`.",
+        "description": "Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`. 403\n`reauthentication_required` without a recent sign-in.",
         "operationId": "request_email_change_v1_account_email_post",
         "parameters": [
           {
@@ -3089,6 +3389,16 @@
               }
             },
             "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
           },
           "409": {
             "content": {
@@ -3202,6 +3512,86 @@
           }
         },
         "summary": "Confirm Email Change",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/v1/account/password": {
+      "put": {
+        "description": "Sets or changes the password and ends every other session; 403 `reauthentication_required` without a\nrecent sign-in.",
+        "operationId": "set_password_v1_account_password_put",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSet"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set Password",
         "tags": [
           "account"
         ]
@@ -3557,6 +3947,84 @@
       }
     },
     "/v1/auth/google/link": {
+      "delete": {
+        "description": "Desvincular Google. 403 `reauthentication_required` without a recent sign-in; 409 `last_way_in` when the\naccount has no password and no passkey.",
+        "operationId": "google_unlink_v1_auth_google_link_delete",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Google Unlink",
+        "tags": [
+          "auth"
+        ]
+      },
       "post": {
         "description": "Links Google to the account of `token` (10 minutes) after its password, and signs in.\n\nA wrong password is 401 `invalid_credentials`; an expired or already linked token is 422 `code_invalid`.",
         "operationId": "google_link_v1_auth_google_link_post",
@@ -3862,6 +4330,7 @@
     },
     "/v1/auth/sign-in": {
       "post": {
+        "description": "Signs in; with two-step verification on, sends the code and answers `PendingSignIn` instead, with a pending\ncookie for `POST /v1/auth/two-factor`.",
         "operationId": "sign_in_v1_auth_sign_in_post",
         "parameters": [
           {
@@ -3896,7 +4365,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/AccountRead"
+                    },
+                    {
+                      "$ref": "#/components/schemas/PendingSignIn"
+                    }
+                  ],
+                  "title": "Response Sign In V1 Auth Sign In Post"
                 }
               }
             },
@@ -4028,6 +4505,162 @@
           }
         },
         "summary": "Sign Up",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/two-factor": {
+      "post": {
+        "description": "The code of the pending sign-in signs in; `code_invalid` once wrong, expired or out of tries.",
+        "operationId": "finish_two_factor_v1_auth_two_factor_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_pending",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Pending"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Finish Two Factor",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/two-factor/resend": {
+      "post": {
+        "description": "A new code for the pending sign-in, at most once a minute; `channel: email` sends it by email.",
+        "operationId": "resend_two_factor_v1_auth_two_factor_resend_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_pending",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Pending"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorResend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingSignIn"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Resend Two Factor",
         "tags": [
           "auth"
         ]
@@ -10436,6 +11069,1053 @@
         "summary": "Restore Page Version",
         "tags": [
           "pages"
+        ]
+      }
+    },
+    "/v1/passkeys": {
+      "get": {
+        "description": "The account's passkeys, oldest first.",
+        "operationId": "list_passkeys_v1_passkeys_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PasskeyRead"
+                  },
+                  "title": "Response List Passkeys V1 Passkeys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Passkeys",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/passkeys/register": {
+      "post": {
+        "description": "Adds the passkey the browser created. An expired prompt or a credential that does not verify is 422\n`code_invalid`.",
+        "operationId": "register_v1_passkeys_register_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_passkey",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Passkey"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnCredential"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/passkeys/register/options": {
+      "post": {
+        "description": "Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie.",
+        "operationId": "registration_options_v1_passkeys_register_options_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Registration Options",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/passkeys/sign-in": {
+      "post": {
+        "description": "Signs in with a passkey, no second step. On a session of the same account it confirms it instead (a recent\nsign-in for sensitive changes). A passkey that does not verify is 401 `invalid_credentials`; an expired prompt\nis 422 `code_invalid`.",
+        "operationId": "sign_in_v1_passkeys_sign_in_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_passkey",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Passkey"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebAuthnCredential"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sign In",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/passkeys/sign-in/options": {
+      "post": {
+        "description": "Request options for `navigator.credentials.get()`, with no allowed credentials so the browser offers any\npasskey of the site (also as autofill); the challenge rides a 5-minute cookie.",
+        "operationId": "sign_in_options_v1_passkeys_sign_in_options_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebAuthnOptions"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Sign In Options",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/passkeys/{passkey_id}": {
+      "delete": {
+        "description": "Removes a passkey. Without a recent sign-in it is 403 `reauthentication_required`; the only way in of an\naccount with no password and no Google is 409 `last_way_in`.",
+        "operationId": "remove_passkey_v1_passkeys__passkey_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "passkey_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Passkey Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Passkey",
+        "tags": [
+          "passkeys"
+        ]
+      },
+      "patch": {
+        "operationId": "rename_passkey_v1_passkeys__passkey_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "passkey_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Passkey Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasskeyRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasskeyRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Rename Passkey",
+        "tags": [
+          "passkeys"
+        ]
+      }
+    },
+    "/v1/sessions": {
+      "get": {
+        "description": "Every open session of the account, the last used first.",
+        "operationId": "list_sessions_v1_sessions_get",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionRead"
+                  },
+                  "title": "Response List Sessions V1 Sessions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/end-others": {
+      "post": {
+        "description": "Sair de todas as outras: every session but this one ends.",
+        "operationId": "end_other_sessions_v1_sessions_end_others_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "End Other Sessions",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/reauthenticate": {
+      "post": {
+        "description": "The password again lets this session make sensitive changes for 10 minutes.\n\nA wrong password is 401 `invalid_credentials` and counts toward the sign-in lockout (429).",
+        "operationId": "reauthenticate_v1_sessions_reauthenticate_post",
+        "parameters": [
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reauthenticate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Reauthenticate",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}": {
+      "delete": {
+        "description": "Ends another session of the account; the current one is 422 (it ends by signing out).",
+        "operationId": "end_session_v1_sessions__session_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "End Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/two-factor": {
+      "delete": {
+        "description": "Turns two-step verification off; needs a recent sign-in.",
+        "operationId": "disable_two_factor_v1_two_factor_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Disable Two Factor",
+        "tags": [
+          "two-factor"
+        ]
+      },
+      "post": {
+        "description": "Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.",
+        "operationId": "start_two_factor_v1_two_factor_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Start Two Factor",
+        "tags": [
+          "two-factor"
+        ]
+      }
+    },
+    "/v1/two-factor/confirm": {
+      "post": {
+        "description": "The WhatsApp code confirms the number and turns WhatsApp on in place of email.",
+        "operationId": "confirm_two_factor_v1_two_factor_confirm_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "user-agent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User-Agent"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "acervo_session",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Acervo Session"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TwoFactorConfirm"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Confirm Two Factor",
+        "tags": [
+          "two-factor"
         ]
       }
     }

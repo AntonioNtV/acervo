@@ -33,7 +33,8 @@ export interface paths {
         put?: never;
         /**
          * Request Email Change
-         * @description Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`.
+         * @description Sends a code to the new address; the email changes only on `POST /v1/account/email/confirm`. 403
+         *     `reauthentication_required` without a recent sign-in.
          */
         post: operations["request_email_change_v1_account_email_post"];
         delete?: never;
@@ -56,6 +57,27 @@ export interface paths {
          * @description The code sent to the new address changes the email; the old address is told.
          */
         post: operations["confirm_email_change_v1_account_email_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Password
+         * @description Sets or changes the password and ends every other session; 403 `reauthentication_required` without a
+         *     recent sign-in.
+         */
+        put: operations["set_password_v1_account_password_put"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -163,7 +185,12 @@ export interface paths {
          *     A wrong password is 401 `invalid_credentials`; an expired or already linked token is 422 `code_invalid`.
          */
         post: operations["google_link_v1_auth_google_link_post"];
-        delete?: never;
+        /**
+         * Google Unlink
+         * @description Desvincular Google. 403 `reauthentication_required` without a recent sign-in; 409 `last_way_in` when the
+         *     account has no password and no passkey.
+         */
+        delete: operations["google_unlink_v1_auth_google_link_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -275,7 +302,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign In */
+        /**
+         * Sign In
+         * @description Signs in; with two-step verification on, sends the code and answers `PendingSignIn` instead, with a pending
+         *     cookie for `POST /v1/auth/two-factor`.
+         */
         post: operations["sign_in_v1_auth_sign_in_post"];
         delete?: never;
         options?: never;
@@ -314,6 +345,46 @@ export interface paths {
          * @description An unconfirmed account; a 6-digit code goes to the email.
          */
         post: operations["sign_up_v1_auth_sign_up_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish Two Factor
+         * @description The code of the pending sign-in signs in; `code_invalid` once wrong, expired or out of tries.
+         */
+        post: operations["finish_two_factor_v1_auth_two_factor_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/two-factor/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Two Factor
+         * @description A new code for the pending sign-in, at most once a minute; `channel: email` sends it by email.
+         */
+        post: operations["resend_two_factor_v1_auth_two_factor_resend_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1385,6 +1456,258 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/passkeys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Passkeys
+         * @description The account's passkeys, oldest first.
+         */
+        get: operations["list_passkeys_v1_passkeys_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/passkeys/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register
+         * @description Adds the passkey the browser created. An expired prompt or a credential that does not verify is 422
+         *     `code_invalid`.
+         */
+        post: operations["register_v1_passkeys_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/passkeys/register/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registration Options
+         * @description Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie.
+         */
+        post: operations["registration_options_v1_passkeys_register_options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/passkeys/sign-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign In
+         * @description Signs in with a passkey, no second step. On a session of the same account it confirms it instead (a recent
+         *     sign-in for sensitive changes). A passkey that does not verify is 401 `invalid_credentials`; an expired prompt
+         *     is 422 `code_invalid`.
+         */
+        post: operations["sign_in_v1_passkeys_sign_in_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/passkeys/sign-in/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign In Options
+         * @description Request options for `navigator.credentials.get()`, with no allowed credentials so the browser offers any
+         *     passkey of the site (also as autofill); the challenge rides a 5-minute cookie.
+         */
+        post: operations["sign_in_options_v1_passkeys_sign_in_options_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/passkeys/{passkey_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Passkey
+         * @description Removes a passkey. Without a recent sign-in it is 403 `reauthentication_required`; the only way in of an
+         *     account with no password and no Google is 409 `last_way_in`.
+         */
+        delete: operations["remove_passkey_v1_passkeys__passkey_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Passkey */
+        patch: operations["rename_passkey_v1_passkeys__passkey_id__patch"];
+        trace?: never;
+    };
+    "/v1/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description Every open session of the account, the last used first.
+         */
+        get: operations["list_sessions_v1_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/end-others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End Other Sessions
+         * @description Sair de todas as outras: every session but this one ends.
+         */
+        post: operations["end_other_sessions_v1_sessions_end_others_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/reauthenticate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reauthenticate
+         * @description The password again lets this session make sensitive changes for 10 minutes.
+         *
+         *     A wrong password is 401 `invalid_credentials` and counts toward the sign-in lockout (429).
+         */
+        post: operations["reauthenticate_v1_sessions_reauthenticate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * End Session
+         * @description Ends another session of the account; the current one is 422 (it ends by signing out).
+         */
+        delete: operations["end_session_v1_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/two-factor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Two Factor
+         * @description Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.
+         */
+        post: operations["start_two_factor_v1_two_factor_post"];
+        /**
+         * Disable Two Factor
+         * @description Turns two-step verification off; needs a recent sign-in.
+         */
+        delete: operations["disable_two_factor_v1_two_factor_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/two-factor/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Two Factor
+         * @description The WhatsApp code confirms the number and turns WhatsApp on in place of email.
+         */
+        post: operations["confirm_two_factor_v1_two_factor_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1410,6 +1733,11 @@ export interface components {
              */
             has_google: boolean;
             /**
+             * Has Passkey
+             * @description Whether the account has a passkey.
+             */
+            has_passkey: boolean;
+            /**
              * Has Password
              * @description False for an account that only signs in with Google.
              */
@@ -1431,6 +1759,12 @@ export interface components {
              */
             photo_url: string | null;
             preferences: components["schemas"]["Preferences"];
+            /**
+             * Two Factor
+             * @description How a password sign-in gets its second step; none when it has none.
+             * @enum {string}
+             */
+            two_factor: "none" | "email" | "whatsapp";
         };
         /**
          * Attachment
@@ -2597,6 +2931,11 @@ export interface components {
              * @description Whether this is the person's Pessoal.
              */
             personal: boolean;
+            /**
+             * Require Two Factor
+             * @description Whether members need a passkey or two-step verification.
+             */
+            require_two_factor: boolean;
         };
         /**
          * OrganizationUpdate
@@ -2613,6 +2952,11 @@ export interface components {
              * @description The general access a new base starts with (Acesso de bases novas).
              */
             new_base_access?: ("none" | "reader" | "editor") | null;
+            /**
+             * Require Two Factor
+             * @description Whether members need a passkey or two-step verification to reach its bases.
+             */
+            require_two_factor?: boolean | null;
         };
         /**
          * PageDiff
@@ -2727,6 +3071,72 @@ export interface components {
             id: string;
         };
         /**
+         * PasskeyRead
+         * @description A passkey as Conta › Segurança lists it.
+         */
+        PasskeyRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             * @description Passkey ID.
+             */
+            id: string;
+            /**
+             * Last Used At
+             * @description The last sign-in with it; null when never used.
+             */
+            last_used_at: string | null;
+            /**
+             * Name
+             * @description From the authenticator (1Password, iCloud Keychain…), editable.
+             */
+            name: string;
+        };
+        /** PasskeyRename */
+        PasskeyRename: {
+            /**
+             * Name
+             * @description New name of the passkey.
+             */
+            name: string;
+        };
+        /** PasswordSet */
+        PasswordSet: {
+            /**
+             * Password
+             * @description The new password.
+             */
+            password: string;
+        };
+        /**
+         * PendingSignIn
+         * @description A right password on an account with two-step verification: the code is the next step, no session yet.
+         */
+        PendingSignIn: {
+            /**
+             * Destination
+             * @description The email or number it went to, masked: a•••@example.com, +55 •• ••••-1234.
+             */
+            destination: string;
+            /**
+             * Method
+             * @description Where the code went.
+             * @enum {string}
+             */
+            method: "email" | "whatsapp";
+            /**
+             * Pending
+             * @default true
+             * @constant
+             */
+            pending: true;
+        };
+        /**
          * Preferences
          * @description How the app looks and opens for the account, on every device.
          */
@@ -2767,6 +3177,11 @@ export interface components {
              * @description New shown name.
              */
             name: string;
+        };
+        /** Reauthenticate */
+        Reauthenticate: {
+            /** Password */
+            password: string;
         };
         /** ResetConfirm */
         ResetConfirm: {
@@ -2900,6 +3315,51 @@ export interface components {
              */
             heading: string;
         };
+        /**
+         * SessionRead
+         * @description A signed-in browser as Conta › Sessões lists it.
+         */
+        SessionRead: {
+            /**
+             * Browser
+             * @description From the user agent (Chrome, Safari…); null when unknown.
+             */
+            browser: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description When it signed in.
+             */
+            created_at: string;
+            /**
+             * Current
+             * @description Whether it is the session asking (Este aparelho).
+             */
+            current: boolean;
+            /**
+             * Id
+             * Format: uuid
+             * @description Session ID.
+             */
+            id: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             * @description Its last request.
+             */
+            last_seen_at: string;
+            /**
+             * Method
+             * @description How it signed in.
+             * @enum {string}
+             */
+            method: "password" | "google" | "passkey" | "reset";
+            /**
+             * System
+             * @description From the user agent (macOS, iPhone…); null when unknown.
+             */
+            system: string | null;
+        };
         /** SignIn */
         SignIn: {
             /**
@@ -3026,6 +3486,36 @@ export interface components {
              */
             updated_at: string;
         };
+        /** TwoFactorConfirm */
+        TwoFactorConfirm: {
+            /**
+             * Code
+             * @description The 6 digits sent by email or WhatsApp.
+             */
+            code: string;
+        };
+        /** TwoFactorResend */
+        TwoFactorResend: {
+            /**
+             * Channel
+             * @description email sends it to the account email whatever the method (Receber por email).
+             */
+            channel?: "email" | null;
+        };
+        /** TwoFactorStart */
+        TwoFactorStart: {
+            /**
+             * Method
+             * @description Where the codes go: the account email, or WhatsApp.
+             * @enum {string}
+             */
+            method: "email" | "whatsapp";
+            /**
+             * Phone
+             * @description The WhatsApp number in E.164; required for whatsapp.
+             */
+            phone?: string | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -3038,6 +3528,37 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * WebAuthnCredential
+         * @description What the browser's WebAuthn call gave, passed to py_webauthn as is.
+         */
+        WebAuthnCredential: {
+            /**
+             * Credential
+             * @description The PublicKeyCredential, as JSON.
+             */
+            credential: {
+                [key: string]: unknown;
+            };
+            /**
+             * Name
+             * @description Name for a new passkey; else from the AAGUID.
+             */
+            name?: string | null;
+        };
+        /**
+         * WebAuthnOptions
+         * @description What the browser's WebAuthn call takes, as py_webauthn writes it.
+         */
+        WebAuthnOptions: {
+            /**
+             * Options
+             * @description PublicKeyCredentialCreationOptions or RequestOptions, as JSON.
+             */
+            options: {
+                [key: string]: unknown;
+            };
         };
     };
     responses: never;
@@ -3163,6 +3684,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Conflict */
             409: {
                 headers: {
@@ -3227,6 +3757,59 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_password_v1_account_password_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordSet"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3507,6 +4090,64 @@ export interface operations {
             };
         };
     };
+    google_unlink_v1_auth_google_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     google_start_v1_auth_google_start_get: {
         parameters: {
             query?: {
@@ -3703,7 +4344,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AccountRead"];
+                    "application/json": components["schemas"]["AccountRead"] | components["schemas"]["PendingSignIn"];
                 };
             };
             /** @description Unauthorized */
@@ -3797,6 +4438,96 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    finish_two_factor_v1_auth_two_factor_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                acervo_pending?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    resend_two_factor_v1_auth_two_factor_resend_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_pending?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorResend"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingSignIn"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7836,6 +8567,666 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_passkeys_v1_passkeys_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    register_v1_passkeys_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_passkey?: string | null;
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnCredential"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    registration_options_v1_passkeys_register_options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAuthnOptions"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sign_in_v1_passkeys_sign_in_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_passkey?: string | null;
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebAuthnCredential"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sign_in_options_v1_passkeys_sign_in_options_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebAuthnOptions"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    remove_passkey_v1_passkeys__passkey_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passkey_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rename_passkey_v1_passkeys__passkey_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                passkey_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasskeyRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasskeyRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_sessions_v1_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    end_other_sessions_v1_sessions_end_others_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reauthenticate_v1_sessions_reauthenticate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Reauthenticate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    end_session_v1_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_two_factor_v1_two_factor_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    disable_two_factor_v1_two_factor_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    confirm_two_factor_v1_two_factor_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "user-agent"?: string | null;
+            };
+            path?: never;
+            cookie?: {
+                acervo_session?: string | null;
+            };
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TwoFactorConfirm"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
