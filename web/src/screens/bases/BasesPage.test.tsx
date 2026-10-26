@@ -28,6 +28,19 @@ describe("BasesPage", () => {
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Bases 2");
   });
 
+  it("shows the bases shared with the person under Compartilhadas comigo, with the owner's name", async () => {
+    fakeBases([
+      summary({ id: "kb-1", name: "Receitas" }),
+      summary({ id: "kb-2", name: "Viagens", organization_id: "org-julia", shared_by: "Julia Prado" }),
+    ]);
+    renderPage(<BasesPage />);
+
+    const shared = await screen.findByRole("region", { name: "Compartilhadas comigo" });
+    const viagens = within(shared).getByRole("link", { name: "Viagens" }).closest("article")!;
+    expect(viagens).toHaveTextContent("De Julia Prado");
+    expect(within(shared).queryByRole("link", { name: "Receitas" })).not.toBeInTheDocument();
+  });
+
   it("creating adds a card", async () => {
     renderPage(<BasesPage />);
     await screen.findByRole("link", { name: "Pessoal" });

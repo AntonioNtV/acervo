@@ -29,6 +29,10 @@ beforeEach(() => {
   });
 });
 
+function organization(id: string, name: string, personal = false) {
+  return { id, name, personal, logo_url: null, my_role: "owner", new_base_access: "editor" };
+}
+
 function favorite(id: string, title: string, kbId: string) {
   return { ...node(id, "page", title), kb_id: kbId, path: title };
 }
@@ -188,6 +192,53 @@ describe("Sidebar", () => {
     await screen.findByRole("region", { name: "Seguros · Operação" });
     await waitFor(() => expect(calls.some((call) => call.path === "/v1/favorites")).toBe(true));
     expect(screen.queryByRole("region", { name: "Favoritos" })).not.toBeInTheDocument();
+  });
+
+  it("lists Pessoal first in the rail and switching organization shows its bases", async () => {
+    const organizations = [organization("org-pessoal", "Antonio Bertino", true), organization("org-seguros", "Seguros SA")];
+    respond("GET", "/v1/organizations", { body: organizations });
+    respond("GET", "/v1/kbs", (url) => ({
+      body:
+        url.searchParams.get("organization_id") === "org-seguros"
+          ? [summary({ id: "kb-3", name: "Sinistros", organization_id: "org-seguros" })]
+          : [summary({ id: "kb-2", name: "Receitas" })],
+    }));
+    renderSidebar();
+
+    const rail = await screen.findByRole("navigation", { name: "Organizações" });
+    const [pessoal, seguros] = within(rail).getAllByRole("button");
+    expect(pessoal).toHaveAccessibleName("Pessoal");
+    expect(pessoal).toHaveAttribute("aria-current", "true");
+    expect(await screen.findByRole("region", { name: "Receitas" })).toBeInTheDocument();
+
+    await userEvent.click(seguros!);
+
+    expect(await screen.findByRole("region", { name: "Sinistros" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Receitas" })).not.toBeInTheDocument();
+    expect(seguros).toHaveAttribute("aria-current", "true");
+    expect(pessoal).not.toHaveAttribute("aria-current");
+  });
+
+  it("Nova organização creates one and switches to it", async () => {
+    const organizations = [organization("org-pessoal", "Antonio Bertino", true)];
+    respond("GET", "/v1/organizations", () => ({ body: organizations }));
+    respond("POST", "/v1/organizations", (_url, body) => {
+      const created = organization("org-nova", (body as { name: string }).name);
+      organizations.push(created);
+      return { status: 201, body: created };
+    });
+    renderSidebar();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Nova organização" }));
+    const dialog = screen.getByRole("dialog", { name: "Nova organização" });
+    await userEvent.type(within(dialog).getByLabelText("Nome"), "Seguros SA");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Criar" }));
+
+    expect(await screen.findByRole("button", { name: "Seguros SA" })).toHaveAttribute("aria-current", "true");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(calls.some((call) => call.path === "/v1/kbs" && call.query.includes("organization_id=org-nova"))).toBe(true),
+    );
   });
 
   it("Sair ends the session, opens Entrar and drops what the account had loaded", async () => {

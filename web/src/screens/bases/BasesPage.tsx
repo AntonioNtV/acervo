@@ -61,6 +61,9 @@ function BaseCard({ kb, onEdit }: { kb: KbSummary; onEdit: (edit: BaseEdit) => v
           <MenuItem onSelect={() => trash.mutate(kb.id)}>{t("bases.trash")}</MenuItem>
         </Menu>
       </div>
+      {kb.shared_by && (
+        <p className="m-0 text-12 text-text-3">{t("organizations.sharedBy", { name: kb.shared_by })}</p>
+      )}
       {kb.description && <p className="m-0 text-text-3">{kb.description}</p>}
       <div className="mt-auto flex items-center justify-between gap-3 text-12 text-text-3 tabular-nums">
         <span>
@@ -80,6 +83,7 @@ export function BasesPage() {
   const [filter, setFilter] = useState("");
   const [edit, setEdit] = useState<BaseEdit | null>(null);
   const shown = (kbs.data ?? []).filter((kb) => fold(kb.name).includes(fold(filter.trim())));
+  const shared = shown.filter((kb) => kb.shared_by);
   const create = () => setEdit({ mode: "create" });
 
   return (
@@ -133,9 +137,7 @@ export function BasesPage() {
               <p className="m-0 mb-4 text-text-3">{t(filter.trim() ? "bases.empty.filter" : "bases.empty")}</p>
             )}
             <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
-              {shown.map((kb) => (
-                <BaseCard key={kb.id} kb={kb} onEdit={setEdit} />
-              ))}
+              {shown.map((kb) => !kb.shared_by && <BaseCard key={kb.id} kb={kb} onEdit={setEdit} />)}
               <button
                 type="button"
                 onClick={create}
@@ -148,6 +150,16 @@ export function BasesPage() {
                 {t("bases.new")}
               </button>
             </div>
+            {shared.length > 0 && (
+              <section aria-label={t("organizations.shared")} className="mt-10">
+                <h2 className="m-0 mb-4 text-15 font-medium tracking-[-0.01em]">{t("organizations.shared")}</h2>
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
+                  {shared.map((kb) => (
+                    <BaseCard key={kb.id} kb={kb} onEdit={setEdit} />
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 
