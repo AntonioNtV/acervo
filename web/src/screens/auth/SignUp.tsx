@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
 import { useSignUp } from "../../data/account";
 import { ApiError } from "../../data/request";
@@ -8,14 +8,15 @@ import { Button } from "../../ui/Button";
 import { PasswordField } from "../../ui/PasswordField";
 import { AuthCard, AuthError, AuthField, authLink, GoogleFirst, useNext } from "./AuthCard";
 
-/** `/criar-conta`: Google, or name, email and password, then the code sent to the email. */
+/** `/criar-conta`: Google, or name, email and password, then the code sent to the email. An invite fills in its email. */
 export function SignUp() {
   const { t } = useI18n();
   const errorText = useErrorText();
   const navigate = useNavigate();
   const next = useNext();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const invited = (useLocation().state as { email?: string } | null)?.email;
+  const [email, setEmail] = useState(invited ?? "");
   const [password, setPassword] = useState("");
   const signUp = useSignUp();
   const taken = signUp.error instanceof ApiError && signUp.error.code === "email_taken";

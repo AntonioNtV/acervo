@@ -16,9 +16,11 @@ from acervo.api.routers import (
     files,
     google,
     health,
+    invites,
     kbs,
     link_previews,
     nodes,
+    organizations,
     pages,
     trash,
 )
@@ -59,9 +61,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     for module in (
         health,
+        # Before kbs: its literal /v1/kbs/trash would otherwise be read as GET /v1/kbs/{kb_id}.
+        trash,
         kbs,
         nodes,
-        trash,
         files,
         pages,
         favorites,
@@ -72,6 +75,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         auth,
         google,
         account,
+        organizations,
+        invites,
     ):
         app.include_router(module.router)
     return app

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from acervo.core.errors import ConflictError, TitleTaken, ValidationError
+from acervo.core.errors import ConflictError, ForbiddenError, TitleTaken, ValidationError
 from acervo.domain.sort_keys import key_between
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.file import FileResponse
@@ -17,6 +17,7 @@ from acervo.schemas.node import (
     TreeNode,
 )
 from acervo.schemas.page import NodeDetail, PageRead
+from acervo.services.access_service import AccessService
 from acervo.services.page_service import PageService
 
 
@@ -102,10 +103,13 @@ class TreeService:
 
     async def move(self, node_id: UUID, data: NodeMove) -> NodeRead:
         """Puts the node in `parent_id` just before the sibling `before_id`, or last when it is None. Into another
-        base, its whole subtree goes along."""
+        base, its whole subtree goes along: only a base of the same organization where the asking account is an
+        Editor."""
         nodes = self._uow.nodes
         node = await nodes.live(node_id)
         kb_id = data.kb_id or node.kb_id
+        if kb_id != node.kb_id:
+            await self._ensure_may_receive(node.kb_id, kb_id)
         for locked in sorted({node.kb_id, kb_id}):
             await self._uow.kbs.lock(locked)
         await nodes.live_parent(kb_id, data.parent_id)
@@ -131,6 +135,15 @@ class TreeService:
         moved = await nodes.update(node_id, NodeUpdate(parent_id=data.parent_id, sort=sort))
         await self._uow.commit()
         return moved
+
+    async def _ensure_may_receive(self, from_kb_id: UUID, kb_id: UUID) -> None:
+        source, target = await self._uow.kbs.get(from_kb_id), await self._uow.kbs.get(kb_id)
+        if source.organization_id != target.organization_id:
+            raise ForbiddenError("a node only moves within its organization", {"kb_id": str(kb_id)})
+        account_id = self._uow.account_id
+        if account_id is None:
+            raise ForbiddenError("only a person moves a node to another base", {"kb_id": str(kb_id)})
+        await AccessService(self._uow).require_base(account_id, kb_id, "editor")
 
     async def _change_base(self, node: NodeRead, kb_id: UUID) -> None:
         """The node's subtree, trashed nodes included, into base `kb_id`; refused when one of its files is already

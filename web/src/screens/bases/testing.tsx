@@ -28,7 +28,19 @@ export function fakeBases(initial: KbSummary[]) {
 
 export function summary(fields: Partial<KbSummary> & Pick<KbSummary, "id" | "name">): KbSummary {
   const at = new Date().toISOString();
-  return { description: "", icon: null, deleted_at: null, created_at: at, updated_at: at, pages: 0, files: 0, last_edit: at, ...fields };
+  return {
+    description: "",
+    icon: null,
+    deleted_at: null,
+    created_at: at,
+    updated_at: at,
+    pages: 0,
+    files: 0,
+    last_edit: at,
+    organization_id: "org-pessoal",
+    general_access: "none",
+    ...fields,
+  };
 }
 
 export function renderPage(page: ReactNode) {

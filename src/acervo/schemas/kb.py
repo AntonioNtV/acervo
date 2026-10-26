@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from acervo.schemas.node import Icon
+from acervo.schemas.organization import BaseRole, GeneralAccess
 
 
 class KbCreate(BaseModel):
@@ -11,6 +12,7 @@ class KbCreate(BaseModel):
 
     name: str = Field(min_length=1, description="Name of the base.")
     description: str = Field(default="", description="What the base holds.")
+    organization_id: UUID | None = Field(default=None, description="Organization of the base; null for the Pessoal.")
 
 
 class KbUpdate(BaseModel):
@@ -34,6 +36,14 @@ class KbRead(BaseModel):
     deleted_at: datetime | None = Field(description="When the base went to the trash; null while it is live.")
     created_at: datetime = Field(description="When the base was created.")
     updated_at: datetime = Field(description="When the base last changed.")
+    organization_id: UUID = Field(description="Organization the base belongs to.")
+    general_access: GeneralAccess = Field(description="What every member of the organization gets on the base.")
+    my_role: BaseRole | None = Field(default=None, description="The person's role in the base.")
+    shared_by: str | None = Field(
+        default=None,
+        description="For a base the person reaches only as a guest: the owner's name for a Pessoal base, the "
+        "organization's name for a team's; null otherwise.",
+    )
 
 
 class KbEdit(BaseModel):

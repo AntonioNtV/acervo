@@ -17,6 +17,7 @@ import type { SettingsState } from "../settings/SettingsFrame";
 import { usePreferences } from "../settings/usePreferences";
 import { BaseSection } from "./BaseSection";
 import { Favorites } from "./Favorites";
+import { OrgRail } from "./OrgRail";
 import { useShell } from "./shell";
 
 export const rowClass =
@@ -103,7 +104,10 @@ function AccountRow() {
   );
 }
 
-/** The favorites, every base as a section with its tree, and "Nova base" and "Lixeira" at the bottom. */
+/**
+ * The organizations' rail, then the favorites, every base of the current organization as a section with its tree (the
+ * ones shared with the person under Compartilhadas comigo), and "Nova base" and "Lixeira" at the bottom.
+ */
 export function Sidebar({ onSearch }: { onSearch?: () => void }) {
   const { t, lang } = useI18n();
   const { theme } = useTheme();
@@ -111,64 +115,78 @@ export function Sidebar({ onSearch }: { onSearch?: () => void }) {
   const { setSidebarOpen } = useShell();
   const kbs = useKbs();
   const [edit, setEdit] = useState<BaseEdit | null>(null);
+  const shared = kbs.data?.filter((kb) => kb.shared_by) ?? [];
 
   return (
-    <nav
-      aria-label={t("shell.nav")}
-      className="flex w-[248px] shrink-0 flex-col gap-px overflow-y-auto border-r border-line bg-side px-1.5 pt-2 pb-2.5"
-    >
-      <div className="mb-1 flex h-9 items-center justify-between pr-1 pl-2">
-        <Brand />
-        <IconButton aria-label={t("shell.sidebar.close")} onClick={() => setSidebarOpen(false)}>
-          <Icon name="collapse" />
-        </IconButton>
-      </div>
-      <NavLink to="/bases" className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}>
-        <Row icon="bases">{t("bases.title")}</Row>
-      </NavLink>
-      <button type="button" onClick={onSearch} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
-        <Row icon="search">{t("shell.search")}</Row>
-        <Kbd>⌘K</Kbd>
-      </button>
-      <Favorites />
-
-      {kbs.isError && <p className="m-0 px-2 py-1 text-12 text-err">{t("bases.error.load")}</p>}
-      {kbs.data?.map((kb) => <BaseSection key={kb.id} kb={kb} onEdit={setEdit} />)}
-
-      <div className="mt-auto flex flex-col gap-px pt-3">
-        <button type="button" onClick={() => setEdit({ mode: "create" })} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
-          <Row icon="plus">{t("bases.new")}</Row>
-        </button>
-        <NavLink
-          to="/lixeira"
-          className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}
-        >
-          <Row icon="trash">{t("shell.trash")}</Row>
-        </NavLink>
-        <AccountRow />
-        <div className="mt-2 flex justify-between px-2">
-          <Switch
-            label={t("app.lang.label")}
-            value={locale(lang)}
-            onChange={(language) => setPreferences({ language })}
-            options={[
-              { value: "pt-BR", label: "PT" },
-              { value: "en", label: "EN" },
-            ]}
-          />
-          <Switch
-            label={t("app.theme.label")}
-            value={theme}
-            onChange={(choice) => setPreferences({ theme: choice })}
-            options={[
-              { value: "light", label: t("app.theme.light") },
-              { value: "dark", label: t("app.theme.dark") },
-            ]}
-          />
+    <>
+      <OrgRail />
+      <nav
+        aria-label={t("shell.nav")}
+        className="flex w-[248px] shrink-0 flex-col gap-px overflow-y-auto border-r border-line bg-side px-1.5 pt-2 pb-2.5"
+      >
+        <div className="mb-1 flex h-9 items-center justify-between pr-1 pl-2">
+          <Brand />
+          <IconButton aria-label={t("shell.sidebar.close")} onClick={() => setSidebarOpen(false)}>
+            <Icon name="collapse" />
+          </IconButton>
         </div>
-      </div>
+        <NavLink to="/bases" className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}>
+          <Row icon="bases">{t("bases.title")}</Row>
+        </NavLink>
+        <button type="button" onClick={onSearch} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
+          <Row icon="search">{t("shell.search")}</Row>
+          <Kbd>⌘K</Kbd>
+        </button>
+        <Favorites />
 
-      {edit && <BaseDialog key={edit.mode} edit={edit} onClose={() => setEdit(null)} />}
-    </nav>
+        {kbs.isError && <p className="m-0 px-2 py-1 text-12 text-err">{t("bases.error.load")}</p>}
+        {kbs.data?.map((kb) => !kb.shared_by && <BaseSection key={kb.id} kb={kb} onEdit={setEdit} />)}
+        {shared.length > 0 && (
+          <section aria-label={t("organizations.shared")} className="mt-3.5 flex flex-col gap-px">
+            <span className="flex h-[26px] items-center px-2 text-12 font-medium text-text-3">
+              {t("organizations.shared")}
+            </span>
+            {shared.map((kb) => (
+              <BaseSection key={kb.id} kb={kb} onEdit={setEdit} />
+            ))}
+          </section>
+        )}
+
+        <div className="mt-auto flex flex-col gap-px pt-3">
+          <button type="button" onClick={() => setEdit({ mode: "create" })} className={cx(rowClass, "cursor-pointer hover:bg-muted")}>
+            <Row icon="plus">{t("bases.new")}</Row>
+          </button>
+          <NavLink
+            to="/lixeira"
+            className={({ isActive }) => cx(rowClass, "hover:bg-muted", isActive && "bg-muted text-text")}
+          >
+            <Row icon="trash">{t("shell.trash")}</Row>
+          </NavLink>
+          <AccountRow />
+          <div className="mt-2 flex justify-between px-2">
+            <Switch
+              label={t("app.lang.label")}
+              value={locale(lang)}
+              onChange={(language) => setPreferences({ language })}
+              options={[
+                { value: "pt-BR", label: "PT" },
+                { value: "en", label: "EN" },
+              ]}
+            />
+            <Switch
+              label={t("app.theme.label")}
+              value={theme}
+              onChange={(choice) => setPreferences({ theme: choice })}
+              options={[
+                { value: "light", label: t("app.theme.light") },
+                { value: "dark", label: t("app.theme.dark") },
+              ]}
+            />
+          </div>
+        </div>
+
+        {edit && <BaseDialog key={edit.mode} edit={edit} onClose={() => setEdit(null)} />}
+      </nav>
+    </>
   );
 }

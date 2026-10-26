@@ -79,7 +79,7 @@ function BaseTrash({ kb }: { kb: KbSummary }) {
   );
 }
 
-/** Bases in the Lixeira, then what each live base has in its own. */
+/** The current organization's bases in the Lixeira, then what each live base the person may edit has in its own. */
 export function Lixeira() {
   const { t } = useI18n();
   const trashed = useTrashedKbs();
@@ -112,7 +112,7 @@ export function Lixeira() {
             </ul>
           )}
         </section>
-        {kbs.data?.map((kb) => <BaseTrash key={kb.id} kb={kb} />)}
+        {kbs.data?.map((kb) => kb.my_role !== "reader" && <BaseTrash key={kb.id} kb={kb} />)}
       </div>
     </>
   );

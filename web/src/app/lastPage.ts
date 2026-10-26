@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { ORG_KEY } from "../data/organizations";
 import { browserLang, useI18n } from "../i18n";
 import { useTheme } from "./theme";
 
@@ -76,7 +77,7 @@ export function rememberAccountId(id: string) {
 
 /**
  * Drops what the last account left in this browser, so whoever signs in next does not land where it was or see its
- * cache: its queries, pages and id, and its theme and language, as the screens follow the browser again.
+ * cache: its queries, pages, organization and id, and its theme and language, as the screens follow the browser again.
  */
 export function useForgetAccount() {
   const queryClient = useQueryClient();
@@ -86,7 +87,7 @@ export function useForgetAccount() {
     queryClient.clear();
     try {
       for (const key of Object.keys(localStorage))
-        if (key === KEY || key === ACCOUNT_KEY || key.startsWith(recentKey(""))) localStorage.removeItem(key);
+        if (key === KEY || key === ACCOUNT_KEY || key === ORG_KEY || key.startsWith(recentKey(""))) localStorage.removeItem(key);
     } catch {
       // Nothing was stored.
     }

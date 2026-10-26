@@ -4,6 +4,7 @@ import type { NodeDetail, PageVersion } from "../../api/client";
 import { BlockEditor, type LinkTarget } from "../../editor/BlockEditor";
 import { PageContext } from "../../editor/nodes/generated";
 import { SyncedSource, type SyncedTarget } from "../../editor/nodes/synced";
+import { useAccess } from "../../data/access";
 import { useMe } from "../../data/account";
 import { normalizeLinkTarget, useRestorePageVersion } from "../../data/pages";
 import { ApiError } from "../../data/request";
@@ -35,7 +36,7 @@ type Page = NonNullable<NodeDetail["page"]>;
  * The title as the page's first line: it renames the node a second after the person stops typing in it. Until they
  * type, it shows the node's title as it is, so a rename made elsewhere is never sent back.
  */
-function Title({ node }: { node: NodeDetail }) {
+function Title({ node, readOnly }: { node: NodeDetail; readOnly: boolean }) {
   const { t } = useI18n();
   const [draft, setDraft] = useState<string | null>(null);
   const { mutate: rename, error } = useRenameNode();
@@ -56,6 +57,7 @@ function Title({ node }: { node: NodeDetail }) {
         <input
           aria-label={t("page.title")}
           value={draft ?? node.title}
+          readOnly={readOnly}
           placeholder={t("page.untitled")}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={() => setDraft((typed) => (typed?.trim() === node.title ? null : typed))}
@@ -74,6 +76,7 @@ function Title({ node }: { node: NodeDetail }) {
 function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
   const { t, lang } = useI18n();
   const kbId = node.kb_id;
+  const { canEdit } = useAccess(kbId);
   const autosave = useAutosave(node.id, page);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selected, setSelected] = useState<PageVersion | null>(null);
@@ -177,9 +180,11 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
               <Button size="sm" onClick={() => setSelected(null)}>
                 {t("page.history.back")}
               </Button>
-              <Button variant="ink" size="sm" disabled={restore.isPending} onClick={() => void restoreSelected(selected)}>
-                {t("page.history.restore")}
-              </Button>
+              {canEdit && (
+                <Button variant="ink" size="sm" disabled={restore.isPending} onClick={() => void restoreSelected(selected)}>
+                  {t("page.history.restore")}
+                </Button>
+              )}
             </span>
           ) : (
             <IconButton
@@ -191,23 +196,24 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
             </IconButton>
           )
         }
-        menu={<PageMenu node={node} flush={autosave.flush} onHistory={() => void openHistory()} />}
+        menu={<PageMenu node={node} canEdit={canEdit} flush={autosave.flush} onHistory={() => void openHistory()} />}
       />
       <div className="flex min-h-full">
         <div className="min-w-0 flex-1">
-          <Cover node={node} />
+          <Cover node={node} editable={canEdit} />
           <FileDropZone
             kbId={kbId}
             parentId={node.id}
             name={node.title}
+            disabled={!canEdit}
             className={cx("mx-auto box-border w-full px-8 pt-10 pb-30", wide ? "max-w-[1040px]" : "max-w-[720px]")}
           >
             <div className="group/header">
-              <HeaderDecor node={node} />
+              <HeaderDecor node={node} editable={canEdit} />
               <div className="mb-1 text-13 text-ghost">
                 {t("page.edited", { date: dateOf(page.saved_at, lang) })} · {versionsText(t, node.versions)}
               </div>
-              <Title node={node} />
+              <Title node={node} readOnly={!canEdit} />
             </div>
             {autosave.reloaded && (
               <div role="status" className="mt-4 flex items-start gap-2 border-y border-line py-2 text-13 text-text-2">
@@ -234,6 +240,7 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
                     onCreateSubPage={createSubPage}
                     pageTitles={pageTitles}
                     onPageQuery={setPageQuery}
+                    editable={canEdit}
                   />
                 </SyncedSource.Provider>
               </PageContext.Provider>

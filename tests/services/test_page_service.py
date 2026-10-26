@@ -12,8 +12,9 @@ from sqlalchemy.pool import NullPool
 
 from acervo.core.errors import StalePage
 from acervo.core.settings import Settings
-from acervo.db.models import Kb, Node, PageDraft, PageLink, PageVersion
+from acervo.db.models import Account, Kb, Node, Organization, PageDraft, PageLink, PageVersion
 from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.account import AccountCreate
 from acervo.schemas.kb import KbCreate
 from acervo.schemas.node import NodeAdd
 from acervo.schemas.page import PageTextPut, PageTextSaved, PageVersionSummary
@@ -37,9 +38,10 @@ class Services:
 
 
 @pytest.fixture
-async def services(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Services]:
+async def services(uow: UnitOfWork, session: AsyncSession, default_account_id: UUID) -> AsyncIterator[Services]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        uow.act_as(default_account_id)
         yield Services(PageService(uow), TreeService(uow))
 
 
@@ -355,15 +357,20 @@ async def test_link_table_follows_the_latest_version(
 
 
 @pytest.fixture
-async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], UUID]]:
+async def committed_page(
+    test_settings: Settings,
+) -> AsyncIterator[tuple[async_sessionmaker[AsyncSession], UUID, UUID]]:
     """A page written by sessions on connections of their own that commit, as parallel requests do; removed after."""
     engine = create_async_engine(test_settings.database_url, poolclass=NullPool)
     sessions = async_sessionmaker(engine, expire_on_commit=False)
     async with UnitOfWork(sessions) as uow:
-        kb = await uow.kbs.create(KbCreate(name="Edições em paralelo"))
+        account = await uow.accounts.create(AccountCreate(email="paralelo@example.com", name="Ana"))
+        organization = await uow.organizations.create_personal(account.id)
+        uow.act_as(account.id)
+        kb = await uow.kbs.create(KbCreate(name="Edições em paralelo", organization_id=organization.id))
         await uow.commit()
         page = await TreeService(uow).create(kb.id, NodeAdd(kind="page", title="Prazos"))
-    yield sessions, page.id
+    yield sessions, page.id, account.id
     async with sessions() as session:
         of_base = select(Node.id).where(Node.kb_id == kb.id)
         await session.execute(delete(PageLink).where(PageLink.from_node_id.in_(of_base)))
@@ -371,30 +378,35 @@ async def committed_page(test_settings: Settings) -> AsyncIterator[tuple[async_s
         await session.execute(delete(PageVersion).where(PageVersion.node_id.in_(of_base)))
         await session.execute(delete(Node).where(Node.kb_id == kb.id))
         await session.execute(delete(Kb).where(Kb.id == kb.id))
+        await session.execute(delete(Organization).where(Organization.id == organization.id))
+        await session.execute(delete(Account).where(Account.id == account.id))
         await session.commit()
     await engine.dispose()
 
 
 async def _save_committed(
-    sessions: async_sessionmaker[AsyncSession], node_id: UUID, revision: int, markdown: str
+    sessions: async_sessionmaker[AsyncSession], account_id: UUID, node_id: UUID, revision: int, markdown: str
 ) -> PageTextSaved:
     async with UnitOfWork(sessions) as uow:
+        uow.act_as(account_id)
         return await PageService(uow).put_text(node_id, PageTextPut(markdown=markdown, revision=revision), IDLE)
 
 
 async def test_concurrent_saves_from_one_revision_give_one_stale_page(
-    committed_page: tuple[async_sessionmaker[AsyncSession], UUID],
+    committed_page: tuple[async_sessionmaker[AsyncSession], UUID, UUID],
 ) -> None:
-    sessions, node_id = committed_page
+    sessions, node_id, account_id = committed_page
     async with UnitOfWork(sessions) as uow:
+        uow.act_as(account_id)
         revision = (await PageService(uow).read(node_id)).revision
 
     results = await asyncio.gather(
-        *(_save_committed(sessions, node_id, revision, f"# Prazos\n{name}\n") for name in ("Ana", "Bruno")),
+        *(_save_committed(sessions, account_id, node_id, revision, f"# Prazos\n{name}\n") for name in ("Ana", "Bruno")),
         return_exceptions=True,
     )
 
     assert sorted(isinstance(result, StalePage) for result in results) == [False, True]
     async with UnitOfWork(sessions) as uow:
+        uow.act_as(account_id)
         # The empty first version, the refused text and, cut by the history, the text that won.
         assert len(await PageService(uow).versions(node_id)) == 3

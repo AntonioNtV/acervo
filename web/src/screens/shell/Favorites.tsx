@@ -10,11 +10,14 @@ const FAVORITE_TYPE = "application/x-acervo-favorite";
 
 type Drop = { id: string; after: boolean };
 
-/** "Favoritos" on top of the sidebar, across bases, in the person's order; dragging one puts it where it is dropped. */
+/**
+ * "Favoritos" on top of the sidebar, across the current organization's bases, in the person's order; dragging one puts
+ * it where it is dropped.
+ */
 export function Favorites() {
   const { t } = useI18n();
-  const favorites = useFavorites().data ?? [];
   const kbs = useKbs().data;
+  const favorites = (useFavorites().data ?? []).filter((favorite) => kbs?.some((kb) => kb.id === favorite.kb_id));
   const place = useFavorite();
   const [drop, setDrop] = useState<Drop | null>(null);
 

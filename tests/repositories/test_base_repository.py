@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import pytest
@@ -11,6 +12,7 @@ from acervo.repositories.node import NodeRepository
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.kb import KbCreate, KbUpdate
 from acervo.schemas.node import NodeCreate
+from acervo.schemas.organization import OrganizationRecord
 
 
 @pytest.fixture
@@ -18,8 +20,17 @@ def kbs(session: AsyncSession) -> KbRepository:
     return KbRepository(session)
 
 
-async def test_get_returns_what_create_wrote(kbs: KbRepository) -> None:
-    created = await kbs.create(KbCreate(name="Seguros", description="Apólices e sinistros"))
+@pytest.fixture
+async def organization(
+    default_account_id: uuid.UUID, make_organization: Callable[..., Awaitable[OrganizationRecord]]
+) -> uuid.UUID:
+    return (await make_organization(default_account_id)).id
+
+
+async def test_get_returns_what_create_wrote(kbs: KbRepository, organization: uuid.UUID) -> None:
+    created = await kbs.create(
+        KbCreate(organization_id=organization, name="Seguros", description="Apólices e sinistros")
+    )
 
     assert await kbs.get(created.id) == created
     assert (created.name, created.description, created.deleted_at) == ("Seguros", "Apólices e sinistros", None)
@@ -34,8 +45,8 @@ async def test_get_missing_raises_not_found(kbs: KbRepository) -> None:
     assert raised.value.details == {"id": str(missing)}
 
 
-async def test_empty_update_emits_no_write(kbs: KbRepository, engine: AsyncEngine) -> None:
-    created = await kbs.create(KbCreate(name="Seguros"))
+async def test_empty_update_emits_no_write(kbs: KbRepository, organization: uuid.UUID, engine: AsyncEngine) -> None:
+    created = await kbs.create(KbCreate(organization_id=organization, name="Seguros"))
     statements: list[str] = []
 
     def record(conn: Any, cursor: Any, statement: str, *args: Any) -> None:
@@ -51,17 +62,19 @@ async def test_empty_update_emits_no_write(kbs: KbRepository, engine: AsyncEngin
     assert all(statement.lstrip().startswith("SELECT") for statement in statements)
 
 
-async def test_update_changes_only_the_fields_set(kbs: KbRepository) -> None:
-    created = await kbs.create(KbCreate(name="Seguros", description="Apólices"))
+async def test_update_changes_only_the_fields_set(kbs: KbRepository, organization: uuid.UUID) -> None:
+    created = await kbs.create(KbCreate(organization_id=organization, name="Seguros", description="Apólices"))
 
     updated = await kbs.update(created.id, KbUpdate(name="Seguros · Operação"))
 
     assert (updated.name, updated.description) == ("Seguros · Operação", "Apólices")
 
 
-async def test_unique_violation_raises_conflict_naming_the_constraint(kbs: KbRepository, session: AsyncSession) -> None:
+async def test_unique_violation_raises_conflict_naming_the_constraint(
+    kbs: KbRepository, organization: uuid.UUID, session: AsyncSession
+) -> None:
     nodes = NodeRepository(session)
-    kb = await kbs.create(KbCreate(name="Seguros"))
+    kb = await kbs.create(KbCreate(organization_id=organization, name="Seguros"))
     page = NodeCreate(kb_id=kb.id, parent_id=None, kind="page", title="Renovação", sort="a")
     await nodes.create(page)
 
@@ -71,11 +84,15 @@ async def test_unique_violation_raises_conflict_naming_the_constraint(kbs: KbRep
     assert raised.value.details == {"constraint": "uq_node_live_sibling_title"}
 
 
-async def test_uow_rolls_back_on_exception(uow: UnitOfWork) -> None:
+async def test_uow_rolls_back_on_exception(
+    uow: UnitOfWork, organization: uuid.UUID, default_account_id: uuid.UUID
+) -> None:
     with pytest.raises(RuntimeError):
         async with uow:
-            await uow.kbs.create(KbCreate(name="Seguros"))
+            uow.act_as(default_account_id)
+            await uow.kbs.create(KbCreate(organization_id=organization, name="Seguros"))
             raise RuntimeError("boom")
 
     async with uow:
+        uow.act_as(default_account_id)
         assert await uow.kbs.count() == 0

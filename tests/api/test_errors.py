@@ -108,8 +108,8 @@ async def test_route_without_a_live_session_is_401(anon_client: httpx.AsyncClien
     assert response.json() == {"error": "unauthorized", "message": "Missing or ended session.", "details": {}}
 
 
-# Health and everything that signs a person in or out answer without a session.
-PUBLIC = ("/v1/health", "/v1/auth/")
+# Health, everything that signs a person in or out, and the invite a link opens answer without a session.
+PUBLIC = ("/v1/health", "/v1/auth/", "/v1/invites/by-token/")
 
 
 async def test_routes_need_a_session(app: FastAPI, anon_client: httpx.AsyncClient) -> None:

@@ -1,6 +1,16 @@
 import { useEffect, type ReactNode } from "react";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Navigate,
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+  useSearchParams,
+} from "react-router-dom";
+import { switchOrganization, useCurrentOrganization, type Organization } from "../../data/organizations";
 import { useI18n } from "../../i18n";
+import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { rowClass } from "../shell/Sidebar";
 
@@ -20,6 +30,25 @@ const GLYPHS = {
       <circle cx="10" cy="17" r="2" />
     </>
   ),
+  gear: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8.5" r="3" />
+      <path d="M3.5 19c.7-3 2.8-4.7 5.5-4.7s4.8 1.7 5.5 4.7M15.5 5.8a3 3 0 0 1 0 5.4M17.5 14.6c1.5.6 2.6 2.1 3 4.4" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </>
+  ),
+  bases: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
 };
 
 function Glyph({ name }: { name: keyof typeof GLYPHS }) {
@@ -41,12 +70,46 @@ function Glyph({ name }: { name: keyof typeof GLYPHS }) {
 /** Where Voltar goes: the screen that opened the settings, carried in the router's state between their pages. */
 export type SettingsState = { from?: string } | null;
 
+/** Every member of a team sees its Geral; only its Owners and Admins configure it. A Pessoal has nothing to see. */
+const team = (organization: Organization | undefined) => organization !== undefined && !organization.personal;
+const configurable = (organization: Organization | undefined) =>
+  team(organization) && organization!.my_role !== "member";
+
+/**
+ * The pages of Organização: the current organization for them, Geral only for a Membro, Perfil for a Pessoal.
+ * `?org=` (the `invite_accepted` link) first makes that organization the current one, when the person is in it.
+ */
+export function OrgSettings() {
+  const { organizations, current } = useCurrentOrganization();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
+  const linked = params.get("org");
+  const known = organizations?.some((organization) => organization.id === linked);
+  useEffect(() => {
+    if (!organizations || !linked) return;
+    if (known) switchOrganization(linked);
+    setParams({}, { replace: true, state: location.state });
+  }, [organizations, linked, known, setParams, location.state]);
+
+  if (!current || linked) return null;
+  if (!team(current)) return <Navigate replace to="/conta/perfil" state={location.state} />;
+  if (!configurable(current) && location.pathname !== "/organizacao/geral")
+    return <Navigate replace to="/organizacao/geral" state={location.state} />;
+  return <Outlet context={current} />;
+}
+
+/** The organization a page of Organização configures. */
+export function useOrganization(): Organization {
+  return useOutletContext<Organization>();
+}
+
 /** The settings' own bar in place of the sidebar, and the page of the route. Voltar and Esc go back where it opened. */
 export function SettingsFrame() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const state = useLocation().state as SettingsState;
   const from = state?.from ?? "/";
+  const organization = useCurrentOrganization().current;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -79,6 +142,31 @@ export function SettingsFrame() {
           <Glyph name="sliders" />
           {t("settings.preferences")}
         </NavLink>
+        {team(organization) && (
+          <>
+            <span className="mt-3 flex h-7 items-center truncate px-2 text-12 text-text-3">{organization!.name}</span>
+            <NavLink to="/organizacao/geral" state={{ from }} className={link}>
+              <Glyph name="gear" />
+              {t("settings.org.general")}
+            </NavLink>
+          </>
+        )}
+        {configurable(organization) && (
+          <>
+            <NavLink to="/organizacao/membros" state={{ from }} className={link}>
+              <Glyph name="users" />
+              {t("settings.org.members")}
+            </NavLink>
+            <NavLink to="/organizacao/acesso" state={{ from }} className={link}>
+              <Glyph name="lock" />
+              {t("settings.org.access")}
+            </NavLink>
+            <NavLink to="/organizacao/bases" state={{ from }} className={link}>
+              <Glyph name="bases" />
+              {t("settings.org.bases")}
+            </NavLink>
+          </>
+        )}
       </nav>
       <main className="flex min-w-[480px] flex-1 flex-col overflow-y-auto">
         <Outlet />
@@ -97,13 +185,30 @@ export function SettingsPage({ title, children }: { title: string; children: Rea
   );
 }
 
-/** A section's 15 px title and what it does, over its rows. */
-export function SettingsSection({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
+/** A section's 15 px title and what it does, with its one action at the right, over its rows. */
+export function SettingsSection({
+  title,
+  desc,
+  action,
+  children,
+}: {
+  title: string;
+  desc?: string;
+  action?: { label: string; onClick: () => void; disabled?: boolean };
+  children?: ReactNode;
+}) {
   return (
     <section aria-label={title}>
-      <div className="border-b border-line pb-3">
-        <h2 className="m-0 text-15 font-medium text-text">{title}</h2>
-        {desc && <p className="m-0 text-13 text-text-3">{desc}</p>}
+      <div className="flex items-start justify-between gap-4 border-b border-line pb-3">
+        <span>
+          <h2 className="m-0 text-15 font-medium text-text">{title}</h2>
+          {desc && <p className="m-0 text-13 text-text-3">{desc}</p>}
+        </span>
+        {action && (
+          <Button size="sm" disabled={action.disabled} onClick={action.onClick}>
+            {action.label}
+          </Button>
+        )}
       </div>
       {children}
     </section>

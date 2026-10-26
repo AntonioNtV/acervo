@@ -42,6 +42,16 @@ class EmailTaken(ConflictError):
     code = "email_taken"
 
 
+class LastOwner(ConflictError):
+    """The organization would be left without an Owner."""
+
+    code = "last_owner"
+
+
+class AlreadyMember(ConflictError):
+    code = "already_member"
+
+
 class ValidationError(AcervoError):
     code = "validation"
 
@@ -50,6 +60,12 @@ class CodeInvalid(ValidationError):
     """A code or link that is wrong, expired, used or out of tries; the person is not told which."""
 
     code = "code_invalid"
+
+
+class InviteMismatch(ValidationError):
+    """An invite opened by an account of another email."""
+
+    code = "invite_email_mismatch"
 
 
 class AuthError(AcervoError):
@@ -64,6 +80,12 @@ class InvalidCredentials(AuthError):
 
 class EmailNotVerified(AuthError):
     code = "email_not_verified"
+
+
+class ForbiddenError(AcervoError):
+    """The person's role does not allow it."""
+
+    code = "forbidden"
 
 
 class TooManyAttempts(AcervoError):

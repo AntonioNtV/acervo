@@ -3,8 +3,9 @@ import { useI18n } from "../i18n";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 
-/** The 64 px avatar, Enviar foto (Trocar foto) and Remover, and the file's rule or the error in its place. */
+/** The 64 px avatar, Enviar foto (Trocar foto) and Remover, and the file's rule or the error in its place; `logo` for an organization's. */
 export function PhotoField({
+  kind = "photo",
   avatar,
   hasPhoto,
   sending,
@@ -12,6 +13,7 @@ export function PhotoField({
   onPick,
   onRemove,
 }: {
+  kind?: "photo" | "logo";
   avatar: ReactNode;
   hasPhoto: boolean;
   sending: boolean;
@@ -32,7 +34,7 @@ export function PhotoField({
             ) : (
               <>
                 <Icon name="upload" size={14} />
-                {t(hasPhoto ? "settings.photo.change" : "settings.photo.send")}
+                {t(hasPhoto ? `settings.${kind}.change` : `settings.${kind}.send`)}
               </>
             )}
           </Button>
@@ -45,7 +47,7 @@ export function PhotoField({
             ref={input}
             type="file"
             accept="image/png,image/jpeg,image/webp"
-            aria-label={t("settings.photo")}
+            aria-label={t(`settings.${kind}`)}
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -60,7 +62,7 @@ export function PhotoField({
             {error}
           </span>
         ) : (
-          <span>{t("settings.photo.hint")}</span>
+          <span>{t(`settings.${kind}.hint`)}</span>
         )}
       </div>
     </div>

@@ -39,14 +39,16 @@ class Bases:
 
 
 @pytest.fixture
-async def services(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Services]:
+async def services(uow: UnitOfWork, session: AsyncSession, default_account_id: UUID) -> AsyncIterator[Services]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        uow.act_as(default_account_id)
         yield Services(PageService(uow), TreeService(uow))
 
 
 @pytest.fixture
 async def bases(services: Services, make_tree: MakeTree, session: AsyncSession) -> Bases:
+    # `services` acts as the default account, owner of the Pessoal both bases are made in.
     x = await make_tree({"Bradesco": ["CG 2026.pdf"], "A.md": None, "B.md": None}, name="X")
     y = await make_tree({"Destino": None}, name="Y")
     a = x["A.md"].id

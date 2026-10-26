@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { calls, resetApi, respond } from "../../api/testing";
+import { summary } from "../bases/testing";
 import { pageNode, renderPage, typeInPage } from "./testing";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
@@ -375,5 +376,19 @@ describe("PageScreen", () => {
     await user.click(within(screen.getByRole("dialog", { name: "Escolher ícone" })).getByRole("button", { name: "Remover" }));
 
     await waitFor(() => expect(nodePatches().map((call) => call.body)).toEqual([{ cover: null }, { icon: null }]));
+  });
+
+  it("as Leitor the page is read-only and its menu changes nothing", async () => {
+    respond("GET", "/v1/kbs", { body: [summary({ id: "kb-1", name: "Bradesco", my_role: "reader" })] });
+    respond("GET", "/v1/kbs/kb-1", { body: summary({ id: "kb-1", name: "Bradesco", my_role: "reader" }) });
+    renderPage();
+
+    const text = await screen.findByRole("textbox", { name: "Texto da página" });
+    await waitFor(() => expect(text).toHaveAttribute("contenteditable", "false"));
+    expect(screen.getByRole("textbox", { name: "Título da página" })).toHaveAttribute("readonly");
+    await userEvent.click(screen.getByRole("button", { name: "Mais opções da página" }));
+    expect(await screen.findByRole("menuitem", { name: "Copiar link" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Mover para…" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Mover para a Lixeira" })).not.toBeInTheDocument();
   });
 });

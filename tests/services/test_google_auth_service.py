@@ -7,11 +7,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead, AccountUpdate
+from acervo.schemas.organization import InviteCreate, OrganizationRecord
+from acervo.services.access_service import AccessService
 from acervo.services.google_auth_service import GoogleAuthService
 from acervo.services.google_client import GoogleClient, GoogleIdentity
+from acervo.services.invite_service import InviteService
+from acervo.services.mailer import FakeMailer
 from acervo.services.session_service import SessionService
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
+MakeOrganization = Callable[..., Awaitable[OrganizationRecord]]
 REDIRECT_URI = "http://localhost:5173/v1/auth/google/callback"
 
 
@@ -32,8 +37,8 @@ async def sessions(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Sess
 
 
 @pytest.fixture
-def service(uow: UnitOfWork, sessions: SessionService) -> GoogleAuthService:
-    return GoogleAuthService(uow, sessions, FakeGoogle(), "secret", REDIRECT_URI)
+def service(uow: UnitOfWork, sessions: SessionService, fake_mailer: FakeMailer) -> GoogleAuthService:
+    return GoogleAuthService(uow, sessions, FakeGoogle(), fake_mailer, "secret", REDIRECT_URI)
 
 
 async def _continue(service: GoogleAuthService, next: str | None = "/kbs/1") -> tuple[str, str | None]:
@@ -110,11 +115,11 @@ async def test_next_off_this_origin_falls_back_to_the_root(service: GoogleAuthSe
 
 
 async def test_a_stale_unconfirmed_account_gives_way_to_a_new_one(
-    uow: UnitOfWork, sessions: SessionService, make_account: MakeAccount
+    uow: UnitOfWork, sessions: SessionService, fake_mailer: FakeMailer, make_account: MakeAccount
 ) -> None:
     stale = await make_account(verified=False)
     in_8_days = GoogleAuthService(
-        uow, sessions, FakeGoogle(), "secret", REDIRECT_URI, lambda: time.time() + 8 * 24 * 3600
+        uow, sessions, FakeGoogle(), fake_mailer, "secret", REDIRECT_URI, lambda: time.time() + 8 * 24 * 3600
     )
 
     path, token = await _continue(in_8_days)
@@ -123,3 +128,23 @@ async def test_a_stale_unconfirmed_account_gives_way_to_a_new_one(
     account = await sessions.resolve(token or "")
     assert account is not None
     assert (account.id != stale.id, account.has_google, account.email_verified) == (True, True, True)
+
+
+async def test_a_new_google_account_with_an_invited_email_joins(
+    service: GoogleAuthService,
+    sessions: SessionService,
+    uow: UnitOfWork,
+    fake_mailer: FakeMailer,
+    make_account: MakeAccount,
+    make_organization: MakeOrganization,
+) -> None:
+    bruno = await make_account(email="bruno@example.com", name="Bruno")
+    team = await make_organization(bruno.id)
+    invite = InviteCreate(emails=["ana@example.com"], role="member")
+    await InviteService(uow, fake_mailer, AccessService(uow)).invite_to_organization(bruno.id, team.id, invite)
+
+    _, token = await _continue(service)
+
+    ana = await sessions.resolve(token or "")
+    assert ana is not None
+    assert await AccessService(uow).org_role(ana.id, team.id) == "member"

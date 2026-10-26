@@ -16,8 +16,11 @@ from acervo.core.errors import AcervoError, CodeInvalid, InvalidCredentials
 from acervo.core.passwords import verify_password
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountCreate, AccountRead, AccountUpdate
+from acervo.services.access_service import AccessService
 from acervo.services.auth_service import UNVERIFIED_KEPT
 from acervo.services.google_client import GoogleClient, GoogleIdentity
+from acervo.services.invite_service import InviteService
+from acervo.services.mailer import Mailer
 from acervo.services.session_service import SessionService
 
 STATE_SECONDS = 10 * 60
@@ -52,6 +55,7 @@ class GoogleAuthService:
         uow: UnitOfWork,
         sessions: SessionService,
         google: GoogleClient,
+        mailer: Mailer,
         secret: str,
         redirect_uri: str,
         now: Callable[[], float] = time.time,
@@ -59,6 +63,7 @@ class GoogleAuthService:
         self._uow = uow
         self._sessions = sessions
         self._google = google
+        self._mailer = mailer
         self._secret = secret
         self._redirect_uri = redirect_uri
         self._now = now
@@ -102,6 +107,8 @@ class GoogleAuthService:
         # Google confirmed the email, so the account no longer waits for its code.
         update = AccountUpdate(google_sub=pending["sub"], email_verified_at=account.email_verified_at or self._utc())
         linked = await self._uow.accounts.update(account.id, update)
+        if account.email_verified_at is None:
+            await self._claim_invites(account.id)
         return AccountRead.of(linked), await self._sessions.create(account.id, user_agent)
 
     async def _land(self, person: GoogleIdentity, next: str, user_agent: str | None) -> Landing:
@@ -124,7 +131,13 @@ class GoogleAuthService:
                     email=person.email, name=name, google_sub=person.sub, email_verified_at=self._utc()
                 )
                 account = await self._uow.accounts.create(created)
+                await self._uow.organizations.create_personal(account.id)
+                await self._claim_invites(account.id)
         return Landing(next, await self._sessions.create(account.id, user_agent))
+
+    async def _claim_invites(self, account_id: UUID) -> None:
+        """An invited email that just got a confirmed account joins what it was invited to (spec §3)."""
+        await InviteService(self._uow, self._mailer, AccessService(self._uow), self._utc).claim(account_id)
 
     def _utc(self) -> datetime:
         return datetime.fromtimestamp(self._now(), UTC)

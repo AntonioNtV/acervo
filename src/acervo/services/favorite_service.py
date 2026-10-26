@@ -14,7 +14,9 @@ class FavoriteService:
         self._uow = uow
 
     async def listed(self, account_id: UUID) -> list[NodeWithPath]:
-        nodes = await self._uow.favorites.listed(account_id)
+        # Hidden, not deleted: they come back when access does.
+        visible = await self._uow.base_members.visible_kb_ids(account_id)
+        nodes = [node for node in await self._uow.favorites.listed(account_id) if node.kb_id in visible]
         found = await self._uow.nodes.paths([node.id for node in nodes])
         return [NodeWithPath(**node.model_dump(), path=found[node.id]) for node in nodes]
 

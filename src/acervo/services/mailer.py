@@ -12,11 +12,19 @@ class MailTemplate(StrEnum):
     RESET_LINK = "reset_link"
     CHANGE_EMAIL_CODE = "change_email_code"
     EMAIL_CHANGED = "email_changed"
+    ORG_INVITE = "org_invite"
+    INVITE_ACCEPTED = "invite_accepted"
+    BASE_SHARED = "base_shared"
+    ROLE_CHANGED = "role_changed"
+    REMOVED = "removed"
 
 
 class Mailer(Protocol):
     async def send(self, to: str, template: MailTemplate, language: Language, values: Mapping[str, str]) -> None:
-        """Sends `template` in `language` to `to`, filled with `values` (`code`, `link`, `name`, `new_email`)."""
+        """Sends `template` in `language` to `to`, filled with `values`: `code`, `link`, `name`, `new_email`;
+        for the organization emails also `inviter`, `actor`, `organization`, `base`, `member_email`, `role` and
+        `old_role` (role codes), `bases` (base names, one per line) and `expires_at` (ISO 8601). `link` is the
+        token for `reset_link` and `org_invite`, and the app path for the other emails with a button."""
         ...
 
 

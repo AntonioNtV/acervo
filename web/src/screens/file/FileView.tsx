@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NodeDetail } from "../../api/client";
 import { useErrorText } from "../../app/errors";
+import { useAccess } from "../../data/access";
 import { useDownloadFile, useOpenFile, useRawFileUrl } from "../../data/files";
 import { useI18n } from "../../i18n";
 import { MediaRow } from "../../ui/MediaRow";
@@ -43,6 +44,7 @@ function ImageView({ node }: { node: NodeDetail }) {
   const link = useRawFileUrl(node.id, node.file?.sha256);
   const [failed, setFailed] = useState<string | null>(null);
   const replace = useReplacePicker(node.id);
+  const { canEdit } = useAccess(node.kb_id);
   const download = useDownloadFile(node.id, node.title);
   const open = useOpenFile(node.id);
   return (
@@ -63,7 +65,7 @@ function ImageView({ node }: { node: NodeDetail }) {
                 className="block max-h-full max-w-full object-contain"
               />
               <MediaToolbar
-                tools={["replace", "download", "open"]}
+                tools={canEdit ? ["replace", "download", "open"] : ["download", "open"]}
                 floating
                 onAction={(tool) => {
                   if (tool === "replace") replace.choose();
