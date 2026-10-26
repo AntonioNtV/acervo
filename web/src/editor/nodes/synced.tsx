@@ -3,7 +3,7 @@ import type { Node as PmNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { EditorContent, NodeViewWrapper, ReactNodeViewRenderer, useEditor, type ReactNodeViewProps } from "@tiptap/react";
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useContext } from "react";
+import { createContext, lazy, Suspense, useContext } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api/client";
 import { normalizeLinkTarget } from "../../data/pages";
@@ -11,8 +11,6 @@ import { call } from "../../data/request";
 import { useI18n } from "../../i18n";
 import { SyncedFrame } from "../../ui/SyncedFrame";
 import type { BlockKind } from "../blocks";
-import { blockExtensions } from "../extensions";
-import { parseMarkdown } from "../markdown";
 import { PageLinkView, ResolveLink, type LinkTarget } from "../PageLinkView";
 
 declare module "@tiptap/core" {
@@ -132,21 +130,26 @@ export function cutSection(markdown: string, index: number): string {
   return start >= 0 ? lines.slice(start).join("\n") : "";
 }
 
-function ReadOnly({ markdown }: { markdown: string }) {
-  const editor = useEditor(
-    {
-      // Built here, not at load: extensions.ts imports this module.
-      extensions: blockExtensions.map((extension) =>
-        extension.name === "pageLink" ? extension.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) }) : extension,
-      ),
-      content: parseMarkdown(markdown).doc as JSONContent,
-      editable: false,
-      editorProps: { attributes: { class: "block-editor" } },
+// Imported when first shown: extensions.ts registers `SyncedBlock`, so a static import of it from here is a cycle.
+const ReadOnly = lazy(async () => {
+  const [{ blockExtensions }, { parseMarkdown }] = await Promise.all([import("../extensions"), import("../markdown")]);
+  return {
+    default: function ReadOnly({ markdown }: { markdown: string }) {
+      const editor = useEditor(
+        {
+          extensions: blockExtensions.map((extension) =>
+            extension.name === "pageLink" ? extension.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) }) : extension,
+          ),
+          content: parseMarkdown(markdown).doc as JSONContent,
+          editable: false,
+          editorProps: { attributes: { class: "block-editor" } },
+        },
+        [markdown],
+      );
+      return <EditorContent editor={editor} />;
     },
-    [markdown],
-  );
-  return <EditorContent editor={editor} />;
-}
+  };
+});
 
 export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNodeViewProps) {
   const { t } = useI18n();
@@ -203,7 +206,9 @@ export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNod
         ) : (
           shown !== undefined && (
             <ResolveLink.Provider value={resolveLink}>
-              <ReadOnly markdown={shown} />
+              <Suspense fallback={null}>
+                <ReadOnly markdown={shown} />
+              </Suspense>
             </ResolveLink.Provider>
           )
         )}

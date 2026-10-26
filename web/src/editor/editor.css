@@ -24,7 +24,10 @@
 
 .block-editor h1,
 .block-editor h2,
-.block-editor h3 {
+.block-editor h3,
+.block-editor h4,
+.block-editor h5,
+.block-editor h6 {
   margin: 0;
   font-weight: 500;
 }
@@ -47,6 +50,25 @@
   margin-top: 16px;
   font-size: 16px;
   line-height: 26px;
+}
+
+.block-editor h4,
+.block-editor h5,
+.block-editor h6 {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 24px;
+}
+
+.block-editor h5 {
+  font-size: 14px;
+  line-height: 22px;
+}
+
+.block-editor h6 {
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--text-2);
 }
 
 .block-editor > :first-child {

@@ -1,4 +1,10 @@
 import type { ChainedCommands } from "@tiptap/core";
+import { columnsKinds } from "./nodes/columns";
+import { footnoteKinds } from "./nodes/footnote";
+import { GENERATED_KINDS } from "./nodes/generated";
+import { MATH_KINDS } from "./nodes/math";
+import { syncedKinds } from "./nodes/synced";
+import { toggleHeadingKinds } from "./nodes/toggleHeading";
 
 /** A kind of block the "/" menu inserts and the handle's menu turns a block into. */
 export type BlockKind = {
@@ -17,6 +23,10 @@ export const BLOCK_KINDS: BlockKind[] = [
   { id: "h1", group: "blocks", shortcut: "#", turn: (c) => c.clearNodes().setHeading({ level: 1 }) },
   { id: "h2", group: "blocks", shortcut: "##", turn: (c) => c.clearNodes().setHeading({ level: 2 }) },
   { id: "h3", group: "blocks", shortcut: "###", turn: (c) => c.clearNodes().setHeading({ level: 3 }) },
+  { id: "h4", group: "blocks", shortcut: "####", turn: (c) => c.clearNodes().setHeading({ level: 4 }) },
+  { id: "h5", group: "blocks", shortcut: "#####", turn: (c) => c.clearNodes().setHeading({ level: 5 }) },
+  { id: "h6", group: "blocks", shortcut: "######", turn: (c) => c.clearNodes().setHeading({ level: 6 }) },
+  ...toggleHeadingKinds,
   {
     id: "bullet",
     group: "blocks",
@@ -44,8 +54,13 @@ export const BLOCK_KINDS: BlockKind[] = [
   { id: "code", group: "blocks", shortcut: "```", turn: (c) => c.clearNodes().setCodeBlock() },
   { id: "table", group: "blocks" },
   { id: "divider", group: "blocks", shortcut: "---" },
+  ...columnsKinds,
+  ...GENERATED_KINDS,
+  ...footnoteKinds,
+  ...MATH_KINDS,
   { id: "subpage", group: "blocks" },
   { id: "pageLink", group: "link", shortcut: "[[" },
+  ...syncedKinds,
 ];
 
 const fold = (text: string) =>
