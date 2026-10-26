@@ -2,11 +2,11 @@ from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
-from sqlalchemy import ColumnElement
+from sqlalchemy import ColumnElement, select
 
 from acervo.db.models.security_event import SecurityEvent
 from acervo.repositories.base import BaseRepository
-from acervo.schemas.security import SecurityEventCreate, SecurityEventRecord
+from acervo.schemas.security import SecurityEventCreate, SecurityEventKind, SecurityEventRecord
 
 
 class SecurityEventRepository(BaseRepository[SecurityEvent, SecurityEventRecord, SecurityEventCreate, BaseModel]):
@@ -16,6 +16,13 @@ class SecurityEventRepository(BaseRepository[SecurityEvent, SecurityEventRecord,
     async def of_account(self, account_id: UUID, since: datetime) -> list[SecurityEventRecord]:
         """The account's activity from `since`, newest first."""
         return await self._newest_first(SecurityEvent.account_id == account_id, since)
+
+    async def sign_in_agents(self, account_id: UUID) -> set[str | None]:
+        """The user agents the account ever signed in from."""
+        query = select(SecurityEvent.user_agent).where(
+            SecurityEvent.account_id == account_id, SecurityEvent.kind == SecurityEventKind.SIGNED_IN
+        )
+        return set(await self._session.scalars(query.distinct()))
 
     async def of_organization(self, organization_id: UUID, since: datetime) -> list[SecurityEventRecord]:
         """The organization's audit from `since`, newest first."""

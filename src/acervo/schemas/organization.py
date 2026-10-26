@@ -63,9 +63,14 @@ class OrganizationRead(BaseModel):
     my_role: OrgRole = Field(description="The person's role in the organization.")
     new_base_access: GeneralAccess = Field(description="The general access a new base starts with.")
     require_two_factor: bool = Field(description="Whether members need a passkey or two-step verification.")
+    password_only: int | None = Field(
+        default=None,
+        description="Members with neither a passkey nor two-step verification; only for Owners and Admins of a team "
+        "asking for this organization, else null.",
+    )
 
     @classmethod
-    def of(cls, organization: OrganizationRecord, my_role: OrgRole) -> Self:
+    def of(cls, organization: OrganizationRecord, my_role: OrgRole, password_only: int | None = None) -> Self:
         logo_url = None
         if organization.logo_key is not None:
             # The key's name changes with the logo, so a new one is never served from the browser's cache.
@@ -78,6 +83,7 @@ class OrganizationRead(BaseModel):
             my_role=my_role,
             new_base_access=organization.new_base_access,
             require_two_factor=organization.require_two_factor,
+            password_only=password_only,
         )
 
 

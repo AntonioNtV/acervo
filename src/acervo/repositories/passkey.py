@@ -9,9 +9,11 @@ class PasskeyRepository(BaseRepository[Passkey, PasskeyRecord, PasskeyCreate, Pa
     orm_model = Passkey
     read_schema = PasskeyRecord
 
-    async def of_account(self, account_id: UUID) -> list[PasskeyRecord]:
-        """The account's passkeys, oldest first."""
+    async def of_account(self, account_id: UUID, lock: bool = False) -> list[PasskeyRecord]:
+        """The account's passkeys, oldest first; with `lock`, their rows locked until the transaction ends."""
         query = self._select().where(Passkey.account_id == account_id).order_by(Passkey.created_at, Passkey.id)
+        if lock:
+            query = query.with_for_update()
         return [self._to_read(passkey) for passkey in await self._session.scalars(query)]
 
     async def by_credential(self, credential_id: bytes) -> PasskeyRecord | None:

@@ -143,7 +143,6 @@ class ProfileUpdate(BaseModel):
 
 class EmailChange(BaseModel):
     new_email: EmailStr
-    password: str | None = Field(default=None, description="The current password; required when the account has one.")
 
 
 class SessionCreate(BaseModel):

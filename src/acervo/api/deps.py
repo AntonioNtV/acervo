@@ -120,9 +120,11 @@ def get_link_preview_service(settings: Annotated[Settings, Depends(get_settings)
 
 
 def get_session_service(
-    uow: Annotated[UnitOfWork, Depends(get_uow)], settings: Annotated[Settings, Depends(get_settings)]
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> SessionService:
-    return SessionService(uow, settings.session_days)
+    return SessionService(uow, settings.session_days, mailer=mailer)
 
 
 def get_auth_service(
@@ -173,11 +175,12 @@ def get_google_auth_service(
 
 def get_passkey_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
+    sessions: Annotated[SessionService, Depends(get_session_service)],
     mailer: Annotated[Mailer, Depends(get_mailer)],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> PasskeyService:
     secret = settings.session_secret.get_secret_value()
-    return PasskeyService(uow, mailer, secret, settings.webauthn_rp_id, settings.webauthn_origin, settings.session_days)
+    return PasskeyService(uow, mailer, secret, settings.webauthn_rp_id, settings.webauthn_origin, sessions)
 
 
 def get_security_log(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> SecurityLog:

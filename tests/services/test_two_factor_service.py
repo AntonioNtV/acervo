@@ -88,12 +88,13 @@ async def test_five_wrong_codes_end_the_pending_sign_in(
     auth: AuthService, ana: AccountRead, fake_mailer: FakeMailer
 ) -> None:
     token = await pend(auth)
+    code = last_code(fake_mailer)
     for _ in range(5):
         with pytest.raises(CodeInvalid):
             await auth.finish_two_factor(token, "000000", None)
 
     with pytest.raises(CodeInvalid):
-        await auth.finish_two_factor(token, last_code(fake_mailer), None)
+        await auth.finish_two_factor(token, code, None)
 
 
 async def test_wrong_codes_count_toward_the_lockout_with_wrong_passwords(auth: AuthService, ana: AccountRead) -> None:

@@ -4,9 +4,10 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
-from acervo.services.session_service import SessionService, device
+from acervo.services.session_service import SessionService
 
 MakeAccount = Callable[..., Awaitable[AccountRead]]
 DAYS = 30
