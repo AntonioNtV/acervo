@@ -5,8 +5,8 @@ description: Where each concept of Acervo lives and which way imports go. Use to
 
 # Repo structure
 
-`src/acervo/` is layered. A request enters at `api/`, a service runs the use case and commits, repositories persist,
-the pipeline reads PDFs.
+`src/acervo/` is layered. A request enters at `api/`, a scheduled job at `worker/`; a service runs the use case and
+commits, repositories persist, the pipeline reads PDFs.
 
 | Folder | Owns | Start reading at |
 |---|---|---|
@@ -18,6 +18,7 @@ the pipeline reads PDFs.
 | `services/` | use cases: `BaseService` (kbs), `TreeService`, `PageService`, `FileService`, `CoverService`, `FavoriteService`, `DuplicateService`, `ExportService`, `Storage` (S3/MinIO) | `services/tree_service.py` |
 | `pipeline/` | computation with no database: `pdf/reader.py` (page count, password flag) | `pipeline/pdf/reader.py` |
 | `api/` | `create_app()`, deps (settings, `UnitOfWork`, services, `X-API-Key`), error handlers, one router per resource | `api/main.py` |
+| `worker/` | the Temporal worker (`python -m acervo.worker`): its schedules, workflows and activities, each activity one `UnitOfWork` around a service; today the daily digest | `worker/__main__.py` |
 
 Outside `src/`: `migrations/` (Alembic), `tests/` (by layer, skill `testing`), `scripts/export_openapi.py`,
 `docs/openapi.json` (generated, committed), `web/` (skill `ui-web`).
@@ -25,7 +26,7 @@ Outside `src/`: `migrations/` (Alembic), `tests/` (by layer, skill `testing`), `
 ## Imports
 
 ```
-api  >  services  >  repositories > db
+api, worker  >  services  >  repositories > db
                   >  pipeline
 everything   >  schemas, domain, core
 ```
@@ -33,6 +34,9 @@ everything   >  schemas, domain, core
 - `api/` imports `services/`, `schemas/`, `core/` and `api/deps.py`; never `db/`, `repositories/` or `pipeline/`.
   Exception, the composition roots: `api/main.py` may import `acervo.db.session` to build the engine at startup,
   and `api/deps.py` may import `acervo.repositories.uow` to open one `UnitOfWork` per request.
+- `worker/` follows the same rule as `api/`: services, schemas and core; its composition roots are
+  `worker/__main__.py` (`acervo.db.session`) and `worker/activities.py` (`acervo.repositories.uow`). Workflows stay
+  deterministic: time comes from `workflow.now()`, I/O only in activities.
 - `services/` never imports `db/`: it works with `schemas/` through the `UnitOfWork`.
 - `pipeline/` never imports `db/`, `repositories/` or `services/`; it receives bytes or a path and returns plain
   types.
