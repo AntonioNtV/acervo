@@ -116,10 +116,12 @@ class GoogleAuthService:
 
     async def unlink(self, account_id: UUID, session_id: UUID) -> AccountRead:
         """Unlinks Google, unless it is the only way left to sign in."""
+        # Locked first, so a passkey removed at the same time cannot leave the account with no way in.
+        passkeys = await self._uow.passkeys.of_account(account_id, lock=True)
         account = await self._uow.accounts.get(account_id)
         if account.google_sub is None:
             return AccountRead.of(account)
-        if account.password_hash is None and not account.has_passkey:
+        if account.password_hash is None and not passkeys:
             raise LastWayIn("Google is the only way to sign in to this account.")
         session = await self._uow.sessions.get(session_id)
         unlinked = await self._uow.accounts.update(account_id, AccountUpdate(google_sub=None))

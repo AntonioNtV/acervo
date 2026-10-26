@@ -2,7 +2,16 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header
 
-from acervo.api.deps import SIGNED_IN, CurrentAccount, RecentSignIn, get_two_factor_service
+from acervo.api.deps import (
+    SIGNED_IN,
+    CurrentAccount,
+    RecentSignIn,
+    SignedInRecently,
+    get_settings,
+    get_two_factor_service,
+)
+from acervo.core.errors import ReauthenticationRequired, ValidationError
+from acervo.core.settings import Settings
 from acervo.schemas.account import AccountRead
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.security import TwoFactorConfirm, TwoFactorStart
@@ -18,11 +27,23 @@ Service = Annotated[TwoFactorService, Depends(get_two_factor_service)]
 UserAgent = Annotated[str | None, Header()]
 
 
-@router.post("", response_model=AccountRead, responses={429: ERROR})
+@router.post("", response_model=AccountRead, responses={403: ERROR, 429: ERROR})
 async def start_two_factor(
-    body: TwoFactorStart, account: CurrentAccount, service: Service, user_agent: UserAgent = None
+    body: TwoFactorStart,
+    account: CurrentAccount,
+    recent: SignedInRecently,
+    settings: Annotated[Settings, Depends(get_settings)],
+    service: Service,
+    user_agent: UserAgent = None,
 ) -> AccountRead:
-    """Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`."""
+    """Email turns on at once; WhatsApp sends a code to `phone`, and turns on at `POST /v1/two-factor/confirm`.
+    WhatsApp needs a recent sign-in (403 `reauthentication_required`), and is 422 `validation` when this server
+    sends no WhatsApp."""
+    if body.method == "whatsapp":
+        if not settings.whatsapp_enabled:
+            raise ValidationError("WhatsApp is not offered", {"method": "whatsapp"})
+        if not recent:
+            raise ReauthenticationRequired("Confirm the password or a passkey to make this change.")
     return await service.start(account.id, body, user_agent)
 
 

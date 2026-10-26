@@ -45,11 +45,14 @@ class SoftAuthenticator:
         self.credential_id = secrets.token_bytes(16)
         self.user_handle = b""
         self.sign_count = 0
+        # The UV flag: the person unlocked the authenticator (biometrics or PIN), not only touched it.
+        self.user_verified = True
 
     def _client_data(self, kind: str, challenge: str) -> bytes:
         return json.dumps({"type": kind, "challenge": challenge, "origin": self.origin}).encode()
 
     def _auth_data(self, flags: int) -> bytes:
+        flags |= 0x04 if self.user_verified else 0
         return hashlib.sha256(self.rp_id.encode()).digest() + bytes([flags]) + self.sign_count.to_bytes(4, "big")
 
     def create(self, options: dict[str, Any]) -> dict[str, Any]:
@@ -57,7 +60,7 @@ class SoftAuthenticator:
         numbers = self.key.public_key().public_numbers()
         cose = cbor2.dumps({1: 2, 3: -7, -1: 1, -2: numbers.x.to_bytes(32, "big"), -3: numbers.y.to_bytes(32, "big")})
         attested = self.aaguid + len(self.credential_id).to_bytes(2, "big") + self.credential_id + cose
-        attestation = cbor2.dumps({"fmt": "none", "attStmt": {}, "authData": self._auth_data(0x45) + attested})
+        attestation = cbor2.dumps({"fmt": "none", "attStmt": {}, "authData": self._auth_data(0x41) + attested})
         return {
             "id": _b64(self.credential_id),
             "rawId": _b64(self.credential_id),
@@ -71,7 +74,7 @@ class SoftAuthenticator:
 
     def get(self, options: dict[str, Any]) -> dict[str, Any]:
         client_data = self._client_data("webauthn.get", _challenge(options))
-        auth_data = self._auth_data(0x05)
+        auth_data = self._auth_data(0x01)
         signature = self.key.sign(auth_data + hashlib.sha256(client_data).digest(), ec.ECDSA(hashes.SHA256()))
         return {
             "id": _b64(self.credential_id),
@@ -214,3 +217,35 @@ async def test_the_last_way_in_cannot_be_removed(
 
     assert [passkey.id for passkey in await service.of_account(ana.id)] == [last.id]
     assert fake_mailer.sent[-1].values["change"] == "passkey_removed"
+
+
+async def test_a_passkey_without_user_verification_is_refused(
+    service: PasskeyService, make_account: MakeAccount
+) -> None:
+    ana = await make_account()
+    unverified = SoftAuthenticator()
+    unverified.user_verified = False
+    with pytest.raises(CodeInvalid):
+        await _register(service, ana, unverified)
+
+    authenticator = SoftAuthenticator()
+    await _register(service, ana, authenticator)
+    authenticator.user_verified = False
+    with pytest.raises(InvalidCredentials):
+        await _sign_in(service, authenticator)
+
+
+async def test_a_passkey_of_another_account_never_switches_a_live_session(
+    service: PasskeyService, uow: UnitOfWork, make_account: MakeAccount
+) -> None:
+    ana, bia = await make_account(), await make_account(email="bia@example.com", name="Bia")
+    authenticator = SoftAuthenticator()
+    await _register(service, bia, authenticator)
+    current = await SessionService(uow, 30).create(ana.id, "Firefox")
+
+    with pytest.raises(InvalidCredentials):
+        await _sign_in(service, authenticator, current)
+
+    [session] = await uow.sessions.of_account(ana.id)
+    assert session.reauthenticated_at is None
+    assert await uow.sessions.of_account(bia.id) == []

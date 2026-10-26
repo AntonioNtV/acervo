@@ -35,11 +35,12 @@ def _set_challenge(response: Response, value: str, settings: Settings) -> None:
     )
 
 
-@router.post("/register/options", response_model=WebAuthnOptions)
+@router.post("/register/options", response_model=WebAuthnOptions, responses={403: ERROR})
 async def registration_options(
-    account: CurrentAccount, response: Response, service: Service, settings: AppSettings
+    account: CurrentAccount, _: RecentSignIn, response: Response, service: Service, settings: AppSettings
 ) -> WebAuthnOptions:
-    """Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie."""
+    """Creation options for `navigator.credentials.create()`; the challenge rides a 5-minute cookie. Without a recent
+    sign-in it is 403 `reauthentication_required`."""
     options, challenge = await service.registration_options(account)
     _set_challenge(response, challenge, settings)
     return WebAuthnOptions(options=options)
@@ -101,9 +102,9 @@ async def sign_in(
     challenge: Challenge = None,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> AccountRead:
-    """Signs in with a passkey, no second step. On a session of the same account it confirms it instead (a recent
-    sign-in for sensitive changes). A passkey that does not verify is 401 `invalid_credentials`; an expired prompt
-    is 422 `code_invalid`."""
+    """Signs in with a passkey, no second step. On a live session it confirms it instead (a recent sign-in for
+    sensitive changes), and a passkey of another account is 401 `invalid_credentials`, like one that does not
+    verify; an expired prompt is 422 `code_invalid`."""
     response.delete_cookie(CHALLENGE_COOKIE, path=PREFIX)
     account, session = await service.sign_in(body.credential, challenge, request.headers.get("user-agent"), token)
     set_session_cookie(response, session, settings)

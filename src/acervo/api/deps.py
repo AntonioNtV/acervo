@@ -243,18 +243,27 @@ async def current_session_id(
     return session.id
 
 
-async def recent_sign_in(
+async def signed_in_recently(
     session_id: Annotated[UUID, Depends(current_session_id)], uow: Annotated[UnitOfWork, Depends(get_uow)]
+) -> bool:
+    """Whether the session of the request signed in or reauthenticated within `RECENT_SIGN_IN`."""
+    session = await uow.sessions.get(session_id)
+    return datetime.now(UTC) - (session.reauthenticated_at or session.created_at) <= RECENT_SIGN_IN
+
+
+async def recent_sign_in(
+    session_id: Annotated[UUID, Depends(current_session_id)],
+    recent: Annotated[bool, Depends(signed_in_recently)],
 ) -> UUID:
     """The session of the request, signed in or reauthenticated within `RECENT_SIGN_IN`; 403
     `reauthentication_required` otherwise."""
-    session = await uow.sessions.get(session_id)
-    if datetime.now(UTC) - (session.reauthenticated_at or session.created_at) > RECENT_SIGN_IN:
+    if not recent:
         raise ReauthenticationRequired("Confirm the password or a passkey to make this change.")
     return session_id
 
 
 RecentSignIn = Annotated[UUID, Depends(recent_sign_in)]
+SignedInRecently = Annotated[bool, Depends(signed_in_recently)]
 
 
 def session_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:

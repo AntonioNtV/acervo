@@ -97,6 +97,21 @@ async def test_five_wrong_codes_end_the_pending_sign_in(
         await auth.finish_two_factor(token, code, None)
 
 
+async def test_no_new_code_once_the_five_tries_are_spent(
+    auth: AuthService, ana: AccountRead, fake_mailer: FakeMailer, clock: Clock
+) -> None:
+    token = await pend(auth)
+    for _ in range(5):
+        with pytest.raises(CodeInvalid):
+            await auth.finish_two_factor(token, "000000", None)
+    clock.advance(timedelta(seconds=61))
+    sent = len(fake_mailer.sent)
+
+    with pytest.raises(CodeInvalid):
+        await auth.resend_two_factor(token, to_email=False)
+    assert len(fake_mailer.sent) == sent
+
+
 async def test_wrong_codes_count_toward_the_lockout_with_wrong_passwords(auth: AuthService, ana: AccountRead) -> None:
     for _ in range(3):
         with pytest.raises(InvalidCredentials):

@@ -232,6 +232,9 @@ class AuthService:
         method ("Receber por email")."""
         now = self._now()
         pending = await self._live_pending(token)
+        # Out of tries, a new code would only buy five more guesses.
+        if pending.attempts >= CODE_TRIES:
+            raise CodeInvalid("wrong or expired code")
         if now - pending.code_sent_at < RESEND_AFTER:
             raise TooManyAttempts("a code was sent less than a minute ago")
         account = await self._uow.accounts.get(pending.account_id)

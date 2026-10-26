@@ -42,10 +42,11 @@ class SessionService:
 
     async def create(self, account_id: UUID, user_agent: str | None, method: SignInMethod = "password") -> str:
         """Starts a session, logs the sign-in and gives the token for the cookie. A browser the account never signed
-        in from gets `new_sign_in` by email; the first sign-in of an account does not."""
+        in from (by browser and system, not by version) gets `new_sign_in` by email; the first sign-in of an account
+        does not."""
         token = secrets.token_urlsafe(32)
         now = self._now()
-        agents = await self._uow.security_events.sign_in_agents(account_id)
+        devices = {device(agent) for agent in await self._uow.security_events.sign_in_agents(account_id)}
         await SecurityLog(self._uow).record(
             SecurityEventKind.SIGNED_IN, account_id=account_id, data={"method": method}, user_agent=user_agent
         )
@@ -60,9 +61,9 @@ class SessionService:
             )
         )
         await self._uow.commit()
-        if self._mailer is not None and agents and user_agent not in agents:
+        browser, system = device(user_agent)
+        if self._mailer is not None and devices and (browser, system) not in devices:
             account = await self._uow.accounts.get(account_id)
-            browser, system = device(user_agent)
             values = {
                 "name": account.name,
                 "browser": browser or "",
