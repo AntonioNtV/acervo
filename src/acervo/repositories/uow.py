@@ -1,5 +1,6 @@
 from types import TracebackType
 from typing import Self
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -70,3 +71,7 @@ class UnitOfWork:
 
     async def rollback(self) -> None:
         await self._session.rollback()
+
+    def act_as(self, account_id: UUID) -> None:
+        """Reads that depend on who asks (a node's `favorite`) answer for this account from now on."""
+        self._session.info["account_id"] = account_id

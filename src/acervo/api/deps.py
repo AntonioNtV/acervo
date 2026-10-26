@@ -154,7 +154,7 @@ async def current_account(
     if token is None or account is None:
         raise AuthError("Missing or ended session.")
     # What the repositories answer for this account (a node's `favorite`) reads it from the request's session.
-    uow._session.info["account_id"] = account.id
+    uow.act_as(account.id)
     # The session slides with each request, so the cookie's Max-Age slides with it.
     set_session_cookie(response, token, settings)
     return account

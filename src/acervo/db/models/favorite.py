@@ -12,5 +12,5 @@ class Favorite(UUIDPkMixin, TimestampMixin, Base):
 
     account_id: Mapped[UUID] = mapped_column(ForeignKey("account.id", ondelete="CASCADE"))
     node_id: Mapped[UUID] = mapped_column(ForeignKey("node.id", ondelete="CASCADE"), index=True)
-    # Fractional index, compared with collate "C" as `node.favorite_sort` is.
+    # Fractional index, compared with collate "C".
     sort: Mapped[str] = mapped_column(Text)
