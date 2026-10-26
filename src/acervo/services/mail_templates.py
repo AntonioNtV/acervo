@@ -274,8 +274,8 @@ MONTHS = [
 ]  # fmt: skip
 
 # Light-theme tokens inlined: email clients ignore CSS variables.
-SANS = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif'
-MONO = 'ui-monospace, Menlo, Consolas, "Courier New", monospace'
+SANS = "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+MONO = "ui-monospace, Menlo, Consolas, 'Courier New', monospace"
 
 
 @dataclass(frozen=True)
