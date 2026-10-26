@@ -155,8 +155,12 @@ class InviteService:
 
     async def accept(self, account_id: UUID, token: str) -> InvitePreview:
         """Joins the organization, or the base as its guest, with the invite's role; the email must be the
-        account's."""
+        account's. A used invite answers again for the account it is for while that account is still in, so a
+        link opened after signing up (which already joined) lands where it leads."""
         invite = await self._uow.invites.by_token(token_hash(token))
+        account = await self._uow.accounts.get(account_id)
+        if invite is not None and invite.accepted_at is not None and await self._joined(invite, account):
+            return await self._preview(invite)
         if (
             invite is None
             or invite.accepted_at is not None
@@ -164,7 +168,6 @@ class InviteService:
             or invite.expires_at <= self._now()
         ):
             raise CodeInvalid("wrong, expired, revoked or used invite")
-        account = await self._uow.accounts.get(account_id)
         if invite.email.lower() != account.email.lower():
             raise InviteMismatch("the invite is for another email", {"email": _mask(invite.email)})
         await self._join(invite, account_id)
@@ -241,6 +244,14 @@ class InviteService:
             await self._uow.memberships.create(membership)
         await self._uow.invites.update(invite.id, InviteRecordUpdate(accepted_at=self._now()))
 
+    async def _joined(self, invite: InviteRecord, account: AccountRecord) -> bool:
+        """Whether the invite is this account's and the account still holds what it gave."""
+        if invite.email.lower() != account.email.lower():
+            return False
+        if invite.kb_id is not None:
+            return await self._access.base_role(account.id, invite.kb_id) is not None
+        return await self._access.org_role(account.id, invite.organization_id) is not None
+
     async def _add_to_base(self, kb_id: UUID, account_id: UUID, role: BaseRole) -> None:
         """Gives the role in the base, keeping a higher one the person already has there."""
         added = await self._uow.base_members.get_by(kb_id=kb_id, account_id=account_id)
@@ -280,7 +291,8 @@ class InviteService:
             "member_email": member.email,
             "organization": await self._target_name(invite),
             "role": invite.role,
-            "link": MEMBERS_PATH if invite.kb_id is None else f"/kbs/{invite.kb_id}",
+            # The organization rides along: the settings show the one this browser has open, maybe another.
+            "link": f"{MEMBERS_PATH}?org={invite.organization_id}" if invite.kb_id is None else f"/kbs/{invite.kb_id}",
         }
         await self._mailer.send(inviter.email, MailTemplate.INVITE_ACCEPTED, inviter.language, values)
 

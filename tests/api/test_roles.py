@@ -134,3 +134,17 @@ class _Ids(dict[str, str]):
 
     def __missing__(self, key: str) -> str:
         return "00000000-0000-0000-0000-000000000000"
+
+
+async def test_a_base_is_read_by_id_only_by_who_sees_it(
+    client: httpx.AsyncClient, bia_client: httpx.AsyncClient, bia: AccountRead, base: Any, session: AsyncSession
+) -> None:
+    own = (await client.get(f"/v1/kbs/{base.kb.id}")).json()
+    assert (own["organization_id"], own["my_role"], own["shared_by"]) == (str(base.kb.organization_id), "admin", None)
+
+    hidden = await bia_client.get(f"/v1/kbs/{base.kb.id}")
+    assert (hidden.status_code, hidden.json()["error"]) == (404, "not_found")
+
+    await _give(session, base.kb.id, bia.id, "reader")
+    guest = (await bia_client.get(f"/v1/kbs/{base.kb.id}")).json()
+    assert (guest["my_role"], guest["shared_by"]) == ("reader", "Seguros SA")
