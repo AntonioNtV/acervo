@@ -12,15 +12,53 @@ export function GoogleLogo() {
   );
 }
 
-/** A full-width default button that leaves for a sign-in provider: a plain link, since the provider's page takes over. */
-export function ProviderButton({ href, logo, children }: { href: string; logo: ReactNode; children: ReactNode }) {
+/** A passkey, in `text`. */
+export function PasskeyLogo() {
   return (
-    <a
-      href={href}
-      className="inline-flex h-[30px] w-full items-center justify-center gap-1.5 rounded-[7px] border border-line-2 bg-bg text-13 font-medium text-text no-underline hover:bg-subtle"
+    <svg
+      viewBox="0 0 24 24"
+      width={16}
+      height={16}
+      aria-hidden="true"
+      className="shrink-0 fill-none stroke-current stroke-[1.5]"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
+      <circle cx="8" cy="15" r="4" />
+      <path d="M11 12l8-8M16 7l2 2M14 9l2 2" />
+    </svg>
+  );
+}
+
+const providerClass =
+  "inline-flex h-[30px] w-full cursor-pointer items-center justify-center gap-1.5 rounded-[7px] border border-line-2 bg-bg text-13 font-medium text-text no-underline hover:bg-subtle disabled:cursor-default disabled:bg-bg disabled:opacity-50";
+
+/**
+ * A full-width default button for a sign-in provider: a plain link when the provider's page takes over (`href`), a
+ * button when the browser's own prompt does (`onClick`, the passkey).
+ */
+export function ProviderButton({
+  href,
+  onClick,
+  disabled,
+  logo,
+  children,
+}: {
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  logo: ReactNode;
+  children: ReactNode;
+}) {
+  return href ? (
+    <a href={href} className={providerClass}>
       {logo}
       {children}
     </a>
+  ) : (
+    <button type="button" onClick={onClick} disabled={disabled} className={providerClass}>
+      {logo}
+      {children}
+    </button>
   );
 }

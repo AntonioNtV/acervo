@@ -53,14 +53,18 @@ export function AuthCard({
   );
 }
 
-/** Continuar com Google and the "ou" line above the email form; Google comes back to `next` once signed in. */
-export function GoogleFirst({ next }: { next: string }) {
+/**
+ * Continuar com Google, the other providers in `children`, and the "ou" line above the email form; Google comes back
+ * to `next` once signed in.
+ */
+export function GoogleFirst({ next, children }: { next: string; children?: ReactNode }) {
   const { t } = useI18n();
   return (
     <>
       <ProviderButton href={`/v1/auth/google/start?next=${encodeURIComponent(next)}`} logo={<GoogleLogo />}>
         {t("auth.google")}
       </ProviderButton>
+      {children}
       <div className="flex items-center gap-3 text-12 text-ghost">
         <span className="h-px flex-1 bg-line" />
         {t("auth.or")}

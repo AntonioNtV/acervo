@@ -49,14 +49,10 @@ describe("Profile", () => {
     const email = await screen.findByLabelText("Email");
     await userEvent.clear(email);
     await userEvent.type(email, "antonio@novo.com.br");
-    await userEvent.type(screen.getByLabelText("Senha"), "correto-cavalo");
     await userEvent.click(screen.getByRole("button", { name: "Enviar código" }));
 
     expect(await screen.findByText(/Enviamos um código para antonio@novo.com.br/)).toBeInTheDocument();
-    expect(calls.find((call) => call.path === "/v1/account/email")?.body).toEqual({
-      new_email: "antonio@novo.com.br",
-      password: "correto-cavalo",
-    });
+    expect(calls.find((call) => call.path === "/v1/account/email")?.body).toEqual({ new_email: "antonio@novo.com.br" });
     await userEvent.type(screen.getByLabelText("Código de 6 dígitos"), "111111");
     expect(await screen.findByRole("alert")).toHaveTextContent("Código incorreto ou vencido.");
 
@@ -66,19 +62,26 @@ describe("Profile", () => {
     await waitFor(() => expect(screen.getByLabelText("Email")).toHaveValue("antonio@novo.com.br"));
   });
 
-  it("a wrong current password is told under it and no code is sent", async () => {
+  it("without a recent sign-in it asks the password, then sends the code", async () => {
     signedIn();
-    respond("POST", "/v1/account/email", { status: 401, body: { error: "invalid_credentials", message: "no" } });
+    let recent = false;
+    respond("POST", "/v1/account/email", () =>
+      recent ? { status: 204, body: undefined } : { status: 403, body: { error: "reauthentication_required", message: "no" } },
+    );
+    respond("POST", "/v1/sessions/reauthenticate", () => {
+      recent = true;
+      return { status: 204, body: undefined };
+    });
     renderWithApi(<Profile />);
 
     const email = await screen.findByLabelText("Email");
     await userEvent.clear(email);
     await userEvent.type(email, "antonio@novo.com.br");
-    await userEvent.type(screen.getByLabelText("Senha"), "errada-mesmo");
     await userEvent.click(screen.getByRole("button", { name: "Enviar código" }));
+    await userEvent.type(await screen.findByLabelText("Senha"), "correto-cavalo");
+    await userEvent.click(screen.getByRole("button", { name: "Confirmar" }));
 
-    expect(await screen.findByText("Senha incorreta.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Senha")).toHaveAttribute("aria-invalid", "true");
-    expect(screen.queryByText(/Enviamos um código/)).not.toBeInTheDocument();
+    expect(await screen.findByText(/Enviamos um código para antonio@novo.com.br/)).toBeInTheDocument();
+    expect(calls.find((call) => call.path === "/v1/sessions/reauthenticate")?.body).toEqual({ password: "correto-cavalo" });
   });
 });

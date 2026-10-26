@@ -49,6 +49,24 @@ const GLYPHS = {
     </>
   ),
   bases: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
+  shield: (
+    <>
+      <path d="M12 3.5l7 2.5v5.5c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
+  device: (
+    <>
+      <rect x="3.5" y="5" width="17" height="11" rx="1.5" />
+      <path d="M8.5 19.5h7M12 16v3.5" />
+    </>
+  ),
+  recent: (
+    <>
+      <path d="M12 7v5l3 2" />
+      <circle cx="12" cy="12" r="8" />
+    </>
+  ),
 };
 
 function Glyph({ name }: { name: keyof typeof GLYPHS }) {
@@ -142,6 +160,18 @@ export function SettingsFrame() {
           <Glyph name="sliders" />
           {t("settings.preferences")}
         </NavLink>
+        <NavLink to="/conta/seguranca" state={{ from }} className={link}>
+          <Glyph name="shield" />
+          {t("security.title")}
+        </NavLink>
+        <NavLink to="/conta/sessoes" state={{ from }} className={link}>
+          <Glyph name="device" />
+          {t("security.nav.sessions")}
+        </NavLink>
+        <NavLink to="/conta/atividade" state={{ from }} className={link}>
+          <Glyph name="recent" />
+          {t("security.nav.activity")}
+        </NavLink>
         {team(organization) && (
           <>
             <span className="mt-3 flex h-7 items-center truncate px-2 text-12 text-text-3">{organization!.name}</span>
@@ -164,6 +194,10 @@ export function SettingsFrame() {
             <NavLink to="/organizacao/bases" state={{ from }} className={link}>
               <Glyph name="bases" />
               {t("settings.org.bases")}
+            </NavLink>
+            <NavLink to="/organizacao/auditoria" state={{ from }} className={link}>
+              <Glyph name="recent" />
+              {t("security.nav.audit")}
             </NavLink>
           </>
         )}
