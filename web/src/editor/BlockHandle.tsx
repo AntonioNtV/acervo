@@ -5,23 +5,32 @@ import { useI18n } from "../i18n";
 import { BLOCK_KINDS, type BlockKind } from "./blocks";
 import { Icon } from "./icons";
 
-/** The top-level block under the pointer: where it starts in the document and where it sits in the wrapper. */
-export type HoveredBlock = { pos: number; top: number };
+/**
+ * The block under the pointer, top-level or in a column: where it starts in the document and where it sits in the
+ * wrapper. `left` is set only in a column, whose blocks do not start at the page's edge.
+ */
+export type HoveredBlock = { pos: number; top: number; left?: number };
 
-/** The top-level block holding `target`, measured against `wrapper`; null outside the text. */
+const isColumn = (el: HTMLElement | null) => el?.hasAttribute("data-column") ?? false;
+
+/** The block holding `target`, top-level or in a column, measured against `wrapper`; null outside the text. */
 export function blockAt(editor: Editor, wrapper: HTMLElement, target: EventTarget | null): HoveredBlock | null {
   const root = editor.view.dom;
   let el = target instanceof HTMLElement ? target : null;
   if (!el || !root.contains(el) || el === root) return null;
-  while (el.parentElement && el.parentElement !== root) el = el.parentElement;
-  const $pos = editor.state.doc.resolve(editor.view.posAtDOM(el, 0));
-  return measureBlock(editor, wrapper, $pos.depth > 0 ? $pos.before(1) : $pos.pos);
+  while (el.parentElement && el.parentElement !== root && !isColumn(el.parentElement)) el = el.parentElement;
+  const { doc } = editor.state;
+  const depth = el.parentElement === root ? 0 : doc.resolve(editor.view.posAtDOM(el.parentElement!, 0)).depth;
+  const $pos = doc.resolve(editor.view.posAtDOM(el, 0));
+  return measureBlock(editor, wrapper, $pos.depth > depth ? $pos.before(depth + 1) : $pos.pos);
 }
 
 const HANDLE_HEIGHT = 24;
+// The "+" and the grip with the gap between them, so a column's handle ends where its block starts.
+const HANDLE_WIDTH = 46;
 
 /**
- * The top-level block starting at `pos`, where it sits now in the wrapper; null when none starts there. `top` places
+ * The block starting at `pos`, where it sits now in the wrapper; null when none starts there. `top` places
  * the handle on the middle of the block's first line, whatever the block's padding and line height.
  */
 export function measureBlock(editor: Editor, wrapper: HTMLElement, pos: number): HoveredBlock | null {
@@ -30,8 +39,10 @@ export function measureBlock(editor: Editor, wrapper: HTMLElement, pos: number):
   const style = getComputedStyle(dom);
   const line = parseFloat(style.lineHeight) || HANDLE_HEIGHT;
   const firstLine = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0);
-  const top = dom.getBoundingClientRect().top - wrapper.getBoundingClientRect().top;
-  return { pos, top: top + firstLine + (line - HANDLE_HEIGHT) / 2 };
+  const box = dom.getBoundingClientRect();
+  const frame = wrapper.getBoundingClientRect();
+  const top = box.top - frame.top + firstLine + (line - HANDLE_HEIGHT) / 2;
+  return isColumn(dom.parentElement) ? { pos, top, left: box.left - frame.left - HANDLE_WIDTH } : { pos, top };
 }
 
 const itemClass =
@@ -114,7 +125,7 @@ export function BlockHandle({ editor, block, onClose }: { editor: Editor; block:
   };
 
   return (
-    <div className="absolute left-1 flex gap-0.5 text-ghost" style={{ top: block.top }}>
+    <div className="absolute left-1 flex gap-0.5 text-ghost" style={{ top: block.top, left: block.left }}>
       <button
         type="button"
         aria-label={t("editor.handle.add")}
