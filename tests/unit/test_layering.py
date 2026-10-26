@@ -7,18 +7,19 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src"
 PACKAGE = SRC / "acervo"
 
-LAYERS = {"core", "domain", "schemas", "db", "repositories", "services", "pipeline", "api"}
+LAYERS = {"core", "domain", "schemas", "db", "repositories", "services", "pipeline", "api", "worker"}
 
 # Layers each layer must not import: nothing upward, plus the skill's explicit rules.
 FORBIDDEN_LAYERS = {
     "core": LAYERS - {"core"},
     "domain": LAYERS - {"core", "domain"},
     "schemas": LAYERS - {"core", "domain", "schemas"},
-    "db": {"repositories", "services", "pipeline", "api"},
-    "repositories": {"services", "pipeline", "api"},
-    "pipeline": {"db", "repositories", "services", "api"},
-    "services": {"db", "api"},
-    "api": {"db", "repositories", "pipeline"},
+    "db": {"repositories", "services", "pipeline", "api", "worker"},
+    "repositories": {"services", "pipeline", "api", "worker"},
+    "pipeline": {"db", "repositories", "services", "api", "worker"},
+    "services": {"db", "api", "worker"},
+    "api": {"db", "repositories", "pipeline", "worker"},
+    "worker": {"db", "repositories", "pipeline", "api"},
 }
 
 # No SQLAlchemy, FastAPI or httpx below services, except in db, repositories and api.
@@ -29,6 +30,8 @@ FRAMEWORK_FREE_LAYERS = {"core", "domain", "schemas", "pipeline"}
 COMPOSITION_ROOTS = {
     Path("api/main.py"): "acervo.db.session",
     Path("api/deps.py"): "acervo.repositories.uow",
+    Path("worker/__main__.py"): "acervo.db.session",
+    Path("worker/activities.py"): "acervo.repositories.uow",
 }
 
 
