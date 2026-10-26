@@ -80,11 +80,11 @@ class BaseService:
         its Admin; it starts with the organization's access for new bases, none in a Pessoal."""
         organization = await self._organization(data.organization_id)
         general_access = "none" if organization.personal_of is not None else organization.new_base_access
-        kb = await self._uow.kbs.create(
+        kb = await self._uow.kbs.create_with_admin(
             KbCreate(name=_name(data.name), description=data.description.strip(), organization_id=organization.id),
-            general_access=general_access,
+            general_access,
+            self._me(),
         )
-        await self._uow.base_members.create(BaseMemberCreate(kb_id=kb.id, account_id=self._me(), role="admin"))
         await self._uow.commit()
         return kb.model_copy(update={"my_role": "admin"})
 
