@@ -3,6 +3,7 @@ import type { Node as PmNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import type { BlockKind } from "../blocks";
+import { startBefore } from "../tokenize";
 import "./footnote.css";
 
 declare module "@tiptap/core" {
@@ -15,13 +16,6 @@ const REF = /^\[\^([^\]\s]+)\]/;
 // One line, plus the indented lines that continue it.
 const NOTE = /^ {0,3}\[\^([^\]\s]+)\]:[ \t]?([^\n]*(?:\n(?: {4}|\t)[^\n]*)*)(?:\n|$)/;
 
-// `startBefore` of extensions.ts: the next match before a blank line, else that line, so long pages stay linear.
-const startBefore = (pattern: RegExp) => (src: string) => {
-  const blank = src.indexOf("\n\n");
-  if (blank < 0) return src.search(pattern);
-  const found = src.slice(0, blank).search(pattern);
-  return found < 0 ? blank + 1 : found;
-};
 
 const label = (el: HTMLElement) => ({ label: el.dataset.label ?? "" });
 

@@ -5,7 +5,7 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import { MarkdownManager } from "@tiptap/markdown";
 import { renderInBase, resetApi, respond } from "../../api/testing";
 import { blockExtensions } from "../extensions";
-import { SyncedBlock, SyncedBlockWithView, SyncedSource, type SyncedTarget } from "./synced";
+import { SyncedBlockWithView, SyncedSource, type SyncedTarget } from "./synced";
 
 vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mockClient()));
 
@@ -13,9 +13,8 @@ vi.mock("../../api/client", () => import("../../api/testing").then((m) => m.mock
 Range.prototype.getClientRects ??= () => [] as unknown as DOMRectList;
 Range.prototype.getBoundingClientRect ??= () => new DOMRect();
 
-// Last, after `RawInline` and `RawBlock`: marked tries the tokenizer registered last first. The view's own text is read
-// by markdown.ts, whose manager here has no synced block.
-const extensions = [...blockExtensions, SyncedBlock];
+// `blockExtensions` already holds `SyncedBlock`, after `RawInline` and `RawBlock`.
+const extensions = blockExtensions;
 const md = new MarkdownManager({ extensions });
 
 const RENEWAL = [
@@ -55,7 +54,7 @@ let shown: Editor | null = null;
 
 function Page({ markdown }: { markdown: string }) {
   shown = useEditor({
-    extensions: [...blockExtensions, SyncedBlockWithView],
+    extensions: blockExtensions.map((extension) => (extension.name === "syncedBlock" ? SyncedBlockWithView : extension)),
     content: md.parse(markdown),
   });
   return <EditorContent editor={shown} />;
@@ -136,5 +135,16 @@ describe("synced block", () => {
     fireEvent.click(screen.getByRole("button", { name: "Desvincular" }));
 
     expect(shown!.getJSON().content?.some((node) => node.type === "syncedBlock")).toBe(false);
+  });
+
+  it("shows a synced block inside the source as a block, and one leading back here as gone", async () => {
+    respond("GET", "/v1/pages/p-2", {
+      body: { ...page("Antes de Renovação.\n\n![[Origem]]\n"), links: { origem: "p-1" }, sections: [] },
+    });
+    renderPage("![[Renovação]]\n");
+
+    expect(await screen.findByText("Antes de Renovação.")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent("A seção de origem foi apagada.");
+    expect(screen.queryByText("![[Origem]]")).not.toBeInTheDocument();
   });
 });

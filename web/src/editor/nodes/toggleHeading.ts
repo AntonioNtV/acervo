@@ -1,13 +1,14 @@
 import { Node, type MarkdownToken } from "@tiptap/core";
 import { translate } from "../../i18n";
 import type { BlockKind } from "../blocks";
+import { startBefore } from "../tokenize";
 import "./toggleHeading.css";
 
 type Lexer = { blockTokens: (src: string) => MarkdownToken[] };
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
-// The summary holds only a heading 1–3, on lines of its own; a one-line summary is the plain toggle's.
-const OPEN = /^<details( open)?>[ \t]*\n[ \t]*<summary>[ \t]*\n+(#{1,3}[ \t][^\n]*)\n+[ \t]*<\/summary>[ \t]*\n?/;
+// The summary holds only a heading, on lines of its own; a one-line summary is the plain toggle's.
+const OPEN = /^<details( open)?>[ \t]*\n[ \t]*<summary>[ \t]*\n+(#{1,6}[ \t][^\n]*)\n+[ \t]*<\/summary>[ \t]*\n?/;
 
 /** Where the `</details>` closing the one opened before `from` starts, or -1. */
 function closingDetails(src: string, from: number): number {
@@ -81,7 +82,7 @@ export const ToggleHeading = Node.create<{ t: Translate }>({
   markdownTokenizer: {
     name: "toggleHeading",
     level: "block",
-    start: (src) => src.search(/^<details/m),
+    start: startBefore(/^<details/m),
     tokenize: (src: string, _tokens: MarkdownToken[], lexer: Lexer) => {
       const open = OPEN.exec(src);
       if (!open) return undefined;

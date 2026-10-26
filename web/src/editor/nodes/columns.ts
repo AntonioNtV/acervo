@@ -2,6 +2,7 @@ import { Extension, Node, type MarkdownToken } from "@tiptap/core";
 import type { Node as PmNode } from "@tiptap/pm/model";
 import { Plugin, TextSelection } from "@tiptap/pm/state";
 import type { BlockKind } from "../blocks";
+import { startBefore } from "../tokenize";
 import "./columns.css";
 
 declare module "@tiptap/core" {
@@ -26,13 +27,6 @@ function columnBodies(inner: string, count: number): string[] | null {
   );
 }
 
-// Same as `startBefore` in extensions.ts: searching the whole rest of the page on each paragraph is quadratic.
-const start = (src: string) => {
-  const blank = src.indexOf("\n\n");
-  if (blank < 0) return src.search(/^<!-- acervo:columns /m);
-  const found = src.slice(0, blank).search(/^<!-- acervo:columns /m);
-  return found < 0 ? blank + 1 : found;
-};
 
 /** One column: any blocks but columns. Isolating, so turning or deleting a block never splits the row. */
 export const Column = Node.create({
@@ -114,7 +108,7 @@ export const Columns = Node.create({
   markdownTokenizer: {
     name: "columns",
     level: "block",
-    start,
+    start: startBefore(/^<!-- acervo:columns /m),
     tokenize: (src: string, _tokens: MarkdownToken[], lexer: Lexer) => {
       const open = OPEN.exec(src);
       if (!open) return undefined;

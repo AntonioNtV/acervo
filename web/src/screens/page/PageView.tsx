@@ -94,7 +94,8 @@ function PageScreen({ node, page }: { node: NodeDetail; page: Page }) {
 
   // A sub-page just created is a child before the next save resolves its link.
   const linkedId = (title: string) => {
-    const key = normalizeLinkTarget(title);
+    // `[[X#Section]]` leads to X, as the server resolves it.
+    const key = normalizeLinkTarget(title.split("#")[0]!);
     const linked = page.links[key];
     const resolved =
       linked && linked !== "missing" ? linked : childPages.find((child) => normalizeLinkTarget(child.title) === key)?.id;

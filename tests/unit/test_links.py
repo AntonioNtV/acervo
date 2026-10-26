@@ -69,3 +69,9 @@ def test_rewrite_keeps_the_section() -> None:
     markdown = "![[Renovação#Documentos]]\n\nVer [[ renovação #Prazos ]] e [[Renovação]].\n"
 
     assert rewrite(markdown, "Renovação", "Novo") == "![[Novo#Documentos]]\n\nVer [[Novo#Prazos ]] e [[Novo]].\n"
+
+
+def test_unlink_turns_section_links_and_synced_blocks_into_text() -> None:
+    markdown = "![[Renovação#Documentos]]\n\nVer [[renovação#Prazos]] e [[Sinistro#Prazos]].\n"
+
+    assert unlink(markdown, {"renovação"}) == "Renovação#Documentos\n\nVer renovação#Prazos e [[Sinistro#Prazos]].\n"

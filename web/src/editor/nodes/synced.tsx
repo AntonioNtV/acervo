@@ -11,7 +11,9 @@ import { call } from "../../data/request";
 import { useI18n } from "../../i18n";
 import { SyncedFrame } from "../../ui/SyncedFrame";
 import type { BlockKind } from "../blocks";
+import { startBefore } from "../tokenize";
 import { PageLinkView, ResolveLink, type LinkTarget } from "../PageLinkView";
+import { PageContext } from "./generated";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -22,13 +24,6 @@ declare module "@tiptap/core" {
 // A line holding only `![[Title]]` or `![[Title#Section]]`; the server takes the target before the first `#`.
 const LINE = /^!\[\[([^[\]#]+)(?:#([^[\]]*))?\]\][ \t]*(?:\n|$)/;
 
-// `startBefore` of extensions.ts: the next match before a blank line, else that line, so long pages stay linear.
-const startBefore = (pattern: RegExp) => (src: string) => {
-  const blank = src.indexOf("\n\n");
-  if (blank < 0) return src.search(pattern);
-  const found = src.slice(0, blank).search(pattern);
-  return found < 0 ? blank + 1 : found;
-};
 
 const markdownOf = (attrs: Record<string, unknown> | undefined) =>
   `![[${attrs?.title ?? ""}${attrs?.section == null ? "" : `#${attrs.section}`}]]`;
@@ -112,6 +107,9 @@ export type SyncedTarget = { nodeId: string; href: string } | "missing" | "ambig
 
 export const SyncedSource = createContext<(title: string) => SyncedTarget>(() => "missing");
 
+// The pages already shown around this block, outermost first: one of them again is a loop.
+const Shown = createContext<string[]>([]);
+
 const HEADING = /^## +(.+?)[ #]*$/;
 
 /** The `index`-th `##` section of `markdown`, from its heading to the next `##`; code blocks are skipped as the server does. */
@@ -138,7 +136,11 @@ const ReadOnly = lazy(async () => {
       const editor = useEditor(
         {
           extensions: blockExtensions.map((extension) =>
-            extension.name === "pageLink" ? extension.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) }) : extension,
+            extension.name === "pageLink"
+              ? extension.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) })
+              : extension.name === "syncedBlock"
+                ? SyncedBlockWithView
+                : extension,
           ),
           content: parseMarkdown(markdown).doc as JSONContent,
           editable: false,
@@ -158,7 +160,10 @@ export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNod
   const title = String(node.attrs.title);
   const section = node.attrs.section as string | null;
   const target = useContext(SyncedSource)(title);
-  const source = typeof target === "object" && target.nodeId !== current ? target : null;
+  const shownAround = useContext(Shown);
+  const host = useContext(PageContext);
+  const looped = typeof target === "object" && (target.nodeId === current || shownAround.includes(target.nodeId));
+  const source = typeof target === "object" && !looped ? target : null;
   const page = useQuery({
     queryKey: ["node", source?.nodeId ?? "", "page"],
     enabled: source !== null,
@@ -170,11 +175,16 @@ export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNod
   const error = !source || page.isError || (page.data !== undefined && section !== null && index < 0);
   const shown = page.data && (section === null ? page.data.markdown : cutSection(page.data.markdown, index));
 
-  // Links inside resolve from the source page's own links, at the same base's addresses.
+  // Links and synced blocks inside resolve from the source page's own links, at the same base's addresses.
+  const linkedId = (linked: string) => page.data?.links[normalizeLinkTarget(linked.split("#")[0]!)] ?? "missing";
+  const hrefOf = (id: string) => source!.href.replace(/[^/]+$/, id);
   const resolveLink = (linked: string): LinkTarget => {
-    const id = page.data?.links[normalizeLinkTarget(linked)] ?? "missing";
-    if (id === "missing" || id === "ambiguous") return id;
-    return source ? { href: source.href.replace(/[^/]+$/, id) } : "missing";
+    const id = linkedId(linked);
+    return id === "missing" || id === "ambiguous" || !source ? "missing" : { href: hrefOf(id) };
+  };
+  const syncedSource = (linked: string): SyncedTarget => {
+    const id = linkedId(linked);
+    return id === "missing" || id === "ambiguous" || !source ? "missing" : { nodeId: id, href: hrefOf(id) };
   };
 
   const choose = (heading: string | null) => updateAttributes({ section: heading, choosing: false });
@@ -206,9 +216,15 @@ export function SyncedBlockView({ node, deleteNode, updateAttributes }: ReactNod
         ) : (
           shown !== undefined && (
             <ResolveLink.Provider value={resolveLink}>
-              <Suspense fallback={null}>
-                <ReadOnly markdown={shown} />
-              </Suspense>
+              <SyncedSource.Provider value={syncedSource}>
+                <Shown.Provider value={[...shownAround, source!.nodeId]}>
+                  <PageContext.Provider value={host && { kbId: host.kbId, nodeId: source!.nodeId }}>
+                    <Suspense fallback={null}>
+                      <ReadOnly markdown={shown} />
+                    </Suspense>
+                  </PageContext.Provider>
+                </Shown.Provider>
+              </SyncedSource.Provider>
             </ResolveLink.Provider>
           )
         )}

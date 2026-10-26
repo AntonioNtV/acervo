@@ -1,9 +1,8 @@
 import { getSchema, type JSONContent } from "@tiptap/core";
 import { MarkdownManager } from "@tiptap/markdown";
 import { blockExtensions } from "../extensions";
-import { ToggleHeading } from "./toggleHeading";
 
-const extensions = [ToggleHeading, ...blockExtensions];
+const extensions = blockExtensions;
 const manager = new MarkdownManager({ extensions });
 const schema = getSchema(extensions);
 
@@ -16,6 +15,8 @@ describe("ToggleHeading", () => {
     [false, "## Documentos"],
     [true, "### Documentos"],
     [false, "### Documentos"],
+    // A heading 4–6 typed into its heading with `####` must reopen too.
+    [true, "###### Documentos"],
   ])("open=%s %s reads as the node and writes back byte for byte", (open, heading) => {
     const markdown = form(open, heading);
     const doc = manager.parse(markdown);

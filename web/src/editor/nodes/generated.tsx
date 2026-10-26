@@ -5,15 +5,9 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useI18n } from "../../i18n";
 import { Breadcrumb } from "../../screens/shell/Breadcrumb";
 import type { BlockKind } from "../blocks";
+import { startBefore } from "../tokenize";
 import "./generated.css";
 
-// `startBefore` of extensions.ts: the next match before a blank line, else that line, so long pages stay linear.
-const startBefore = (pattern: RegExp) => (src: string) => {
-  const blank = src.indexOf("\n\n");
-  if (blank < 0) return src.search(pattern);
-  const found = src.slice(0, blank).search(pattern);
-  return found < 0 ? blank + 1 : found;
-};
 
 /** A block drawn from the page, never typed into: `comment` alone on its line, and nothing else, is the block. */
 function generatedBlock(name: string, comment: string) {

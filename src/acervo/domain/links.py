@@ -5,6 +5,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 _LINK = re.compile(r"\[\[([^\[\]]+)\]\]")
+_EMBED_OR_LINK = re.compile(r"!?\[\[([^\[\]]+)\]\]")
 
 Resolved = UUID | Literal["missing", "ambiguous"]
 
@@ -53,5 +54,5 @@ def rewrite(markdown: str, old_title: str, new_title: str) -> str:
 
 
 def unlink(markdown: str, wanted: set[str]) -> str:
-    """Every `[[…]]` link whose normalized target is in `wanted` turned into its text, as the person wrote it."""
-    return _LINK.sub(lambda m: m[1].strip() if normalize(m[1]) in wanted else m[0], markdown)
+    """Every `[[…]]` or `![[…]]` link whose target is in `wanted` turned into its text, as the person wrote it."""
+    return _EMBED_OR_LINK.sub(lambda m: m[1].strip() if normalize(m[1].split("#", 1)[0]) in wanted else m[0], markdown)
