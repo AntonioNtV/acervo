@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from acervo.core.errors import ForbiddenError
+from acervo.core.errors import ForbiddenError, TwoFactorRequired
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.organization import BaseRole, GeneralAccess, OrgRole
 
@@ -30,10 +30,13 @@ class AccessService:
         return None if membership is None else membership.role
 
     async def base_role(self, account_id: UUID, kb_id: UUID) -> BaseRole | None:
-        """The account's role in the base, by `role_in_base`."""
+        """The account's role in the base, by `role_in_base`; `two_factor_required` for a member of an organization
+        that requires it."""
         kb = await self._uow.kbs.get(kb_id)
         added = await self._uow.base_members.get_by(kb_id=kb_id, account_id=account_id)
         org_role = await self.org_role(account_id, kb.organization_id)
+        if org_role is not None:
+            await self.require_two_factor(account_id, kb.organization_id)
         return role_in_base(None if added is None else added.role, org_role, kb.general_access)
 
     async def require_org(self, account_id: UUID, organization_id: UUID, at_least: OrgRole) -> OrgRole:
@@ -41,6 +44,19 @@ class AccessService:
         if role is None or ORG_RANK[role] < ORG_RANK[at_least]:
             raise ForbiddenError(f"needs {at_least} in the organization", {"organization_id": str(organization_id)})
         return role
+
+    async def require_two_factor(self, account_id: UUID, organization_id: UUID) -> None:
+        """A member reaches the bases of an organization requiring two-step verification only with a passkey or
+        two-step verification on (spec §3); its guests are not asked."""
+        organization = await self._uow.organizations.get(organization_id)
+        if not organization.require_two_factor:
+            return
+        account = await self._uow.accounts.get(account_id)
+        if account.two_factor == "none" and not account.has_passkey:
+            raise TwoFactorRequired(
+                "the organization requires a passkey or two-step verification",
+                {"organization_id": str(organization_id)},
+            )
 
     async def require_base(self, account_id: UUID, kb_id: UUID, at_least: BaseRole) -> BaseRole:
         role = await self.base_role(account_id, kb_id)

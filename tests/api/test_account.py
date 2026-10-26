@@ -6,11 +6,14 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from PIL import Image
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from acervo.api.cookies import SESSION_COOKIE
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
+from acervo.services.mailer import FakeMailer, MailTemplate
 from acervo.services.session_service import SessionService
 
 PHOTO = Path(__file__).parent.parent / "fixtures" / "files" / "photo.png"
@@ -68,12 +71,31 @@ async def test_photo_upload_fetch_and_delete(sign_in: SignIn, make_account: Make
     assert gone.status_code == 404
 
 
-async def test_an_email_change_needs_the_current_password(sign_in: SignIn, make_account: MakeAccount) -> None:
+async def test_an_email_change_needs_a_recent_sign_in_not_the_password(
+    sign_in: SignIn, make_account: MakeAccount, session: AsyncSession
+) -> None:
     client = await sign_in(await make_account())
 
-    missing = await client.post("/v1/account/email", json={"new_email": "ana@novo.com"})
-    wrong = await client.post("/v1/account/email", json={"new_email": "ana@novo.com", "password": "errada-errada"})
-    right = await client.post("/v1/account/email", json={"new_email": "ana@novo.com", "password": "senha-de-teste"})
+    recent = await client.post("/v1/account/email", json={"new_email": "ana@novo.com"})
+    await session.execute(text("update session set created_at = created_at - interval '11 minutes'"))
+    stale = await client.post("/v1/account/email", json={"new_email": "ana@outro.com"})
 
-    assert [(r.status_code, r.json()["error"]) for r in (missing, wrong)] == [(401, "invalid_credentials")] * 2
-    assert right.status_code == 204, right.text
+    assert recent.status_code == 204, recent.text
+    assert (stale.status_code, stale.json()["error"]) == (403, "reauthentication_required")
+
+
+async def test_a_password_change_ends_the_other_sessions(
+    app: FastAPI, sign_in: SignIn, make_account: MakeAccount
+) -> None:
+    mailer: FakeMailer = app.state.mailer
+    ana = await make_account()
+    here, there = await sign_in(ana), await sign_in(ana)
+
+    changed = await here.put("/v1/account/password", json={"password": "outra-senha-boa"})
+
+    assert changed.status_code == 200, changed.text
+    assert [(await c.get("/v1/account")).status_code for c in (here, there)] == [200, 401]
+    assert (mailer.sent[-1].template, mailer.sent[-1].values["change"]) == (
+        MailTemplate.SECURITY_CHANGE,
+        "password_changed",
+    )

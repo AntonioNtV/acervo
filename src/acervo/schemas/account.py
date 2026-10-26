@@ -9,7 +9,9 @@ Theme = Literal["light", "dark", "system"]
 PageWidth = Literal["default", "wide"]
 Language = Literal["pt-BR", "en"]
 StartPage = Literal["last", "bases"]
-CodePurpose = Literal["verify_email", "change_email"]
+CodePurpose = Literal["verify_email", "change_email", "two_factor"]
+TwoFactor = Literal["none", "email", "whatsapp"]
+SignInMethod = Literal["password", "google", "passkey", "reset"]
 
 PASSWORD_MIN = 10
 
@@ -48,6 +50,9 @@ class AccountUpdate(BaseModel):
     page_width: PageWidth | None = None
     language: Language | None = None
     start_page: StartPage | None = None
+    two_factor: TwoFactor | None = None
+    phone: str | None = None
+    phone_verified_at: datetime | None = None
 
 
 class AccountRecord(AccountCreate):
@@ -61,6 +66,10 @@ class AccountRecord(AccountCreate):
     page_width: PageWidth
     language: Language
     start_page: StartPage
+    two_factor: TwoFactor
+    phone: str | None
+    phone_verified_at: datetime | None
+    has_passkey: bool
     created_at: datetime
 
 
@@ -73,6 +82,8 @@ class AccountRead(BaseModel):
     has_password: bool = Field(description="False for an account that only signs in with Google.")
     has_google: bool = Field(description="Whether Google is linked.")
     email_verified: bool = Field(description="Whether the email was confirmed.")
+    two_factor: TwoFactor = Field(description="How a password sign-in gets its second step; none when it has none.")
+    has_passkey: bool = Field(description="Whether the account has a passkey.")
     photo_url: str | None = Field(description="The photo, a 256 px square; null shows the initials.")
     preferences: Preferences
 
@@ -89,6 +100,8 @@ class AccountRead(BaseModel):
             has_password=account.password_hash is not None,
             has_google=account.google_sub is not None,
             email_verified=account.email_verified_at is not None,
+            two_factor=account.two_factor,
+            has_passkey=account.has_passkey,
             photo_url=photo_url,
             preferences=Preferences.model_validate(account),
         )
@@ -130,7 +143,6 @@ class ProfileUpdate(BaseModel):
 
 class EmailChange(BaseModel):
     new_email: EmailStr
-    password: str | None = Field(default=None, description="The current password; required when the account has one.")
 
 
 class SessionCreate(BaseModel):
@@ -139,17 +151,21 @@ class SessionCreate(BaseModel):
     last_seen_at: datetime
     expires_at: datetime
     user_agent: str | None
+    method: SignInMethod = "password"
 
 
 class SessionUpdate(BaseModel):
     last_seen_at: datetime | None = None
     expires_at: datetime | None = None
+    reauthenticated_at: datetime | None = None
 
 
 class SessionRecord(SessionCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    reauthenticated_at: datetime | None
+    created_at: datetime
 
 
 class EmailCodeCreate(BaseModel):

@@ -52,6 +52,12 @@ class AlreadyMember(ConflictError):
     code = "already_member"
 
 
+class LastWayIn(ConflictError):
+    """The account would be left with no way to sign in: no password, no Google and no other passkey."""
+
+    code = "last_way_in"
+
+
 class ValidationError(AcervoError):
     code = "validation"
 
@@ -82,10 +88,22 @@ class EmailNotVerified(AuthError):
     code = "email_not_verified"
 
 
+class ReauthenticationRequired(AuthError):
+    """A sensitive change, with no password or passkey asked in the last 10 minutes; 403, the session stays."""
+
+    code = "reauthentication_required"
+
+
 class ForbiddenError(AcervoError):
     """The person's role does not allow it."""
 
     code = "forbidden"
+
+
+class TwoFactorRequired(ForbiddenError):
+    """The organization requires a passkey or two-step verification the account does not have yet."""
+
+    code = "two_factor_required"
 
 
 class TooManyAttempts(AcervoError):

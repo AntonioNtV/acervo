@@ -1,6 +1,8 @@
 from functools import lru_cache
+from typing import Self
+from urllib.parse import urlsplit
 
-from pydantic import SecretStr, ValidationInfo, field_validator
+from pydantic import SecretStr, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -37,6 +39,19 @@ class Settings(BaseSettings):
     attachment_max_bytes: int = 100 * 1024 * 1024
     link_preview_timeout_seconds: float = 5
     link_preview_max_bytes: int = 1024 * 1024
+    # Passkeys are bound to this domain and origin; empty takes them from public_url.
+    webauthn_rp_id: str = ""
+    webauthn_origin: str = ""
+    # Meta's WhatsApp Cloud API; no token: WhatsApp codes are not sent.
+    whatsapp_token: SecretStr | None = None
+    whatsapp_phone_number_id: str | None = None
+    # The authentication template, created and approved at Meta, and the code of its language there.
+    whatsapp_template: str = "acervo_codigo"
+    whatsapp_language: str = "pt_BR"
+
+    @property
+    def whatsapp_enabled(self) -> bool:
+        return bool(self.whatsapp_token and self.whatsapp_phone_number_id)
 
     @field_validator("session_secret")
     @classmethod
@@ -44,6 +59,13 @@ class Settings(BaseSettings):
         if not value.get_secret_value():
             raise ValueError(f"{(info.field_name or '').upper()} cannot be empty")
         return value
+
+    @model_validator(mode="after")
+    def _webauthn_from_public_url(self) -> Self:
+        url = urlsplit(self.public_url)
+        self.webauthn_rp_id = self.webauthn_rp_id or url.hostname or ""
+        self.webauthn_origin = self.webauthn_origin or f"{url.scheme}://{url.netloc}"
+        return self
 
 
 @lru_cache

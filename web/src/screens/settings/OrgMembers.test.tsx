@@ -25,8 +25,8 @@ function member(account_id: string, name: string, role: Member["role"]): Member 
 function renderMembers(members: Member[]) {
   signedIn();
   const organizations: Organization[] = [
-    { id: "pessoal", name: "Pessoal", logo_url: null, my_role: "owner", new_base_access: "editor", personal: true },
-    { id: "org-1", name: "Seguros SA", logo_url: null, my_role: "owner", new_base_access: "editor", personal: false },
+    { id: "pessoal", name: "Pessoal", logo_url: null, my_role: "owner", new_base_access: "editor", require_two_factor: false, personal: true },
+    { id: "org-1", name: "Seguros SA", logo_url: null, my_role: "owner", new_base_access: "editor", require_two_factor: false, personal: false },
   ];
   localStorage.setItem("acervo.org", "org-1");
   respond("GET", "/v1/organizations", { body: organizations });

@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export type Tone = "neutral" | "ok" | "err" | "warn" | "run";
 
-const tones: Record<Tone, string> = {
+export const tones: Record<Tone, string> = {
   neutral: "bg-text-3",
   ok: "bg-ok",
   err: "bg-err",

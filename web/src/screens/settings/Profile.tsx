@@ -9,14 +9,14 @@ import {
   useSetPhoto,
   type Account,
 } from "../../data/account";
-import { ApiError } from "../../data/request";
 import { locale, useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
 import { CodeInput } from "../../ui/CodeInput";
-import { PasswordField } from "../../ui/PasswordField";
 import { PhotoField } from "../../ui/PhotoField";
+import { needsReauth } from "../../data/security";
 import { AuthField } from "../auth/AuthCard";
+import { useReauth } from "./ReauthDialog";
 import { SettingsPage, SettingsSection } from "./SettingsFrame";
 
 // The API refuses a bigger photo too; checked here so a large file is not sent only to be refused.
@@ -83,14 +83,14 @@ function Name({ account }: { account: Account }) {
   );
 }
 
-/** A new address gets a code, after the current password if there is one; the email changes once that code is typed. */
+/** A new address gets a code, after a recent sign-in; the email changes once that code is typed. */
 function Email({ account }: { account: Account }) {
   const { t } = useI18n();
   const errorText = useErrorText();
   const request = useRequestEmailChange();
   const confirm = useConfirmEmailChange();
+  const reauth = useReauth();
   const [email, setEmail] = useState(account.email);
-  const [password, setPassword] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [code, setCode] = useState("");
 
@@ -132,57 +132,45 @@ function Email({ account }: { account: Account }) {
     );
 
   const changed = email.trim() !== account.email;
-  const failure = request.error instanceof ApiError ? request.error.code : "";
+  const send = () => {
+    const next = email.trim();
+    request.mutate(next, { onSuccess: () => setSentTo(next), onError: (error) => reauth.ask(error, send) });
+  };
   return (
-    <form
-      className="m-0 flex items-start gap-2"
-      onSubmit={(event) => {
-        event.preventDefault();
-        const next = email.trim();
-        request.mutate(account.has_password ? { new_email: next, password } : { new_email: next }, {
-          onSuccess: () => {
-            setSentTo(next);
-            setPassword("");
-          },
-        });
-      }}
-    >
-      <div className="flex flex-1 flex-col gap-3">
-        <AuthField
-          label={t("auth.email")}
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            if (request.isError) request.reset();
-          }}
-          error={
-            request.isError && failure !== "invalid_credentials"
-              ? errorText(request.error, { too_many_attempts: t("settings.email.wait") })
-              : undefined
-          }
-        />
-        {changed && account.has_password && (
-          <PasswordField
-            label={t("auth.password")}
-            autoComplete="current-password"
-            required
-            value={password}
+    <>
+      <form
+        className="m-0 flex items-start gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          send();
+        }}
+      >
+        <div className="flex flex-1 flex-col gap-3">
+          <AuthField
+            label={t("auth.email")}
+            type="email"
+            autoComplete="email"
+            value={email}
             onChange={(event) => {
-              setPassword(event.target.value);
+              setEmail(event.target.value);
               if (request.isError) request.reset();
             }}
-            error={failure === "invalid_credentials" ? t("settings.email.wrongPassword") : undefined}
+            error={
+              request.isError && !needsReauth(request.error)
+                ? errorText(request.error, { too_many_attempts: t("settings.email.wait") })
+                : undefined
+            }
           />
+        </div>
+        {changed && (
+          <Button type="submit" disabled={request.isPending || !email.trim()} className="mt-[26px]">
+            {t("settings.email.send")}
+          </Button>
         )}
-      </div>
-      {changed && (
-        <Button type="submit" disabled={request.isPending || !email.trim()} className="mt-[26px]">
-          {t("settings.email.send")}
-        </Button>
-      )}
-    </form>
+      </form>
+      {/* Outside the form: a submit inside the dialog's portal would bubble to this form through React. */}
+      {reauth.dialog}
+    </>
   );
 }
 

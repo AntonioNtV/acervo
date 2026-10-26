@@ -1,6 +1,6 @@
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -8,7 +8,7 @@ from fastapi import Cookie, Depends, Query, Request, Response
 
 from acervo.api.cookies import SESSION_COOKIE, set_session_cookie
 from acervo.core import signing
-from acervo.core.errors import AuthError
+from acervo.core.errors import AuthError, ReauthenticationRequired
 from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
@@ -30,9 +30,16 @@ from acervo.services.link_preview_service import LinkPreviewService
 from acervo.services.mailer import Mailer
 from acervo.services.organization_service import OrganizationService
 from acervo.services.page_service import PageService
+from acervo.services.passkey_service import PasskeyService
+from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import SessionService, token_hash
 from acervo.services.storage import Storage
 from acervo.services.tree_service import TreeService
+from acervo.services.two_factor_service import TwoFactorService
+from acervo.services.whatsapp import WhatsAppSender
+
+# How long a sign-in, or asking the password or a passkey again, lets the session make sensitive changes.
+RECENT_SIGN_IN = timedelta(minutes=10)
 
 
 def get_settings(request: Request) -> Settings:
@@ -48,6 +55,11 @@ def get_storage(request: Request) -> Storage:
 def get_mailer(request: Request) -> Mailer:
     mailer: Mailer = request.app.state.mailer
     return mailer
+
+
+def get_whatsapp(request: Request) -> WhatsAppSender:
+    whatsapp: WhatsAppSender = request.app.state.whatsapp
+    return whatsapp
 
 
 async def get_uow(request: Request) -> AsyncIterator[UnitOfWork]:
@@ -108,17 +120,30 @@ def get_link_preview_service(settings: Annotated[Settings, Depends(get_settings)
 
 
 def get_session_service(
-    uow: Annotated[UnitOfWork, Depends(get_uow)], settings: Annotated[Settings, Depends(get_settings)]
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> SessionService:
-    return SessionService(uow, settings.session_days)
+    return SessionService(uow, settings.session_days, mailer=mailer)
 
 
 def get_auth_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)],
     sessions: Annotated[SessionService, Depends(get_session_service)],
     mailer: Annotated[Mailer, Depends(get_mailer)],
+    whatsapp: Annotated[WhatsAppSender, Depends(get_whatsapp)],
+    settings: Annotated[Settings, Depends(get_settings)],
 ) -> AuthService:
-    return AuthService(uow, sessions, mailer)
+    return AuthService(uow, sessions, mailer, whatsapp, settings.whatsapp_language)
+
+
+def get_two_factor_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    whatsapp: Annotated[WhatsAppSender, Depends(get_whatsapp)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> TwoFactorService:
+    return TwoFactorService(uow, mailer, whatsapp, settings.whatsapp_language)
 
 
 def get_account_service(
@@ -146,6 +171,20 @@ def get_google_auth_service(
     redirect_uri = f"{settings.public_url.rstrip('/')}/v1/auth/google/callback"
     secret = settings.session_secret.get_secret_value()
     return GoogleAuthService(uow, sessions, google, mailer, secret, redirect_uri)
+
+
+def get_passkey_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    sessions: Annotated[SessionService, Depends(get_session_service)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> PasskeyService:
+    secret = settings.session_secret.get_secret_value()
+    return PasskeyService(uow, mailer, secret, settings.webauthn_rp_id, settings.webauthn_origin, sessions)
+
+
+def get_security_log(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> SecurityLog:
+    return SecurityLog(uow)
 
 
 def get_access_service(uow: Annotated[UnitOfWork, Depends(get_uow)]) -> AccessService:
@@ -202,6 +241,29 @@ async def current_session_id(
     if session is None:
         raise AuthError("Missing or ended session.")
     return session.id
+
+
+async def signed_in_recently(
+    session_id: Annotated[UUID, Depends(current_session_id)], uow: Annotated[UnitOfWork, Depends(get_uow)]
+) -> bool:
+    """Whether the session of the request signed in or reauthenticated within `RECENT_SIGN_IN`."""
+    session = await uow.sessions.get(session_id)
+    return datetime.now(UTC) - (session.reauthenticated_at or session.created_at) <= RECENT_SIGN_IN
+
+
+async def recent_sign_in(
+    session_id: Annotated[UUID, Depends(current_session_id)],
+    recent: Annotated[bool, Depends(signed_in_recently)],
+) -> UUID:
+    """The session of the request, signed in or reauthenticated within `RECENT_SIGN_IN`; 403
+    `reauthentication_required` otherwise."""
+    if not recent:
+        raise ReauthenticationRequired("Confirm the password or a passkey to make this change.")
+    return session_id
+
+
+RecentSignIn = Annotated[UUID, Depends(recent_sign_in)]
+SignedInRecently = Annotated[bool, Depends(signed_in_recently)]
 
 
 def session_or_signature(purpose: signing.Purpose) -> Callable[..., Awaitable[None]]:

@@ -19,9 +19,11 @@ from acervo.schemas.organization import (
     OrganizationUpdate,
     OrgRole,
 )
+from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import AccessService
 from acervo.services.account_service import _square_png
 from acervo.services.mailer import Mailer, MailTemplate
+from acervo.services.security_log import SecurityLog
 from acervo.services.storage import Storage
 
 # The account photo's limit (`Settings.photo_max_bytes`'s default): the logo goes through the same crop.
@@ -57,18 +59,47 @@ class OrganizationService:
 
     async def get(self, account_id: UUID, organization_id: UUID) -> OrganizationRead:
         role = await self._access.require_org(account_id, organization_id, "member")
-        return OrganizationRead.of(await self._uow.organizations.get(organization_id), role)
+        return await self._read(await self._uow.organizations.get(organization_id), role)
 
     async def update(self, account_id: UUID, organization_id: UUID, data: OrganizationUpdate) -> OrganizationRead:
+        """Owners and Admins. Turning the two-step requirement on emails the members who sign in with a password
+        only (`org_requires_2fa`)."""
         role = await self._access.require_org(account_id, organization_id, "admin")
+        before = await self._uow.organizations.get(organization_id)
         change = OrganizationChange(**data.model_dump(exclude_none=True))
-        if change.name is not None:
-            # A Pessoal is never renamed into a team.
+        if change.name is not None or change.require_two_factor is not None:
+            # A Pessoal is never renamed into a team, and has no members to require anything of.
             await self._team(organization_id)
+        if change.name is not None:
             change.name = _name(change.name)
         organization = await self._uow.organizations.update(organization_id, change)
+        if organization.new_base_access != before.new_base_access:
+            await SecurityLog(self._uow).record(
+                SecurityEventKind.ACCESS_CHANGED,
+                organization_id=organization_id,
+                actor_id=account_id,
+                data={"new_base_access": organization.new_base_access},
+            )
+        required = organization.require_two_factor != before.require_two_factor
+        if required:
+            await SecurityLog(self._uow).record(
+                SecurityEventKind.TWO_FACTOR_REQUIRED,
+                organization_id=organization_id,
+                actor_id=account_id,
+                data={"on": organization.require_two_factor},
+            )
         await self._uow.commit()
-        return OrganizationRead.of(organization, role)
+        if required and organization.require_two_factor:
+            actor = await self._uow.accounts.get(account_id)
+            for member in await self._uow.accounts.password_only(organization_id):
+                values = {
+                    "name": member.name,
+                    "actor": actor.name,
+                    "organization": organization.name,
+                    "link": "/conta/seguranca",
+                }
+                await self._mailer.send(member.email, MailTemplate.ORG_REQUIRES_2FA, member.language, values)
+        return await self._read(organization, role)
 
     async def set_logo(self, account_id: UUID, organization_id: UUID, source: BinaryIO) -> OrganizationRead:
         """Keeps the centered square of the image as the logo; the previous one leaves the bucket."""
@@ -109,8 +140,15 @@ class OrganizationService:
         if membership.role == "owner" and role != "owner":
             await self._keep_an_owner(organization_id)
         await self._uow.memberships.update(membership.id, MembershipUpdate(role=role))
-        await self._uow.commit()
         account = await self._uow.accounts.get(account_id)
+        if role != membership.role:
+            await SecurityLog(self._uow).record(
+                SecurityEventKind.ROLE_CHANGED,
+                organization_id=organization_id,
+                actor_id=actor_id,
+                data={"member": account.email, "role": role, "old_role": membership.role},
+            )
+        await self._uow.commit()
         if role != membership.role:
             actor = await self._uow.accounts.get(actor_id)
             values = {
@@ -127,7 +165,7 @@ class OrganizationService:
     async def remove(self, actor_id: UUID, organization_id: UUID, account_id: UUID) -> None:
         """Takes the member out, with their roles on the organization's bases; they are told by email."""
         organization, membership = await self._manage(actor_id, organization_id, account_id, None)
-        await self._drop(membership)
+        await self._drop(membership, actor_id)
         account, actor = await self._uow.accounts.get(account_id), await self._uow.accounts.get(actor_id)
         values = {"actor": actor.name, "organization": organization.name}
         await self._mailer.send(account.email, MailTemplate.REMOVED, account.language, values)
@@ -137,7 +175,7 @@ class OrganizationService:
         await self._team(organization_id)
         membership = await self._uow.memberships.get_by(organization_id=organization_id, account_id=account_id)
         assert membership is not None
-        await self._drop(membership)
+        await self._drop(membership, account_id)
 
     async def _team(self, organization_id: UUID) -> OrganizationRecord:
         """The organization, unless it is a Pessoal: an organization of one, without members to manage."""
@@ -165,13 +203,27 @@ class OrganizationService:
         if await self._uow.memberships.count({"organization_id": organization_id, "role": "owner"}) <= 1:
             raise LastOwner("the organization needs an Owner", {"organization_id": str(organization_id)})
 
-    async def _drop(self, membership: MembershipRecord) -> None:
+    async def _drop(self, membership: MembershipRecord, actor_id: UUID) -> None:
         if membership.role == "owner":
             await self._keep_an_owner(membership.organization_id)
         await self._uow.memberships.delete(membership.id)
         # Someone out of the organization loses its bases at once, even those they were added to.
         await self._uow.base_members.delete_in_organization(membership.account_id, membership.organization_id)
+        member = await self._uow.accounts.get(membership.account_id)
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.REMOVED,
+            organization_id=membership.organization_id,
+            actor_id=actor_id,
+            data={"member": member.email, "role": membership.role},
+        )
         await self._uow.commit()
+
+    async def _read(self, organization: OrganizationRecord, role: OrgRole) -> OrganizationRead:
+        """The organization as `role` sees it; its Owners and Admins also see how many sign in with a password only."""
+        password_only = None
+        if organization.personal_of is None and role != "member":
+            password_only = len(await self._uow.accounts.password_only(organization.id))
+        return OrganizationRead.of(organization, role, password_only)
 
     async def _replace_logo(self, organization_id: UUID, key: str | None, role: OrgRole) -> OrganizationRead:
         old = (await self._uow.organizations.get(organization_id)).logo_key

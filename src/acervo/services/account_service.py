@@ -19,7 +19,8 @@ from acervo.core.errors import (
     TooManyAttempts,
     ValidationError,
 )
-from acervo.core.passwords import verify_password
+from acervo.core.passwords import hash_password, verify_password
+from acervo.domain.user_agent import device
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import (
     AccountRead,
@@ -28,9 +29,18 @@ from acervo.schemas.account import (
     EmailCodeUpdate,
     Preferences,
     ProfileUpdate,
+    SessionUpdate,
 )
-from acervo.services.auth_service import RESEND_AFTER, UNVERIFIED_KEPT
+from acervo.schemas.security import SecurityEventKind
+from acervo.services.auth_service import (
+    LOCKOUT_FAILURES,
+    RESEND_AFTER,
+    UNVERIFIED_KEPT,
+    _locked,
+    count_failure,
+)
 from acervo.services.mailer import Mailer, MailTemplate
+from acervo.services.security_log import SecurityLog
 from acervo.services.session_service import token_hash
 from acervo.services.storage import Storage
 
@@ -121,15 +131,10 @@ class AccountService:
         await self._uow.rollback()
         return account.photo_key, self._storage.stream(account.photo_key)
 
-    async def request_email_change(self, account_id: UUID, new_email: str, password: str | None) -> None:
-        """Sends a code to `new_email` once the current password, if the account has one, is right; the email
-        changes only once the code comes back."""
+    async def request_email_change(self, account_id: UUID, new_email: str) -> None:
+        """Sends a code to `new_email`; the email changes only once the code comes back."""
         now = self._now()
         account = await self._uow.accounts.get(account_id)
-        if account.password_hash is not None and not (
-            password is not None and await asyncio.to_thread(verify_password, password, account.password_hash)
-        ):
-            raise InvalidCredentials("wrong password")
         await self._uow.accounts.free_if_stale(new_email, now - UNVERIFIED_KEPT)
         if await self._uow.accounts.by_email(new_email) is not None:
             raise EmailTaken("email already in use", {"email": new_email})
@@ -178,9 +183,58 @@ class AccountService:
             if exc.details.get("constraint") != EMAIL_UNIQUE:
                 raise
             raise EmailTaken("email already in use", {"email": live.target_email}) from exc
+        changed = {"from": old.email, "to": account.email}
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.EMAIL_CHANGED, account_id=account_id, actor_id=account_id, data=changed
+        )
         await self._uow.commit()
         values = {"name": account.name, "new_email": account.email}
         await self._mailer.send(old.email, MailTemplate.EMAIL_CHANGED, account.language, values)
+        return AccountRead.of(account)
+
+    async def reauthenticate(self, account_id: UUID, session_id: UUID, password: str) -> None:
+        """Lets the session make sensitive changes for a while once the password is right; a wrong one counts
+        toward the sign-in lockout, as a guess at the password is the same guess here."""
+        now = self._now()
+        account = await self._uow.accounts.get(account_id)
+        email_lower = account.email.lower()
+        await self._uow.login_failures.lock(email_lower)
+        if _locked(await self._uow.login_failures.latest(email_lower, LOCKOUT_FAILURES), now):
+            raise TooManyAttempts("too many wrong passwords for this email")
+        if account.password_hash is None or not await asyncio.to_thread(
+            verify_password, password, account.password_hash
+        ):
+            user_agent = (await self._uow.sessions.get(session_id)).user_agent
+            await SecurityLog(self._uow).record(
+                SecurityEventKind.WRONG_PASSWORD, account_id=account_id, user_agent=user_agent
+            )
+            await count_failure(self._uow, self._mailer, email_lower, account, user_agent, now)
+            raise InvalidCredentials("wrong password")
+        await self._uow.sessions.update(session_id, SessionUpdate(reauthenticated_at=now))
+        await self._uow.commit()
+
+    async def set_password(self, account_id: UUID, session_id: UUID, password: str) -> AccountRead:
+        """Sets or changes the password; every other session of the account ends."""
+        session = await self._uow.sessions.get(session_id)
+        password_hash = await asyncio.to_thread(hash_password, password)
+        account = await self._uow.accounts.update(account_id, AccountUpdate(password_hash=password_hash))
+        await self._uow.sessions.delete_of_account(account_id, keep_token_hash=session.token_hash)
+        await SecurityLog(self._uow).record(
+            SecurityEventKind.PASSWORD_CHANGED,
+            account_id=account_id,
+            actor_id=account_id,
+            user_agent=session.user_agent,
+        )
+        await self._uow.commit()
+        browser, system = device(session.user_agent)
+        values = {
+            "name": account.name,
+            "change": "password_changed",
+            "browser": browser or "",
+            "system": system or "",
+            "link": "/conta/seguranca",
+        }
+        await self._mailer.send(account.email, MailTemplate.SECURITY_CHANGE, account.language, values)
         return AccountRead.of(account)
 
     async def _update(self, account_id: UUID, change: AccountUpdate) -> AccountRead:

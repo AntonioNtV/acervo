@@ -27,6 +27,11 @@ VALUES = {
     "old_role": "member",
     "bases": "Seguros · Operação\nSinistros\nJurídico",
     "expires_at": "2026-11-02T14:02:00-03:00",
+    "browser": "Chrome",
+    "system": "macOS",
+    "method": "passkey",
+    "change": "passkey_added",
+    "passkey": "1Password",
 }
 
 

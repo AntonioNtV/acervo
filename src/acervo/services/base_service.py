@@ -1,5 +1,6 @@
 import builtins
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from acervo.core.errors import AuthError, ForbiddenError, NotFoundError, ValidationError
@@ -13,7 +14,9 @@ from acervo.schemas.organization import (
     GeneralAccess,
     OrganizationRecord,
 )
+from acervo.schemas.security import SecurityEventKind
 from acervo.services.access_service import AccessService, role_in_base
+from acervo.services.security_log import SecurityLog
 
 
 def _name(name: str) -> str:
@@ -45,6 +48,7 @@ class BaseService:
                 raise ValidationError("a base needs an organization", {"organization_id": None})
             return personal
         await self._access.require_org(me, organization_id, "member")
+        await self._access.require_two_factor(me, organization_id)
         return await self._uow.organizations.get(organization_id)
 
     async def _shared_by(self, organization_id: UUID) -> str:
@@ -52,6 +56,12 @@ class BaseService:
         if organization.personal_of is None:
             return organization.name
         return (await self._uow.accounts.get(organization.personal_of)).name
+
+    async def _log(self, kind: SecurityEventKind, kb: KbRead, data: dict[str, Any]) -> None:
+        """A line of the audit of the base's organization, by the acting account."""
+        await SecurityLog(self._uow).record(
+            kind, organization_id=kb.organization_id, actor_id=self._me(), data={"base": kb.name, **data}
+        )
 
     async def _require_admin(self, kb_id: UUID, *, trashed: bool = False) -> tuple[KbRead, BaseRole]:
         kb = await self._uow.kbs.get_in(kb_id, trashed=trashed)
@@ -104,6 +114,7 @@ class BaseService:
             general_access,
             self._me(),
         )
+        await self._log(SecurityEventKind.BASE_CREATED, kb, {})
         await self._uow.commit()
         return kb.model_copy(update={"my_role": "admin"})
 
@@ -124,6 +135,7 @@ class BaseService:
         """The whole base goes to the global trash; its nodes keep their own state, so it comes back intact."""
         _, role = await self._require_admin(kb_id)
         kb = await self._uow.kbs.update(kb_id, KbUpdate(deleted_at=datetime.now(UTC)))
+        await self._log(SecurityEventKind.BASE_TRASHED, kb, {})
         await self._uow.commit()
         return kb.model_copy(update={"my_role": role})
 
@@ -142,6 +154,7 @@ class BaseService:
     async def restore(self, kb_id: UUID) -> KbRead:
         _, role = await self._require_admin(kb_id, trashed=True)
         kb = await self._uow.kbs.update(kb_id, KbUpdate(deleted_at=None))
+        await self._log(SecurityEventKind.BASE_RESTORED, kb, {})
         await self._uow.commit()
         return kb.model_copy(update={"my_role": role})
 
@@ -159,6 +172,7 @@ class BaseService:
         if (await self._uow.organizations.get(kb.organization_id)).personal_of is not None:
             raise ValidationError("a Pessoal base is shared person by person", {"kb_id": str(kb_id)})
         await self._uow.kbs.set_general_access(kb_id, general_access)
+        await self._log(SecurityEventKind.ACCESS_CHANGED, kb, {"general_access": general_access})
         await self._uow.commit()
         return await self._base_access(kb_id)
 
@@ -173,13 +187,17 @@ class BaseService:
         else:
             # Anyone else joins a base only through an invite, which their email confirms.
             raise ForbiddenError("only members of the organization are added directly", {"account_id": str(account_id)})
+        member = await self._uow.accounts.get(account_id)
+        await self._log(SecurityEventKind.ACCESS_CHANGED, kb, {"email": member.email, "role": role})
         await self._uow.commit()
         return await self._base_access(kb_id)
 
     async def remove_member(self, kb_id: UUID, account_id: UUID) -> BaseAccess:
-        await self._require_admin(kb_id)
+        kb, _ = await self._require_admin(kb_id)
         if await self._uow.base_members.get_by(kb_id=kb_id, account_id=account_id) is None:
             raise NotFoundError("not added to the base", {"kb_id": str(kb_id), "account_id": str(account_id)})
         await self._uow.kbs.remove_member(kb_id, account_id)
+        member = await self._uow.accounts.get(account_id)
+        await self._log(SecurityEventKind.ACCESS_CHANGED, kb, {"email": member.email, "role": None})
         await self._uow.commit()
         return await self._base_access(kb_id)

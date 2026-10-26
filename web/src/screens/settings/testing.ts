@@ -10,6 +10,8 @@ export function signedIn(overrides: Partial<Account> = {}): Account {
     email_verified: true,
     has_google: false,
     has_password: true,
+    has_passkey: false,
+    two_factor: "none",
     photo_url: null,
     preferences: { theme: "light", page_width: "default", language: "pt-BR", start_page: "last" },
     ...overrides,

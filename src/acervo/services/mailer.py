@@ -17,14 +17,22 @@ class MailTemplate(StrEnum):
     BASE_SHARED = "base_shared"
     ROLE_CHANGED = "role_changed"
     REMOVED = "removed"
+    LOGIN_CODE = "login_code"
+    NEW_SIGN_IN = "new_sign_in"
+    SECURITY_CHANGE = "security_change"
+    LOCKOUT = "lockout"
+    ORG_REQUIRES_2FA = "org_requires_2fa"
 
 
 class Mailer(Protocol):
     async def send(self, to: str, template: MailTemplate, language: Language, values: Mapping[str, str]) -> None:
         """Sends `template` in `language` to `to`, filled with `values`: `code`, `link`, `name`, `new_email`;
         for the organization emails also `inviter`, `actor`, `organization`, `base`, `member_email`, `role` and
-        `old_role` (role codes), `bases` (base names, one per line) and `expires_at` (ISO 8601). `link` is the
-        token for `reset_link` and `org_invite`, and the app path for the other emails with a button."""
+        `old_role` (role codes), `bases` (base names, one per line) and `expires_at` (ISO 8601); for the security
+        emails `browser` and `system` (from the user agent, empty when unknown), `method` (`new_sign_in`: password,
+        google, passkey or reset), `change` (`security_change`: a key of `mail_templates.CHANGES`) and `passkey`
+        (its name, for a passkey change). `link` is the token for `reset_link` and `org_invite`, and the app path
+        for the other emails with a button."""
         ...
 
 

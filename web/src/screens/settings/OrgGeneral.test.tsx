@@ -19,8 +19,8 @@ beforeEach(() => {
 function renderOrg(role: Organization["my_role"], path: string, chosen: string | null = "org-1") {
   signedIn();
   const organizations: Organization[] = [
-    { id: "pessoal", name: "Pessoal", logo_url: null, my_role: "owner", new_base_access: "editor", personal: true },
-    { id: "org-1", name: "Seguros SA", logo_url: null, my_role: role, new_base_access: "editor", personal: false },
+    { id: "pessoal", name: "Pessoal", logo_url: null, my_role: "owner", new_base_access: "editor", require_two_factor: false, personal: true },
+    { id: "org-1", name: "Seguros SA", logo_url: null, my_role: role, new_base_access: "editor", require_two_factor: false, personal: false },
   ];
   if (chosen) localStorage.setItem("acervo.org", chosen);
   respond("GET", "/v1/organizations", { body: organizations });

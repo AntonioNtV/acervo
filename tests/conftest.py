@@ -35,6 +35,7 @@ from acervo.schemas.kb import KbCreate, KbRead
 from acervo.schemas.node import NodeCreate
 from acervo.schemas.organization import MembershipCreate, OrganizationCreate, OrganizationRecord, OrgRole
 from acervo.services.mailer import FakeMailer
+from acervo.services.whatsapp import FakeWhatsApp
 
 ROOT = Path(__file__).resolve().parents[1]
 SESSION_SECRET = "test-session-secret"
@@ -304,3 +305,8 @@ def make_organization(session: AsyncSession) -> Callable[..., Awaitable[Organiza
 @pytest.fixture
 def fake_mailer() -> FakeMailer:
     return FakeMailer()
+
+
+@pytest.fixture
+def fake_whatsapp() -> FakeWhatsApp:
+    return FakeWhatsApp()

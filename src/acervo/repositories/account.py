@@ -2,8 +2,11 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func
+from sqlalchemy.orm import undefer
+from sqlalchemy.orm.interfaces import ORMOption
 
 from acervo.db.models.account import Account
+from acervo.db.models.membership import Membership
 from acervo.repositories.base import BaseRepository
 from acervo.schemas.account import AccountCreate, AccountRecord, AccountUpdate
 
@@ -12,10 +15,27 @@ class AccountRepository(BaseRepository[Account, AccountRecord, AccountCreate, Ac
     orm_model = Account
     read_schema = AccountRecord
 
+    def _options(self) -> list[ORMOption]:
+        # Any option reloads a row already in the session, so `has_passkey` follows a passkey added since.
+        return [undefer(Account.has_passkey)]  # type: ignore[attr-defined]
+
     async def by_email(self, email: str) -> AccountRecord | None:
         """The account of `email`, ignoring case."""
         account = await self._session.scalar(self._select().where(func.lower(Account.email) == email.lower()))
         return None if account is None else self._to_read(account)
+
+    async def password_only(self, organization_id: UUID) -> list[AccountRecord]:
+        """The organization's members with neither a passkey nor two-step verification."""
+        query = (
+            self._select()
+            .join(Membership, Membership.account_id == Account.id)
+            .where(
+                Membership.organization_id == organization_id,
+                Account.two_factor == "none",
+                ~Account.has_passkey,  # type: ignore[attr-defined]
+            )
+        )
+        return [self._to_read(account) for account in await self._session.scalars(query)]
 
     async def delete(self, account_id: UUID) -> None:
         """Removes the account with its sessions, codes, reset links and favorites."""
