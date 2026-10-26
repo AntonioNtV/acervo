@@ -25,6 +25,9 @@ class OrganizationUpdate(BaseModel):
     new_base_access: GeneralAccess | None = Field(
         default=None, description="The general access a new base starts with (Acesso de bases novas)."
     )
+    require_two_factor: bool | None = Field(
+        default=None, description="Whether members need a passkey or two-step verification to reach its bases."
+    )
 
 
 class OrganizationChange(BaseModel):
@@ -33,6 +36,7 @@ class OrganizationChange(BaseModel):
     name: str | None = None
     logo_key: str | None = None
     new_base_access: GeneralAccess | None = None
+    require_two_factor: bool | None = None
 
 
 class OrganizationRecord(BaseModel):
@@ -45,6 +49,7 @@ class OrganizationRecord(BaseModel):
     logo_key: str | None
     personal_of: UUID | None
     new_base_access: GeneralAccess
+    require_two_factor: bool
     created_at: datetime
 
 
@@ -57,6 +62,7 @@ class OrganizationRead(BaseModel):
     personal: bool = Field(description="Whether this is the person's Pessoal.")
     my_role: OrgRole = Field(description="The person's role in the organization.")
     new_base_access: GeneralAccess = Field(description="The general access a new base starts with.")
+    require_two_factor: bool = Field(description="Whether members need a passkey or two-step verification.")
 
     @classmethod
     def of(cls, organization: OrganizationRecord, my_role: OrgRole) -> Self:
@@ -71,6 +77,7 @@ class OrganizationRead(BaseModel):
             personal=organization.personal_of is not None,
             my_role=my_role,
             new_base_access=organization.new_base_access,
+            require_two_factor=organization.require_two_factor,
         )
 
 

@@ -14,6 +14,8 @@ class Copy(TypedDict):
     title: str
     body: list[str]
     button: NotRequired[str]
+    # Label and value rows under the body, such as the device and when.
+    details: NotRequired[list[tuple[str, str]]]
     after: list[str]
 
 
@@ -209,6 +211,253 @@ COPY: dict[MailTemplate, dict[Language, Copy]] = {
     },
 }
 
+# Copy from the Design System, "Comunicação · Segurança"; the English is ours. No location: there is no GeoIP.
+WHEN = {"pt-BR": ("Quando", "{date}, {time}"), "en": ("When", "{date}, {time}")}
+DEVICE = {"pt-BR": ("Aparelho", "{device}"), "en": ("Device", "{device}")}
+COPY |= {
+    MailTemplate.LOGIN_CODE: {
+        "pt-BR": {
+            "subject": "{code} é seu código para entrar no Acervo",
+            "pre": "Alguém está entrando com a sua senha.",
+            "title": "Seu código para entrar",
+            "body": [
+                "Alguém, provavelmente você, está entrando na sua conta com a senha certa. Para terminar, use este "
+                "código:"
+            ],
+            "details": [DEVICE["pt-BR"], WHEN["pt-BR"]],
+            "after": ["Se não foi você, troque a senha agora: ela já foi usada."],
+        },
+        "en": {
+            "subject": "{code} is your code to sign in to Acervo",
+            "pre": "Someone is signing in with your password.",
+            "title": "Your sign-in code",
+            "body": [
+                "Someone, probably you, is signing in to your account with the right password. To finish, use "
+                "this code:"
+            ],
+            "details": [DEVICE["en"], WHEN["en"]],
+            "after": ["If it was not you, change your password now: it has already been used."],
+        },
+    },
+    MailTemplate.NEW_SIGN_IN: {
+        "pt-BR": {
+            "subject": "Nova entrada na sua conta do Acervo",
+            "pre": "{device}.",
+            "title": "Nova entrada na sua conta",
+            "body": ["Sua conta foi aberta num aparelho novo, {with_method}."],
+            "details": [DEVICE["pt-BR"], WHEN["pt-BR"]],
+            "button": "Ver sessões",
+            "after": ["Se não foi você, encerre essa sessão e troque a senha."],
+        },
+        "en": {
+            "subject": "New sign-in to your Acervo account",
+            "pre": "{device}.",
+            "title": "New sign-in to your account",
+            "body": ["Your account was opened on a new device, {with_method}."],
+            "details": [DEVICE["en"], WHEN["en"]],
+            "button": "See sessions",
+            "after": ["If it was not you, end that session and change your password."],
+        },
+    },
+    MailTemplate.SECURITY_CHANGE: {
+        "pt-BR": {
+            "subject": "{change_subject}",
+            "pre": "{change_pre}",
+            "title": "{change_title}",
+            "body": ["{change_body}"],
+            "details": [DEVICE["pt-BR"], WHEN["pt-BR"]],
+            "button": "Ver segurança",
+            "after": [
+                "O mesmo email avisa quando a senha muda, uma passkey sai, o 2FA é desligado ou o Google é vinculado.",
+                "{change_if_not}",
+            ],
+        },
+        "en": {
+            "subject": "{change_subject}",
+            "pre": "{change_pre}",
+            "title": "{change_title}",
+            "body": ["{change_body}"],
+            "details": [DEVICE["en"], WHEN["en"]],
+            "button": "See security",
+            "after": [
+                "The same email tells you when the password changes, a passkey is removed, two-step verification is "
+                "turned off or Google is linked.",
+                "{change_if_not}",
+            ],
+        },
+    },
+    MailTemplate.LOCKOUT: {
+        "pt-BR": {
+            "subject": "Bloqueamos as entradas na sua conta por 15 minutos",
+            "pre": "Houve 5 senhas erradas.",
+            "title": "Entradas bloqueadas por 15 minutos",
+            "body": [
+                "Alguém errou a senha da sua conta 5 vezes seguidas. Por segurança, ninguém entra com senha pelos "
+                "próximos 15 minutos."
+            ],
+            "details": [("Última tentativa", "{device}"), WHEN["pt-BR"]],
+            "button": "Redefinir senha",
+            "after": ["Se foi você, espere ou redefina a senha. A passkey continua funcionando."],
+        },
+        "en": {
+            "subject": "We blocked sign-ins to your account for 15 minutes",
+            "pre": "There were 5 wrong passwords.",
+            "title": "Sign-ins blocked for 15 minutes",
+            "body": [
+                "Someone got your account's password wrong 5 times in a row. For safety, no one signs in with a "
+                "password for the next 15 minutes."
+            ],
+            "details": [("Last attempt", "{device}"), WHEN["en"]],
+            "button": "Reset password",
+            "after": ["If it was you, wait or reset your password. Your passkey still works."],
+        },
+    },
+    MailTemplate.ORG_REQUIRES_2FA: {
+        "pt-BR": {
+            "subject": "A {organization} agora exige verificação em duas etapas",
+            "pre": "Ative no seu próximo acesso.",
+            "title": "A {organization} agora exige verificação em duas etapas",
+            "body": [
+                "{actor} ligou essa exigência. No seu próximo acesso às bases da {organization}, o Acervo vai pedir "
+                "para você ativar uma passkey, um código por WhatsApp ou por email."
+            ],
+            "button": "Ativar agora",
+            "after": ["Seu espaço Pessoal e as outras organizações não mudam."],
+        },
+        "en": {
+            "subject": "{organization} now requires two-step verification",
+            "pre": "Turn it on at your next visit.",
+            "title": "{organization} now requires two-step verification",
+            "body": [
+                "{actor} turned this requirement on. The next time you open {organization}'s bases, Acervo will ask "
+                "you to set up a passkey, or a code by WhatsApp or email."
+            ],
+            "button": "Turn on now",
+            "after": ["Your Personal space and your other organizations do not change."],
+        },
+    },
+}
+# `new_sign_in` by `method`; the design only words a passkey one.
+METHODS: dict[Language, dict[str, str]] = {
+    "pt-BR": {
+        "password": "com senha",
+        "google": "com Google",
+        "passkey": "com passkey",
+        "reset": "por um link de senha",
+    },
+    "en": {
+        "password": "with a password",
+        "google": "with Google",
+        "passkey": "with a passkey",
+        "reset": "through a password link",
+    },
+}
+# `security_change` by `change`; the design words `passkey_added`, the others follow it.
+CHANGES: dict[Language, dict[str, dict[str, str]]] = {
+    "pt-BR": {
+        "password_changed": {
+            "subject": "A senha da sua conta do Acervo mudou",
+            "pre": "No {device}.",
+            "title": "Sua senha mudou",
+            "body": "A senha da sua conta foi trocada.",
+            "if_not": "Se não foi você, redefina a senha agora.",
+        },
+        "passkey_added": {
+            "subject": "Uma passkey foi adicionada à sua conta",
+            "pre": "{passkey}, no {device}.",
+            "title": "Uma passkey foi adicionada",
+            "body": "A passkey {passkey} foi adicionada à sua conta.",
+            "if_not": "Se não foi você, troque a senha e remova a passkey.",
+        },
+        "passkey_removed": {
+            "subject": "Uma passkey foi removida da sua conta",
+            "pre": "{passkey}, no {device}.",
+            "title": "Uma passkey foi removida",
+            "body": "A passkey {passkey} foi removida da sua conta.",
+            "if_not": "Se não foi você, troque a senha agora.",
+        },
+        "two_factor_on": {
+            "subject": "A verificação em duas etapas foi ativada na sua conta",
+            "pre": "No {device}.",
+            "title": "Verificação em duas etapas ativada",
+            "body": "A partir de agora, entrar com a senha também pede um código.",
+            "if_not": "Se não foi você, troque a senha agora.",
+        },
+        "two_factor_off": {
+            "subject": "A verificação em duas etapas foi desligada na sua conta",
+            "pre": "No {device}.",
+            "title": "Verificação em duas etapas desligada",
+            "body": "A partir de agora, a senha basta para entrar na sua conta.",
+            "if_not": "Se não foi você, troque a senha e ative a verificação de novo.",
+        },
+        "google_linked": {
+            "subject": "Uma conta Google foi vinculada à sua conta",
+            "pre": "No {device}.",
+            "title": "Google vinculado",
+            "body": "Agora sua conta também entra com o Google.",
+            "if_not": "Se não foi você, troque a senha e desvincule o Google.",
+        },
+        "google_unlinked": {
+            "subject": "O Google foi desvinculado da sua conta",
+            "pre": "No {device}.",
+            "title": "Google desvinculado",
+            "body": "Sua conta não entra mais com o Google.",
+            "if_not": "Se não foi você, troque a senha agora.",
+        },
+    },
+    "en": {
+        "password_changed": {
+            "subject": "Your Acervo account password changed",
+            "pre": "On {device}.",
+            "title": "Your password changed",
+            "body": "Your account's password was changed.",
+            "if_not": "If it was not you, reset your password now.",
+        },
+        "passkey_added": {
+            "subject": "A passkey was added to your account",
+            "pre": "{passkey}, on {device}.",
+            "title": "A passkey was added",
+            "body": "The passkey {passkey} was added to your account.",
+            "if_not": "If it was not you, change your password and remove the passkey.",
+        },
+        "passkey_removed": {
+            "subject": "A passkey was removed from your account",
+            "pre": "{passkey}, on {device}.",
+            "title": "A passkey was removed",
+            "body": "The passkey {passkey} was removed from your account.",
+            "if_not": "If it was not you, change your password now.",
+        },
+        "two_factor_on": {
+            "subject": "Two-step verification was turned on for your account",
+            "pre": "On {device}.",
+            "title": "Two-step verification on",
+            "body": "From now on, signing in with the password also asks for a code.",
+            "if_not": "If it was not you, change your password now.",
+        },
+        "two_factor_off": {
+            "subject": "Two-step verification was turned off for your account",
+            "pre": "On {device}.",
+            "title": "Two-step verification off",
+            "body": "From now on, the password alone signs in to your account.",
+            "if_not": "If it was not you, change your password and turn verification on again.",
+        },
+        "google_linked": {
+            "subject": "A Google account was linked to your account",
+            "pre": "On {device}.",
+            "title": "Google linked",
+            "body": "Your account now also signs in with Google.",
+            "if_not": "If it was not you, change your password and unlink Google.",
+        },
+        "google_unlinked": {
+            "subject": "Google was unlinked from your account",
+            "pre": "On {device}.",
+            "title": "Google unlinked",
+            "body": "Your account no longer signs in with Google.",
+            "if_not": "If it was not you, change your password now.",
+        },
+    },
+}
+
 ROLES: dict[Language, dict[str, str]] = {
     "pt-BR": {"owner": "Owner", "admin": "Admin", "member": "Membro", "reader": "Leitor", "editor": "Editor"},
     "en": {"owner": "Owner", "admin": "Admin", "member": "Member", "reader": "Reader", "editor": "Editor"},
@@ -263,6 +512,10 @@ NO_BASES = {"pt-BR": "nenhuma base por enquanto", "en": "no bases yet"}
 # Where each button goes; `link` is a token for these, and the app path for any other template with a button.
 BUTTON_PATH = {MailTemplate.RESET_LINK: "/redefinir-senha/{link}", MailTemplate.ORG_INVITE: "/convite/{link}"}
 
+CODE_TEMPLATES = (MailTemplate.VERIFY_CODE, MailTemplate.CHANGE_EMAIL_CODE, MailTemplate.LOGIN_CODE)
+
+ON = {"pt-BR": "no", "en": "on"}
+UNKNOWN_DEVICE = {"pt-BR": "Navegador desconhecido", "en": "Unknown browser"}
 OR_OPEN = {"pt-BR": "Ou abra", "en": "Or open"}
 FOOTER = {
     "pt-BR": "Emails da sua conta, como este, não se desligam.",
@@ -300,6 +553,13 @@ def _bases(names: str, language: Language) -> str:
     return f"{len(listed)} base{'s' if len(listed) > 1 else ''}: {joined}"
 
 
+def _device(browser: str, system: str, language: Language) -> str:
+    """ "Chrome no macOS", from what the user agent told."""
+    if browser and system:
+        return f"{browser} {ON[language]} {system}"
+    return browser or system or UNKNOWN_DEVICE[language]
+
+
 def render(
     template: MailTemplate,
     language: Language,
@@ -320,10 +580,17 @@ def render(
         fill["bases"] = _bases(values["bases"], language)
     if "expires_at" in values:
         fill["until"] = _when(datetime.fromisoformat(values["expires_at"]), language)["date"]
+    if "browser" in values:
+        fill["device"] = _device(values["browser"], values.get("system", ""), language)
+    if "method" in values:
+        fill["with_method"] = METHODS[language][values["method"]]
+    if "change" in values:
+        fill |= {f"change_{key}": text.format(**fill) for key, text in CHANGES[language][values["change"]].items()}
     subject, pre, title = (copy["subject"].format(**fill), copy["pre"].format(**fill), copy["title"].format(**fill))
     body = [p.format(**fill) for p in copy["body"]]
     after = [p.format(**fill) for p in copy["after"]]
-    code = values["code"] if template in (MailTemplate.VERIFY_CODE, MailTemplate.CHANGE_EMAIL_CODE) else None
+    code = values["code"] if template in CODE_TEMPLATES else None
+    details = [(label, value.format(**fill)) for label, value in copy.get("details", [])]
     button = copy["button"].format(**fill) if "button" in copy else None
     path = BUTTON_PATH.get(template, "{link}").format(link=values["link"]) if button else ""
     link = f"{public_url.rstrip('/')}{path}" if button else None
@@ -331,6 +598,8 @@ def render(
     text = [title, "", *body, ""]
     if code:
         text += [code, ""]
+    if details:
+        text += [*(f"{label}: {value}" for label, value in details), ""]
     if button:
         text += [f"{button}: {link}", ""]
     text += [*after, "", "--", FOOTER[language], "Acervo · por Segura"]
@@ -355,6 +624,17 @@ def render(
             '<p style="margin:8px 0 20px"><span style="display:inline-block;padding:16px 24px;border-radius:8px;'
             f'background:#f5f5f4;font:500 28px/36px {MONO};letter-spacing:.2em;color:#0a0a0a">{escape(code)}</span></p>'
         )
+    if details:
+        cell = f"padding:2px 16px 2px 0;font:400 13px/20px {SANS}"
+        html += [
+            '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px">',
+            *(
+                f'<tr><td style="{cell};color:#959590">{escape(label)}</td>'
+                f'<td style="{cell};color:#0a0a0a">{escape(value)}</td></tr>'
+                for label, value in details
+            ),
+            "</table>",
+        ]
     if button and link:
         html += [
             f'<p style="margin:8px 0 8px"><a href="{escape(link)}" style="display:inline-block;padding:10px 18px;'

@@ -14,7 +14,10 @@ from acervo.db.models.page_attachment import PageAttachment
 from acervo.db.models.page_draft import PageDraft
 from acervo.db.models.page_link import PageLink
 from acervo.db.models.page_version import PageVersion
+from acervo.db.models.passkey import Passkey
 from acervo.db.models.password_reset import PasswordReset
+from acervo.db.models.pending_sign_in import PendingSignIn
+from acervo.db.models.security_event import SecurityEvent
 from acervo.db.models.session import Session
 
 __all__ = [
@@ -34,6 +37,9 @@ __all__ = [
     "PageDraft",
     "PageLink",
     "PageVersion",
+    "Passkey",
     "PasswordReset",
+    "PendingSignIn",
+    "SecurityEvent",
     "Session",
 ]
