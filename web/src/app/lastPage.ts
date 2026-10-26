@@ -51,6 +51,15 @@ export function forgetBase(kbId: string) {
   }
 }
 
+/** After the session ended, so whoever signs in next does not land where the last account was. */
+export function forgetPages() {
+  try {
+    for (const key of Object.keys(localStorage)) if (key === KEY || key.startsWith(recentKey(""))) localStorage.removeItem(key);
+  } catch {
+    // Nothing was stored.
+  }
+}
+
 /** After the last page turned out to be gone, so `/` falls back. */
 export function forgetLastPage() {
   try {

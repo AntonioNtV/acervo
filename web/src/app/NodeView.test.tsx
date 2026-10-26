@@ -37,14 +37,14 @@ describe("NodeView", () => {
     expect(screen.queryByText(/node page-1/)).not.toBeInTheDocument();
   });
 
-  it("a refused key points to web/.env.local", async () => {
+  it("a refused session says so in its own words", async () => {
     respond("GET", "/v1/nodes/page-1", {
       status: 401,
-      body: { error: "unauthorized", message: "Missing or invalid X-API-Key header." },
+      body: { error: "unauthorized", message: "Missing or expired session." },
     });
     renderInBase(<NodeView />, "/kbs/kb-1/n/page-1");
 
-    expect(await screen.findByText("A API recusou a chave. Confira VITE_API_KEY em web/.env.local.")).toBeInTheDocument();
-    expect(screen.queryByText(/X-API-Key/)).not.toBeInTheDocument();
+    expect(await screen.findByText("Sua sessão terminou. Entre de novo.")).toBeInTheDocument();
+    expect(screen.queryByText(/Missing/)).not.toBeInTheDocument();
   });
 });
