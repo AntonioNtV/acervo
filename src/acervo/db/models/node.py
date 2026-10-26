@@ -1,8 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import CheckConstraint, ForeignKey, Index, Text, false, text
+from sqlalchemy.orm import Mapped, mapped_column, query_expression
 
 from acervo.db.base import Base, TimestampMixin, UUIDPkMixin
 
@@ -43,9 +43,5 @@ class Node(UUIDPkMixin, TimestampMixin, Base):
     icon: Mapped[str | None] = mapped_column(Text)
     # `gallery:<slug>` or `image:<sha256>`; folders and pages only.
     cover: Mapped[str | None] = mapped_column(Text)
-    # Fractional index among the favorites of every base, as `sort`; null when not a favorite.
-    favorite_sort: Mapped[str | None] = mapped_column(Text)
-
-    @property
-    def favorite(self) -> bool:
-        return self.favorite_sort is not None
+    # Whether the request's account has it among its favorites: NodeRepository fills it for that account.
+    favorite: Mapped[bool] = query_expression(default_expr=false(), expire_on_flush=False)

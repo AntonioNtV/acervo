@@ -3,6 +3,14 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 import httpx
+from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from acervo.api.cookies import SESSION_COOKIE
+from acervo.core.settings import Settings
+from acervo.repositories.uow import UnitOfWork
+from acervo.schemas.account import AccountRead
+from acervo.services.session_service import SessionService
 
 MakeTree = Callable[..., Awaitable[Any]]
 
@@ -81,3 +89,36 @@ async def test_unknown_node_is_404(client: httpx.AsyncClient, make_tree: MakeTre
         await client.delete(f"/v1/nodes/{unknown}/favorite"),
     ):
         assert (response.status_code, response.json()["error"]) == (404, "not_found")
+
+
+async def test_favorites_are_per_account(
+    client: httpx.AsyncClient,
+    app: FastAPI,
+    make_tree: MakeTree,
+    make_account: Callable[..., Awaitable[AccountRead]],
+    session_factory: async_sessionmaker[AsyncSession],
+    test_settings: Settings,
+) -> None:
+    tree = await make_tree({"Emissão.md": None, "Sinistros.md": None, "Coberturas.md": None})
+    emissao, sinistros, coberturas = tree["Emissão.md"], tree["Sinistros.md"], tree["Coberturas.md"]
+    bia = await make_account(email="bia@example.com", name="Bia")
+    async with UnitOfWork(session_factory) as uow:
+        token = await SessionService(uow, test_settings.session_days).create(bia.id, None)
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://api.test", cookies={SESSION_COOKIE: token}
+    ) as other:
+        await _favorite(client, emissao.id)
+        await _favorite(client, sinistros.id)
+        await _favorite(other, sinistros.id)
+        await _favorite(other, coberturas.id, before_id=sinistros.id)
+        await other.delete(f"/v1/nodes/{emissao.id}/favorite")
+
+        assert [path for _, path in await _listed(client)] == ["Emissão", "Sinistros"]
+        assert [path for _, path in await _listed(other)] == ["Coberturas", "Sinistros"]
+        children = (await other.get(f"/v1/kbs/{tree.kb.id}/children")).json()
+        assert {node["title"]: node["favorite"] for node in children} == {
+            "Emissão": False,
+            "Sinistros": True,
+            "Coberturas": True,
+        }
