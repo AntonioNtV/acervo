@@ -33,6 +33,8 @@ from acervo.services.storage import Storage, key_for
 
 CHUNK_SIZE = 1024 * 1024
 PDF = "application/pdf"
+# The table depends on the host's mime files; a slim image has none and the browser would not play an .m4a.
+mimetypes.add_type("audio/mp4", ".m4a")
 _RANGE = re.compile(r"bytes=(\d*)-(\d*)")
 
 

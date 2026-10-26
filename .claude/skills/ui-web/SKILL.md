@@ -16,7 +16,7 @@ talks only to the Acervo API (skill `http-api`). The look is skill `ui-design`.
 | `screens/` | one folder per screen: `shell` (the frame around every screen, and the Lixeira), `bases` (the bases page, the base dialog and dates), `folder`, `page`, `file`, `search` (the ⌘K palette); `base` keeps the upload list and node names |
 | `editor/` | `BlockEditor`: the page's blocks on TipTap, read from and written to Markdown (`markdown.ts`, `extensions.ts`) |
 | `viewer/` | the PDF viewer on pdfjs-dist, password prompt |
-| `ui/` | primitives on Radix: Button, IconButton, Icon, NodeIcon, EmojiPicker, Dialog, Menu, TextTabs, Dot (status), Input, Kbd, FileName |
+| `ui/` | primitives on Radix: Button, IconButton, Icon, NodeIcon, EmojiPicker, Dialog, Menu, TextTabs, Dot (status), Input, Kbd, FileName, ColorMenu, DatePicker, PersonPicker, FormulaEditor, TemplateEditor, UploadArea, MediaToolbar, MediaRow, LinkPreviewCard, EmbedFrame, SyncedFrame, ColumnGuide, StatusValue, DatabaseHeader, PropertyEditor, RecordCard, SelectField, SliderControl, SwitchControl, CheckboxControl, RatingControl, MapPin |
 | `i18n/` | one file per screen (`app`, `shell`, `bases`, `base`, `folder`, `page`, `file`, `search`, `editor`, `errors`), `ptBR` first and `en` with the same keys |
 | `styles/` | `tokens.css` (the table in `ui-design`), `base.css` |
 

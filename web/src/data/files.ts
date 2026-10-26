@@ -44,6 +44,14 @@ export function useDownloadFile(nodeId: string, filename: string) {
   });
 }
 
+/** "Abrir": a new tab on a fresh signed link, since the one an `<img>` got may have expired. */
+export function useOpenFile(nodeId: string) {
+  return useMutation({
+    mutationFn: () => fileLink(nodeId),
+    onSuccess: (href) => window.open(href, "_blank", "noopener"),
+  });
+}
+
 /** A file's older contents (its current one is the node), newest first. */
 export function useFileVersions(nodeId: string) {
   return useQuery({

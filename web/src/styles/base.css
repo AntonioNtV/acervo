@@ -28,6 +28,15 @@
   --color-add: var(--add);
   --color-del: var(--del);
   --color-desk: var(--desk);
+  --color-mark: var(--mark);
+  --color-tc-gray: var(--tc-gray);
+  --color-tc-brown: var(--tc-brown);
+  --color-tc-orange: var(--tc-orange);
+  --color-tc-yellow: var(--tc-yellow);
+  --color-tc-green: var(--tc-green);
+  --color-tc-blue: var(--tc-blue);
+  --color-tc-pink: var(--tc-pink);
+  --color-tc-red: var(--tc-red);
 
   --text-*: initial;
   --text-11: 11px;

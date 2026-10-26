@@ -27,14 +27,13 @@ function useFileErrorText() {
   };
 }
 
-/** The file's ⋯: "Substituir" sends its current content to the history, "Versões" brings an older one back. */
-export function FileMenu({ node }: { node: NodeDetail }) {
+/** Picks a file and replaces the node's content with it: `choose` opens the picker, `view` is its input and status. */
+export function useReplacePicker(nodeId: string) {
   const { t } = useI18n();
   const input = useRef<HTMLInputElement>(null);
-  const replace = useReplaceFile(node.id);
+  const replace = useReplaceFile(nodeId);
   const errorText = useFileErrorText();
   const [percent, setPercent] = useState(0);
-  const [versionsOpen, setVersionsOpen] = useState(false);
 
   function pick(file: File | undefined) {
     if (!file) return;
@@ -42,7 +41,7 @@ export function FileMenu({ node }: { node: NodeDetail }) {
     replace.mutate({ file, onProgress: (loaded, total) => setPercent(total ? Math.round((loaded / total) * 100) : 0) });
   }
 
-  return (
+  const view = (
     <>
       {replace.isPending && (
         <span className="px-1 text-12 text-text-3 tabular-nums">{t("file.replace.progress", { pct: percent })}</span>
@@ -58,6 +57,20 @@ export function FileMenu({ node }: { node: NodeDetail }) {
           event.target.value = "";
         }}
       />
+    </>
+  );
+  return { choose: () => input.current?.click(), view };
+}
+
+/** The file's ⋯: "Substituir" sends its current content to the history, "Versões" brings an older one back. */
+export function FileMenu({ node }: { node: NodeDetail }) {
+  const { t } = useI18n();
+  const replace = useReplacePicker(node.id);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+
+  return (
+    <>
+      {replace.view}
       <Menu
         trigger={
           <IconButton aria-label={t("file.more")}>
@@ -65,7 +78,7 @@ export function FileMenu({ node }: { node: NodeDetail }) {
           </IconButton>
         }
       >
-        <MenuItem onSelect={() => input.current?.click()}>{t("file.replace.short")}</MenuItem>
+        <MenuItem onSelect={replace.choose}>{t("file.replace.short")}</MenuItem>
         <MenuItem onSelect={() => setVersionsOpen(true)}>{t("file.versions")}</MenuItem>
       </Menu>
       <Dialog
