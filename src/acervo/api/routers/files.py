@@ -4,7 +4,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Form, Header, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
 
-from acervo.api.deps import SIGNED_IN, current_session_id, get_file_service, get_settings, session_or_signature
+from acervo.api.deps import (
+    SIGNED_IN,
+    current_session_id,
+    get_file_service,
+    get_settings,
+    in_base,
+    on_node,
+    session_or_signature,
+)
 from acervo.core.settings import Settings
 from acervo.schemas.common import ErrorResponse
 from acervo.schemas.file import FileLink, FileNodeRead, FileVersionResponse
@@ -12,11 +20,14 @@ from acervo.services.file_service import FileService
 
 ERROR: dict[str, Any] = {"model": ErrorResponse}
 
-router = APIRouter(prefix="/v1", tags=["files"], responses={401: ERROR, 422: ERROR})
+router = APIRouter(prefix="/v1", tags=["files"], responses={401: ERROR, 403: ERROR, 422: ERROR})
 
 Service = Annotated[FileService, Depends(get_file_service)]
 AppSettings = Annotated[Settings, Depends(get_settings)]
 SessionId = Annotated[UUID, Depends(current_session_id)]
+BASE_EDITOR = [Depends(in_base("editor"))]
+READER = [Depends(on_node("reader"))]
+EDITOR = [Depends(on_node("editor"))]
 
 
 @router.post(
@@ -24,7 +35,7 @@ SessionId = Annotated[UUID, Depends(current_session_id)]
     status_code=201,
     response_model=FileNodeRead,
     responses={404: ERROR, 409: ERROR},
-    dependencies=SIGNED_IN,
+    dependencies=[*SIGNED_IN, *BASE_EDITOR],
 )
 async def upload_file(
     kb_id: UUID,
@@ -36,7 +47,10 @@ async def upload_file(
 
 
 @router.post(
-    "/nodes/{node_id}/file", response_model=FileNodeRead, responses={404: ERROR, 409: ERROR}, dependencies=SIGNED_IN
+    "/nodes/{node_id}/file",
+    response_model=FileNodeRead,
+    responses={404: ERROR, 409: ERROR},
+    dependencies=[*SIGNED_IN, *EDITOR],
 )
 async def replace_file(node_id: UUID, file: UploadFile, service: Service) -> FileNodeRead:
     return await service.replace(node_id, file.file)
@@ -46,7 +60,7 @@ async def replace_file(node_id: UUID, file: UploadFile, service: Service) -> Fil
     "/files/{node_id}/versions",
     response_model=list[FileVersionResponse],
     responses={404: ERROR},
-    dependencies=SIGNED_IN,
+    dependencies=[*SIGNED_IN, *READER],
 )
 async def list_file_versions(node_id: UUID, service: Service) -> list[FileVersionResponse]:
     return await service.versions(node_id)
@@ -56,13 +70,15 @@ async def list_file_versions(node_id: UUID, service: Service) -> list[FileVersio
     "/files/{node_id}/versions/{version_id}/restore",
     response_model=FileNodeRead,
     responses={404: ERROR, 409: ERROR},
-    dependencies=SIGNED_IN,
+    dependencies=[*SIGNED_IN, *EDITOR],
 )
 async def restore_file_version(node_id: UUID, version_id: UUID, service: Service) -> FileNodeRead:
     return await service.restore(node_id, version_id)
 
 
-@router.post("/files/{node_id}/link", response_model=FileLink, responses={404: ERROR}, dependencies=SIGNED_IN)
+@router.post(
+    "/files/{node_id}/link", response_model=FileLink, responses={404: ERROR}, dependencies=[*SIGNED_IN, *READER]
+)
 async def file_link(
     node_id: UUID,
     request: Request,
@@ -79,7 +95,7 @@ async def file_link(
 @router.get(
     "/files/{node_id}/raw",
     response_class=StreamingResponse,
-    dependencies=[Depends(session_or_signature("file"))],
+    dependencies=[Depends(session_or_signature("file")), *READER],
     responses={
         200: {"content": {"application/octet-stream": {}}, "description": "The original bytes."},
         206: {"content": {"application/octet-stream": {}}, "description": "A range of them."},
