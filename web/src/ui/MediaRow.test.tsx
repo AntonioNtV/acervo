@@ -62,6 +62,15 @@ describe("MediaRow", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it("opens a file Acervo can show", async () => {
+    const onOpen = vi.fn();
+    renderRow({ kind: "file", name: "contrato", ext: "pdf", onOpen, onRetry: () => {} });
+
+    await userEvent.click(screen.getByRole("button", { name: "Abrir" }));
+
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
   it("plays and pauses a video by click and Space, with its duration", async () => {
     const container = renderRow({ kind: "video", name: "Vistoria", ext: "mp4", src: "/v/vistoria.mp4" });
     const video = container.querySelector("video")!;

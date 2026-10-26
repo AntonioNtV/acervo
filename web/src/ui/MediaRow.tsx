@@ -17,6 +17,8 @@ type Props =
       failed?: boolean;
       /** Without it, a row at rest shows no Baixar. */
       onDownload?: () => void;
+      /** Given for a file Acervo can show, such as a PDF: an Abrir before Baixar. */
+      onOpen?: () => void;
       onRetry: () => void;
     }
   | {
@@ -34,7 +36,7 @@ export function MediaRow(props: Props) {
   return <Player {...props} />;
 }
 
-function FileRow({ name, ext, size, progress, failed, onDownload, onRetry }: Extract<Props, { kind: "file" }>) {
+function FileRow({ name, ext, size, progress, failed, onDownload, onOpen, onRetry }: Extract<Props, { kind: "file" }>) {
   const { t } = useI18n();
   return (
     <div className="flex min-h-11 items-center gap-2.5 rounded-[7px] border border-line py-0 pr-1 pl-3 text-[14px] leading-5">
@@ -53,12 +55,19 @@ function FileRow({ name, ext, size, progress, failed, onDownload, onRetry }: Ext
           </Button>
         </span>
       ) : (
-        onDownload && (
-          <Button variant="quiet" size="sm" onClick={onDownload}>
-            <Icon name="download" size={14} />
-            {t("media.download")}
-          </Button>
-        )
+        <>
+          {onOpen && (
+            <Button variant="quiet" size="sm" onClick={onOpen}>
+              {t("media.tool.open")}
+            </Button>
+          )}
+          {onDownload && (
+            <Button variant="quiet" size="sm" onClick={onDownload}>
+              <Icon name="download" size={14} />
+              {t("media.download")}
+            </Button>
+          )}
+        </>
       )}
     </div>
   );
