@@ -188,7 +188,7 @@ export function PdfPageView({ node, updateAttributes }: ReactNodeViewProps) {
 
   const error =
     typeof target !== "object"
-      ? t(`editor.link.${target}`)
+      ? t(target === "missing" ? "editor.pdfPage.missing" : "editor.link.ambiguous")
       : outOfRange
         ? t("editor.pdfPage.outOfRange", { n: pages })
         : shown === "locked"

@@ -125,7 +125,7 @@ describe("link block", () => {
 
     const player = await screen.findByTitle("YouTube");
     expect(player).toHaveAttribute("src", "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ");
-    expect(player).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(player).toHaveAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     expect(player.getAttribute("sandbox")).not.toContain("allow-top-navigation");
     expect(screen.getByText("YouTube não deixa mostrar este conteúdo aqui.")).toBeInTheDocument();
   });
@@ -135,7 +135,7 @@ describe("link block", () => {
     shown!.commands.setTextSelection(1);
     shown!.commands.insertLinkBlock();
 
-    const ask = await screen.findByRole("textbox", { name: "editor.link.url" });
+    const ask = await screen.findByRole("textbox", { name: "Cole o endereço" });
     fireEvent.change(ask, { target: { value: " sem endereço " } });
     fireEvent.keyDown(ask, { key: "Enter" });
     expect(shown!.getJSON().content?.find((block) => block.type === "linkBlock")?.attrs?.url).toBe("");

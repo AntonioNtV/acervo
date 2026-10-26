@@ -1,14 +1,20 @@
 import { InputRule, Node, type AnyExtension, type JSONContent, type MarkdownToken } from "@tiptap/core";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
+import { ListItem, TaskItem, TaskList } from "@tiptap/extension-list";
 import { Paragraph } from "@tiptap/extension-paragraph";
 import { Table, TableKit } from "@tiptap/extension-table";
 import StarterKit from "@tiptap/starter-kit";
+import { BlockMath } from "./nodes/blockMath";
 import { Columns } from "./nodes/columns";
+import { Diagram } from "./nodes/diagram";
+import { AttachmentFile } from "./nodes/fileMedia";
 import { footnoteExtensions } from "./nodes/footnote";
 import { generatedExtensions } from "./nodes/generated";
+import { AttachmentImage } from "./nodes/image";
+import { LinkBlock } from "./nodes/linkBlock";
 import { markExtensions } from "./nodes/marks";
 import { InlineMath } from "./nodes/math";
+import { PdfPage } from "./nodes/pdfPage";
 import { SyncedBlock } from "./nodes/synced";
 import { ToggleHeading } from "./nodes/toggleHeading";
 import { startBefore } from "./tokenize";
@@ -255,6 +261,22 @@ const TodoItem = TaskItem.extend({
   },
 });
 
+const OPENS_ITEM = new Set(["paragraph", "text", "list", "space"]);
+
+/**
+ * A list item opens with a paragraph. A line that a block tokenizer took (`- ![[X]]`, `- <!-- toc -->`,
+ * `- [a.pdf](arquivos/a.pdf)`) is read back as the item's text instead, so the page stays a valid document.
+ */
+const TextFirstListItem = ListItem.extend({
+  parseMarkdown(token, h) {
+    const [first, ...rest] = token.tokens ?? [];
+    const line = first?.raw?.trimEnd() ?? "";
+    const kept = !first?.type || OPENS_ITEM.has(first.type) || line.includes("\n");
+    const tokens = kept ? token.tokens : [{ type: "paragraph", raw: first.raw, text: line, tokens: h.tokenizeInline!(line) }, ...rest];
+    return this.parent!({ ...token, tokens }, h);
+  },
+});
+
 // TaskList's tokenizer and Table's `start` split the whole rest of the page on every call, which made opening a long
 // page quadratic. Each now gets the source only as far as it reads.
 const taskListTokenizer = TaskList.config.markdownTokenizer!;
@@ -288,7 +310,8 @@ const BoundedTable = Table.extend({
  */
 export const blockExtensions: AnyExtension[] = [
   TextParagraph,
-  StarterKit.configure({ paragraph: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
+  TextFirstListItem,
+  StarterKit.configure({ paragraph: false, listItem: false, underline: false, link: { openOnClick: false }, dropcursor: { color: "var(--ink)", width: 2 } }),
   BoundedTaskList,
   TodoItem.configure({ nested: true }),
   TableKit.configure({ table: false }),
@@ -304,6 +327,12 @@ export const blockExtensions: AnyExtension[] = [
   RawInline,
   RawBlock,
   SyncedBlock,
+  AttachmentImage,
+  AttachmentFile,
+  PdfPage,
+  LinkBlock,
+  BlockMath,
+  Diagram,
   ...markExtensions,
   ...footnoteExtensions,
   ...generatedExtensions,

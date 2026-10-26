@@ -18,7 +18,7 @@ let loading: Promise<Katex> | null = null;
 const loadKatex = () =>
   (loading ??= Promise.all([import("katex"), import("katex/dist/katex.min.css")]).then(([katex]) => katex.default));
 
-function useKatex(): Katex | null {
+export function useKatex(): Katex | null {
   const [katex, setKatex] = useState<Katex | null>(null);
   useEffect(() => {
     let live = true;
@@ -30,9 +30,9 @@ function useKatex(): Katex | null {
   return katex;
 }
 
-function render(katex: Katex, tex: string): { html: string } | { error: string } {
+export function render(katex: Katex, tex: string, displayMode = false): { html: string } | { error: string } {
   try {
-    return { html: katex.renderToString(tex, { throwOnError: true }) };
+    return { html: katex.renderToString(tex, { displayMode, throwOnError: true }) };
   } catch (error) {
     return { error: error instanceof katex.ParseError ? error.rawMessage : String(error) };
   }

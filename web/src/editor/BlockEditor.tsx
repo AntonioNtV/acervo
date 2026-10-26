@@ -1,7 +1,9 @@
+import type { AnyExtension } from "@tiptap/core";
 import { Placeholder } from "@tiptap/extensions";
-import type { Transaction } from "@tiptap/pm/state";
+import { TextSelection, type Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import { EditorContent, ReactNodeViewRenderer, useEditor, type Editor } from "@tiptap/react";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { BlockHandle, blockAt, measureBlock, type HoveredBlock } from "./BlockHandle";
 import { BLOCK_KINDS, findKinds, findPages } from "./blocks";
@@ -10,6 +12,10 @@ import { bindSource, parseMarkdown, serializeMarkdown, type Source } from "./mar
 import { createMenus, MarkdownPaste, type MenuBridge, type MenuState } from "./menus";
 import { MenuPopover, type MenuItem } from "./MenuPopover";
 import { Emoji } from "./nodes/emoji";
+import { PageContext } from "./nodes/generated";
+import { insertAttachment } from "./nodes/image";
+import { LinkBlockWithView } from "./nodes/linkBlock";
+import { PdfPageWithView } from "./nodes/pdfPage";
 import { SelectionToolbar } from "./nodes/SelectionToolbar";
 import { SyncedBlockWithView } from "./nodes/synced";
 import { ToggleHeading } from "./nodes/toggleHeading";
@@ -32,15 +38,32 @@ type Props = {
   onPageQuery?: (query: string | null) => void;
 };
 
+/** Uploads `files` as attachments of the page at the selection; false when there is nothing to take. */
+function attach(view: EditorView, files: File[], pageId: string | null) {
+  if (!files.length || !pageId) return false;
+  insertAttachment((view.dom as HTMLElement & { editor: Editor }).editor, files, pageId);
+  return true;
+}
+
 const PageLinkWithView = PageLink.extend({ addNodeView: () => ReactNodeViewRenderer(PageLinkView) });
+
+// The nodes whose view needs React, swapped in for the schema's own.
+const WITH_VIEW: Record<string, AnyExtension> = {
+  pageLink: PageLinkWithView,
+  syncedBlock: SyncedBlockWithView,
+  pdfPage: PdfPageWithView,
+  linkBlock: LinkBlockWithView,
+};
 
 export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, pageTitles = [], onPageQuery }: Props) {
   const { t } = useI18n();
+  const pageId = useContext(PageContext)?.nodeId ?? null;
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [active, setActive] = useState(0);
   const [block, setBlock] = useState<HoveredBlock | null>(null);
   const wrapper = useRef<HTMLDivElement>(null);
   const latest = useRef({
+    pageId,
     onChange,
     onCreateSubPage,
     onPageQuery,
@@ -48,6 +71,7 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     active: 0,
     pick: (() => {}) as (i: number) => void,
   });
+  latest.current.pageId = pageId;
   latest.current.onChange = onChange;
   latest.current.onCreateSubPage = onCreateSubPage;
   latest.current.onPageQuery = onPageQuery;
@@ -79,19 +103,17 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
 
   const editor = useEditor({
     extensions: [
-      ...blockExtensions.map((extension) =>
-        extension.name === "pageLink"
-          ? PageLinkWithView
-          : extension.name === "syncedBlock"
-            ? SyncedBlockWithView
-            : extension.name === "toggleHeading"
-              ? ToggleHeading.configure({ t })
-              : extension.name === "details"
-                ? Toggle.configure({
-                    renderToggleButton: ({ element, isOpen }) =>
-                      element.setAttribute("aria-label", t(isOpen ? "editor.toggle.close" : "editor.toggle.open")),
-                  })
-                : extension,
+      ...blockExtensions.map(
+        (extension) =>
+          WITH_VIEW[extension.name] ??
+          (extension.name === "toggleHeading"
+            ? ToggleHeading.configure({ t })
+            : extension.name === "details"
+              ? Toggle.configure({
+                  renderToggleButton: ({ element, isOpen }) =>
+                    element.setAttribute("aria-label", t(isOpen ? "editor.toggle.close" : "editor.toggle.open")),
+                })
+              : extension),
       ),
       Emoji,
       Placeholder.configure({ placeholder: t("editor.placeholder") }),
@@ -99,7 +121,17 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
       MarkdownPaste,
     ],
     content: opened.doc,
-    editorProps: { attributes: { class: "block-editor", "aria-label": t("editor.label") } },
+    editorProps: {
+      attributes: { class: "block-editor", "aria-label": t("editor.label") },
+      // A file pasted or dropped into the page is uploaded as its attachment, where it lands.
+      handlePaste: (view, event) => attach(view, Array.from(event.clipboardData?.files ?? []), latest.current.pageId),
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (files.length && at) view.dispatch(view.state.tr.setSelection(TextSelection.near(view.state.doc.resolve(at.pos))));
+        return attach(view, files, latest.current.pageId);
+      },
+    },
     onCreate: ({ editor }) => {
       source.current = bindSource(opened.source, editor.state.doc);
       written.current = serializeMarkdown(editor.state.doc, source.current);
@@ -175,6 +207,12 @@ export function BlockEditor({ markdown, onChange, resolveLink, onCreateSubPage, 
     if (id === "footnote") return chain.insertFootnote().run();
     if (id === "toc") return chain.insertContent({ type: "tableOfContents" }).run();
     if (id === "breadcrumb") return chain.insertContent({ type: "breadcrumb" }).run();
+    if (id === "image") return chain.insertImage().run();
+    if (id === "file" || id === "video" || id === "audio") return chain.insertAttachmentFile(id).run();
+    if (id === "equation") return chain.insertBlockMath().run();
+    if (id === "diagram") return chain.insertDiagram().run();
+    if (id === "pdfPage") return chain.insertPdfPage().run();
+    if (id === "bookmark" || id === "embed") return chain.insertLinkBlock().run();
     chain.run();
     latest.current.onCreateSubPage().then(
       (title) => {

@@ -101,6 +101,15 @@ describe("MediaRow", () => {
     expect(screen.getByRole("button", { name: "Pausar" })).toBeInTheDocument();
   });
 
+  it.each(["video", "audio"] as const)("downloads a %s from its row", async (kind) => {
+    const onDownload = vi.fn();
+    renderRow({ kind, name: "Vistoria", ext: kind === "video" ? "mp4" : "m4a", src: "/m/vistoria", onDownload });
+
+    await userEvent.click(screen.getByRole("button", { name: "Baixar" }));
+
+    expect(onDownload).toHaveBeenCalledOnce();
+  });
+
   it("says when the file cannot be played", () => {
     const container = renderRow({ kind: "video", name: "Vistoria", ext: "mov", src: "/v/vistoria.mov" });
 

@@ -60,7 +60,7 @@ describe("Diagram", () => {
     expect(mermaid.initialize).toHaveBeenCalledWith(expect.objectContaining({ securityLevel: "strict" }));
     expect(container.querySelector("pre.diagram-code")).not.toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "editor.diagram.edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Editar" }));
     expect(container.querySelector("pre.diagram-code")).toBeVisible();
     expect(container.querySelector("pre.diagram-code")).toHaveTextContent("A[Proposta] --> B[Emitir]");
     expect(screen.queryByTestId("drawing")).not.toBeInTheDocument();

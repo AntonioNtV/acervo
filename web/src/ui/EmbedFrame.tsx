@@ -95,7 +95,7 @@ export function EmbedFrame({
             title={provider}
             sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
             allowFullScreen
-            referrerPolicy="no-referrer"
+            referrerPolicy="strict-origin-when-cross-origin"
             className="size-full border-0"
           />
         )}
