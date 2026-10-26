@@ -13,6 +13,7 @@ from acervo.core.settings import Settings
 from acervo.repositories.uow import UnitOfWork
 from acervo.schemas.account import AccountRead
 from acervo.services.attachment_service import AttachmentService
+from acervo.services.auth_service import AuthService
 from acervo.services.base_service import BaseService
 from acervo.services.cover_service import CoverService
 from acervo.services.duplicate_service import DuplicateService
@@ -103,6 +104,14 @@ def get_session_service(
     uow: Annotated[UnitOfWork, Depends(get_uow)], settings: Annotated[Settings, Depends(get_settings)]
 ) -> SessionService:
     return SessionService(uow, settings.session_days)
+
+
+def get_auth_service(
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
+    sessions: Annotated[SessionService, Depends(get_session_service)],
+    mailer: Annotated[Mailer, Depends(get_mailer)],
+) -> AuthService:
+    return AuthService(uow, sessions, mailer)
 
 
 async def current_account(
