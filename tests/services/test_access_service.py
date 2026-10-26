@@ -20,9 +20,11 @@ MakeTree = Callable[..., Awaitable[Any]]
 
 
 @pytest.fixture
-async def access(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[AccessService]:
+async def access(uow: UnitOfWork, session: AsyncSession, people: dict[str, UUID]) -> AsyncIterator[AccessService]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        # Ana owns the team and her Pessoal, so every base of these tests is visible to the unit of work.
+        uow.act_as(people["Ana"])
         yield AccessService(uow)
 
 

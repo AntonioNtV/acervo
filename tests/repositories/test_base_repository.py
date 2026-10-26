@@ -22,9 +22,9 @@ def kbs(session: AsyncSession) -> KbRepository:
 
 @pytest.fixture
 async def organization(
-    make_account: Callable[..., Awaitable[Any]], make_organization: Callable[..., Awaitable[OrganizationRecord]]
+    default_account_id: uuid.UUID, make_organization: Callable[..., Awaitable[OrganizationRecord]]
 ) -> uuid.UUID:
-    return (await make_organization((await make_account()).id)).id
+    return (await make_organization(default_account_id)).id
 
 
 async def test_get_returns_what_create_wrote(kbs: KbRepository, organization: uuid.UUID) -> None:
@@ -84,11 +84,15 @@ async def test_unique_violation_raises_conflict_naming_the_constraint(
     assert raised.value.details == {"constraint": "uq_node_live_sibling_title"}
 
 
-async def test_uow_rolls_back_on_exception(uow: UnitOfWork, organization: uuid.UUID) -> None:
+async def test_uow_rolls_back_on_exception(
+    uow: UnitOfWork, organization: uuid.UUID, default_account_id: uuid.UUID
+) -> None:
     with pytest.raises(RuntimeError):
         async with uow:
+            uow.act_as(default_account_id)
             await uow.kbs.create(KbCreate(organization_id=organization, name="Seguros"))
             raise RuntimeError("boom")
 
     async with uow:
+        uow.act_as(default_account_id)
         assert await uow.kbs.count() == 0

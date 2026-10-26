@@ -1,6 +1,7 @@
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,9 +26,10 @@ class Services:
 
 
 @pytest.fixture
-async def services(uow: UnitOfWork, session: AsyncSession) -> AsyncIterator[Services]:
+async def services(uow: UnitOfWork, session: AsyncSession, default_account_id: UUID) -> AsyncIterator[Services]:
     # Asks for `session` so it closes after this unit of work: its savepoint encloses the unit of work's.
     async with uow:
+        uow.act_as(default_account_id)
         yield Services(DuplicateService(uow), PageService(uow), TreeService(uow))
 
 
