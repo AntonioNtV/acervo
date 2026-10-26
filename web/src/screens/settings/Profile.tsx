@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useErrorText } from "../../app/errors";
+import { useForgetAccount } from "../../app/lastPage";
 import {
   useConfirmEmailChange,
   useMe,
@@ -9,6 +11,7 @@ import {
   useSetPhoto,
   type Account,
 } from "../../data/account";
+import { useAccountOrganizations, useDeleteAccount } from "../../data/deletion";
 import { locale, useI18n } from "../../i18n";
 import { Avatar } from "../../ui/Avatar";
 import { Button } from "../../ui/Button";
@@ -16,6 +19,7 @@ import { CodeInput } from "../../ui/CodeInput";
 import { PhotoField } from "../../ui/PhotoField";
 import { needsReauth } from "../../data/security";
 import { AuthField } from "../auth/AuthCard";
+import { DeleteDialog } from "./DeleteDialog";
 import { useReauth } from "./ReauthDialog";
 import { SettingsPage, SettingsSection } from "./SettingsFrame";
 
@@ -174,7 +178,55 @@ function Email({ account }: { account: Account }) {
   );
 }
 
-/** `/conta/perfil`: photo, name and email, how other people see the person. */
+/** Excluir conta, after a recent sign-in; the account gone, the person is back on the sign-in screen. */
+function DeleteAccount({ account }: { account: Account }) {
+  const { t } = useI18n();
+  const errorText = useErrorText();
+  const navigate = useNavigate();
+  const forget = useForgetAccount();
+  const remove = useDeleteAccount();
+  const reauth = useReauth();
+  const organizations = useAccountOrganizations();
+  const [confirming, setConfirming] = useState(false);
+  const items = organizations && [
+    t("deletion.account.personal"),
+    ...organizations.sole.map((org) => t("deletion.account.sole", { name: org.name })),
+    t("deletion.account.stays"),
+    ...organizations.left.map((org) => t("deletion.account.leaves", { name: org.name })),
+  ];
+  const go = () =>
+    remove.mutate(undefined, {
+      onSuccess: () => {
+        // Replaced, and the account forgotten, as on signing out.
+        navigate("/entrar", { replace: true });
+        forget();
+      },
+      onError: (error) => reauth.ask(error, go),
+    });
+  return (
+    <SettingsSection
+      title={t("deletion.account")}
+      desc={t("deletion.account.desc")}
+      action={{ label: t("deletion.account"), onClick: () => setConfirming(true) }}
+    >
+      {confirming && (
+        <DeleteDialog
+          title={t("deletion.account.title")}
+          items={items}
+          match={account.email}
+          action={t("deletion.account")}
+          pending={remove.isPending}
+          error={remove.isError && !needsReauth(remove.error) ? errorText(remove.error) : undefined}
+          onDelete={go}
+          onClose={() => setConfirming(false)}
+        />
+      )}
+      {reauth.dialog}
+    </SettingsSection>
+  );
+}
+
+/** `/conta/perfil`: photo, name and email, how other people see the person, and Excluir conta. */
 export function Profile() {
   const { t } = useI18n();
   const account = useMe().data;
@@ -188,6 +240,7 @@ export function Profile() {
           <Email account={account} />
         </div>
       </SettingsSection>
+      <DeleteAccount account={account} />
     </SettingsPage>
   );
 }
