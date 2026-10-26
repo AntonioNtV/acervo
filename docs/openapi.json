@@ -221,6 +221,18 @@
             "format": "email",
             "title": "New Email",
             "type": "string"
+          },
+          "password": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The current password; required when the account has one.",
+            "title": "Password"
           }
         },
         "required": [

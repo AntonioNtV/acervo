@@ -1201,6 +1201,11 @@ export interface components {
              * Format: email
              */
             new_email: string;
+            /**
+             * Password
+             * @description The current password; required when the account has one.
+             */
+            password?: string | null;
         };
         /**
          * EmailCodeIn
